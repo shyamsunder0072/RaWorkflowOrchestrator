@@ -1606,6 +1606,7 @@ class Airflow(BaseView):
             t.task_id: {
                 'dag_id': t.dag_id,
                 'task_type': t.task_type,
+                'description': t.description,
             }
             for t in dag.tasks}
         if not tasks:

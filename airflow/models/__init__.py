@@ -678,6 +678,8 @@ class TaskInstance(Base, LoggingMixin):
     queued_dttm = Column(UtcDateTime)
     pid = Column(Integer)
     executor_config = Column(PickleType(pickler=dill))
+    description = Column(Text)
+
 
     __table_args__ = (
         Index('ti_dag_state', dag_id, state),
@@ -693,6 +695,10 @@ class TaskInstance(Base, LoggingMixin):
         self.task_id = task.task_id
         self.task = task
         self._log = logging.getLogger("airflow.task")
+        if task.description:
+            self.description = task.description
+        else:
+            self.description = ''
 
         # make sure we have a localized execution_date stored in UTC
         if execution_date and not timezone.is_localized(execution_date):
@@ -2094,6 +2100,8 @@ class BaseOperator(LoggingMixin):
             )
 
     :type executor_config: dict
+    :param description: description for the task
+    :type task_id: str
     """
 
     # For derived classes to define which fields will get jinjaified
@@ -2149,6 +2157,7 @@ class BaseOperator(LoggingMixin):
             executor_config=None,
             inlets=None,
             outlets=None,
+            description=None,
             *args,
             **kwargs):
 
@@ -2246,6 +2255,7 @@ class BaseOperator(LoggingMixin):
         self.inlets = []
         self.outlets = []
         self.lineage_data = None
+        self.description = description
 
         self._inlets = {
             "auto": False,
