@@ -100,14 +100,14 @@ function postAsForm(url, parameters) {
           <span class="icon-bar"></span>
         </button>
           <a class="navbar-brand" rel="home" href="{{ url_for('admin.index') }}" style="cursor: pointer;">
-              <img style="float: left; width:35px; margin-top: -7px;"
+              <img style="float: left; width:120px; "
                    src="{{ url_for("static", filename="pin_100.png") }}"
                    {% if current_user.user is defined %}
                       title="{{ current_user.user.username }}"
                    {% else %}
                       title="{{ current_user.username }}"
                    {% endif %}>
-              <span>Airflow</span>
+              <span></span>
           </a>
       </div>
       <!-- navbar content -->

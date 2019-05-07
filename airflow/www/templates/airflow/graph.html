@@ -270,7 +270,7 @@
                     .attr("data-toggle", "tooltip")
                     .attr("data-original-title", function(d) {
                         tt = "";
-                        tt += "Description:" + escapeHtml(task.description) + "<br>";
+                        tt += "Description: " + escapeHtml(task.description) + "<br>";
                         return tt;
                     });
             }
@@ -307,7 +307,7 @@
               tt += "Duration: " + escapeHtml(ti.duration) + "<br>";
               tt += "State: " + escapeHtml(ti.state) + "<br>";
               if(ti.description != ''){
-                tt += "Description:" + escapeHtml(ti.description) + "<br>";
+                tt += "Description: " + escapeHtml(ti.description) + "<br>";
               }
               return tt;
             });
