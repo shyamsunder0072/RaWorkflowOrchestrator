@@ -28,6 +28,7 @@ import json
 import logging
 import math
 import os
+import ConfigParser as CP
 import traceback
 from collections import defaultdict
 from datetime import timedelta
@@ -1515,6 +1516,7 @@ class Airflow(BaseView):
                 'end_date': task.end_date,
                 'depends_on_past': task.depends_on_past,
                 'ui_color': task.ui_color,
+                'run_dag_id': task.run_dag_id,
             }
 
         data = {
@@ -1607,6 +1609,7 @@ class Airflow(BaseView):
                 'dag_id': t.dag_id,
                 'task_type': t.task_type,
                 'description': t.description,
+                'run_dag_id': t.run_dag_id,
             }
             for t in dag.tasks}
         if not tasks:
@@ -2173,7 +2176,10 @@ class HomeView(AdminIndexView):
         for row in query.with_entities(DM.dag_id, DM.owners):
             auto_complete_data.add(row.dag_id)
             auto_complete_data.add(row.owners)
-
+        if "COUTURE_WORKFLOW_USER" in os.environ:
+            user = os.environ['COUTURE_WORKFLOW_USER']
+        else:
+            user = ''
         return self.render(
             'airflow/dags.html',
             dags=dags,
@@ -2188,7 +2194,8 @@ class HomeView(AdminIndexView):
             paging=wwwutils.generate_pages(current_page, num_of_pages,
                                            search=arg_search_query,
                                            showPaused=not hide_paused),
-            auto_complete_data=auto_complete_data)
+            auto_complete_data=auto_complete_data,
+            user=user)
 
 
 class QueryView(wwwutils.DataProfilingMixin, BaseView):
@@ -3083,6 +3090,56 @@ class ConfigurationView(wwwutils.SuperUserMixin, BaseView):
                 pre_subtitle=settings.HEADER + "  v" + airflow.__version__,
                 code_html=code_html, title=title, subtitle=subtitle,
                 table=table)
+
+
+class CoutureConfView(wwwutils.SuperUserMixin, BaseView):
+    @expose('/', methods=['GET', 'POST'])
+    def conf(self):
+        import collections
+        from airflow.configuration import AIRFLOW_HOME
+        config = CP.ConfigParser()
+        config.optionxform = str
+        conf_path = AIRFLOW_HOME + '/couture-spark.conf'
+        config.read(filenames=conf_path)
+        arguments = collections.OrderedDict(config.items('arguments'))  # orderedDictionary used so that the order displayed is same as in file
+        configs = collections.OrderedDict(config.items('configurations'))  # dictionary created
+        title = "Couture Configuration"
+
+        if request.method == 'POST':
+            for i in arguments:
+                config.set('arguments', i, request.form[arguments[i]])
+
+            for j in configs:
+                config.set('configurations', j, request.form[configs[j]])
+
+            # to handle the scenario when the new field(for new option) has not been added in form
+            try:
+                opt_title = request.form['option_title']
+                opt_value = request.form['option_value']
+                if len(opt_title) != 0 and len(opt_value) != 0:  # for not adding empty fields in file
+                    config.set('arguments', request.form['option_title'], request.form['option_value'])  # adding the new name and value in file
+            except:
+                print("Sorry ! No field found ")
+
+            try:
+                opt_title_config = request.form['option_title_config']
+                opt_value_config = request.form['option_value_config']
+                if len(opt_title_config) != 0 and len(opt_value_config) != 0:  # for not adding empty fields in file
+                    config.set('configurations', request.form['option_title_config'], request.form['option_value_config'])  # adding the new name and value in file
+            except:
+                print("Sorry ! No field found ")
+
+            # writing all the changes to the file
+            with open(conf_path, 'w') as configfile:
+                config.write(configfile)
+
+            new_args = collections.OrderedDict(config.items('arguments'))
+            new_config = collections.OrderedDict(config.items('configurations'))
+            return self.render(
+                'airflow/couture_config.html', title=title, Arguments=new_args, Configurations=new_config)
+        else:
+            return self.render(
+                'airflow/couture_config.html', title=title, len=len(arguments), Arguments=arguments, Configurations=configs)
 
 
 class DagModelView(wwwutils.SuperUserMixin, ModelView):

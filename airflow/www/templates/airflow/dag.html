@@ -140,6 +140,12 @@
               </button>
               <hr/>
           </div>
+          <div id="div_btn_rundag">
+            <button id="btn_rundag" type="button" class="btn btn-primary">
+              Zoom into DAG
+            </button>
+            <hr/>
+          </div>
           <button id="btn_task" type="button" class="btn btn-primary">
             Task Instance Details
           </button>
@@ -342,23 +348,31 @@ function updateQueryStringParameter(uri, key, value) {
     var task_id = '';
     var exection_date = '';
     var subdag_id = '';
-    function call_modal(t, d, try_numbers, sd) {
+    var rundag_id = '';
+    function call_modal(t, d, try_numbers, sd, run_dag_id, rd) {
       task_id = t;
       loc = String(window.location);
       $("#btn_filter").on("click", function(){
         window.location = updateQueryStringParameter(loc, "root", task_id);
       });
       subdag_id = sd;
+      rundag_id = rd;
       execution_date = d;
       $('#task_id').html(t);
       $('#execution_date').html(d);
       $('#myModal').modal({});
       $("#myModal").css("margin-top","0px")
-      if (subdag_id === undefined)
+      if (subdag_id === undefined || subdag_id === false)
           $("#div_btn_subdag").hide();
       else {
           $("#div_btn_subdag").show();
           subdag_id = "{{ dag.dag_id }}."+t;
+      }
+      if (rundag_id === undefined)
+          $("#div_btn_rundag").hide();
+      else {
+          $("#div_btn_rundag").show();
+          rundag_id = run_dag_id;
       }
 
       $("#try_index > li").remove();
@@ -423,6 +437,13 @@ function updateQueryStringParameter(uri, key, value) {
     $("#btn_subdag").click(function(){
       url = "{{ url_for( 'airflow.' + dag.get_default_view() ) }}" +
         "?dag_id=" + encodeURIComponent(subdag_id) +
+        "&execution_date=" + encodeURIComponent(execution_date);
+      window.location = url;
+    });
+
+    $("#btn_rundag").click(function(){
+      url = "{{ url_for( 'airflow.' + dag.get_default_view() ) }}" +
+        "?dag_id=" + encodeURIComponent(rundag_id) +
         "&execution_date=" + encodeURIComponent(execution_date);
       window.location = url;
     });

@@ -134,6 +134,8 @@
         task = tasks[d];
         if (task.task_type == "SubDagOperator")
             call_modal(d, execution_date, task_instances[d].try_number, true);
+        else if (task.task_type == "DagOperator")
+            call_modal(d, execution_date, task_instances[d].try_number, false, task.run_dag_id,  true);
         else
             call_modal(d, execution_date,task_instances[d].try_number);
     });

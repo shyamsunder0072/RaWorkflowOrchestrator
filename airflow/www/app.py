@@ -90,13 +90,6 @@ def create_app(config=None, testing=False):
         vs = views
         av(vs.Airflow(name='DAGs', category='DAGs'))
 
-        if not conf.getboolean('core', 'secure_mode'):
-            av(vs.QueryView(name='Ad Hoc Query', category="Data Profiling"))
-            av(vs.ChartModelView(
-                models.Chart, Session, name="Charts", category="Data Profiling"))
-        av(vs.KnownEventView(
-            models.KnownEvent,
-            Session, name="Known Events", category="Data Profiling"))
         av(vs.SlaMissModelView(
             models.SlaMiss,
             Session, name="SLA Misses", category="Browse"))
@@ -110,6 +103,8 @@ def create_app(config=None, testing=False):
             models.Pool, Session, name="Pools", category="Admin"))
         av(vs.ConfigurationView(
             name='Configuration', category="Admin"))
+        av(vs.CoutureConfView(
+            name="Couture Configuration", category="Admin"))
         av(vs.UserModelView(
             models.User, Session, name="Users", category="Admin"))
         av(vs.ConnectionModelView(
@@ -118,16 +113,6 @@ def create_app(config=None, testing=False):
             models.Variable, Session, name="Variables", category="Admin"))
         av(vs.XComView(
             models.XCom, Session, name="XComs", category="Admin"))
-
-        admin.add_link(base.MenuLink(
-            category='Docs', name='Documentation',
-            url='https://airflow.apache.org/'))
-        admin.add_link(
-            base.MenuLink(category='Docs',
-                          name='GitHub',
-                          url='https://github.com/apache/airflow'))
-
-        av(vs.VersionView(name='Version', category="About"))
 
         av(vs.DagRunModelView(
             models.DagRun, Session, name="DAG Runs", category="Browse"))

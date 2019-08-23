@@ -2158,6 +2158,7 @@ class BaseOperator(LoggingMixin):
             inlets=None,
             outlets=None,
             description=None,
+            run_dag_id=None,
             *args,
             **kwargs):
 
@@ -2256,6 +2257,7 @@ class BaseOperator(LoggingMixin):
         self.outlets = []
         self.lineage_data = None
         self.description = description
+        self.run_dag_id = run_dag_id
 
         self._inlets = {
             "auto": False,

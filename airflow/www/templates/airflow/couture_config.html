@@ -1,0 +1,196 @@
+{% extends "airflow/master.html" %}
+{% block title %}
+{{ title }}
+{% endblock %}
+
+{% block head_css %}
+{{ super() }}
+
+<style>
+* {
+  box-sizing: border-box;
+}
+
+input[type=text], select, textarea {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  resize: vertical;
+}
+
+.couturelabel {
+  padding: 12px 12px 12px 0;
+  display: inline-block;
+  word-wrap: break-word;
+  max-width: 280px;
+}
+
+
+input[type=submit] {
+  background-color: #4CAF50;
+  color: white;
+  padding: 12px 20px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-left: 500px;
+  margin-top: 10px;
+  text-align: center;
+  text-decoration: none;
+  display: inline-block;
+}
+
+.couturebutton {
+  background-color: #4CAF50;
+  border: none;
+  border-radius: 4px;
+  color: white;
+  padding: 12px 20px;
+  cursor: pointer;
+  float: right;
+  text-align: center;
+  text-decoration: none;
+  display: inline-block;
+  margin-left: 5px;
+  margin-top: 10px;
+}
+
+input[type=submit]:hover {
+  background-color: #45a049;
+}
+
+.ccontainer {
+  border-radius: 5px;
+  background-color: #f2f2f2;
+  padding: 20px;
+}
+
+.couturecol-25 {
+  float: left;
+  width: 25%;
+  margin-top: 6px;
+}
+
+.couturecol-20 {
+  float: left;
+  width: 20%;
+  margin-top: 6px;
+}
+
+.couturecol-75 {
+  float: right;
+  width: 75%;
+  margin-top: 6px;
+}
+
+/* Clear floats after the columns */
+.couturerow:after {
+  content: "";
+  display: table;
+  clear: both;
+}
+
+/* Responsive layout - when the screen is less than 600px wide, make the two columns stack on top of each other instead of next to each other */
+@media screen and (max-width: 600px) {
+  .couturecol-25, .couturecol-75, input[type=submit] {
+    width: 100%;
+    margin-top: 0;
+  }
+}
+</style>
+
+{% endblock %}
+
+
+{% block body %}
+{{ super() }}
+
+
+
+<div class="ccontainer">
+  <form action="", method="post" >
+    <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
+    <h2>Arguments</h2>
+    <div id="container1">
+      {%for i in Arguments%}
+      <div class="couturerow">
+        <div class="couturecol-25">
+          <label for={{i}} class="couturelabel">{{i}}</label>
+        </div>
+        <div class="couturecol-75">
+          <input id={{i}} name={{Arguments[i]}} type="text" value={{Arguments[i]}}>
+        </div>
+      </div>
+      {%endfor%}
+    </div>
+    <div class="couturerow">
+      <a href="javascript:add_feed()" class="couturebutton">Add In Arguments</a>
+    </div>
+    <h2>Configurations</h2>
+    <div id="container2">
+      {%for j in Configurations%}
+      <div class="couturerow">
+        <div class="couturecol-25">
+          <label for={{j}}  class="couturelabel">{{j}}</label>
+        </div>
+        <div class="couturecol-75">
+          <input id={{j}} name={{Configurations[j]}} type="text" value={{Configurations[j]}}>
+        </div>
+      </div>
+      {%endfor%}
+    </div>
+    <div class="couturerow">
+      <a href="javascript:add_feed_config()" class="couturebutton">Add In Configurations</a>
+      <input type="submit" value="Submit">
+    </div>
+  </form>
+</div>
+
+<!-- Template begins-->
+<div class="ccontainer" id="newfield_for_contaner1" style="display:none">
+  <div class="couturerow">
+    <div class="couturecol-20">
+      <input name="option_title" type="text" value="" placeholder="Enter name">
+    </div>
+    <div class="couturecol-75">
+      <input name="option_value" type="text" value="" placeholder="Enter value">
+    </div>
+  </div>
+</div>
+<!-- Template ends -->
+
+<!-- Template begins-->
+<div class="ccontainer" id="newfield_for_contaner2" style="display:none">
+  <div class="couturerow">
+    <div class="couturecol-20">
+      <input name="option_title_config" type="text" value="" placeholder="Enter name">
+    </div>
+    <div class="couturecol-75">
+      <input name="option_value_config" type="text" value="" placeholder="Enter value">
+    </div>
+  </div>
+</div>
+<!-- Template ends -->
+
+
+{% endblock %}
+
+{% block tail_js %}
+{{ super() }}
+<script type="text/javascript">
+function add_feed()
+{
+	var div1 = document.createElement('div');
+	div1.innerHTML = document.getElementById('newfield_for_contaner1').innerHTML;
+	document.getElementById('container1').appendChild(div1);
+}
+function add_feed_config()
+{
+	var div1 = document.createElement('div');
+	div1.innerHTML = document.getElementById('newfield_for_contaner2').innerHTML;
+	document.getElementById('container2').appendChild(div1);
+}
+</script>
+
+{% endblock %}

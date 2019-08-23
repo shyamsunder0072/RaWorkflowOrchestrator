@@ -91,7 +91,8 @@ _operators = {
     'mssql_to_hive': ['MsSqlToHiveTransfer'],
     'slack_operator': ['SlackAPIOperator', 'SlackAPIPostOperator'],
     'generic_transfer': ['GenericTransfer'],
-    'oracle_operator': ['OracleOperator']
+    'oracle_operator': ['OracleOperator'],
+    'dag_operator': ['DagOperator']
 }
 
 if not os.environ.get('AIRFLOW_USE_NEW_IMPORTS', False):
