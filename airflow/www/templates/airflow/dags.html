@@ -26,11 +26,7 @@
 {% endblock %}
 
 {% block body %}
-  {% if not user %}
-  <h2>DAGs</h2>
-  {% else %}
-  <h2><span> {{ user }}</span><span> - DAGs </span> </h2>
-  {% endif %}
+  <h2>{% if user %} {{ user }} - DAGs {% else %} DAGs {% endif %}</h2>
 
   <div id="main_content">
     <div class="row">

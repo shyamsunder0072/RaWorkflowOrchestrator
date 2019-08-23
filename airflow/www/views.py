@@ -28,7 +28,7 @@ import json
 import logging
 import math
 import os
-import ConfigParser as CP
+import configparser as CP
 import traceback
 from collections import defaultdict
 from datetime import timedelta
@@ -2176,10 +2176,11 @@ class HomeView(AdminIndexView):
         for row in query.with_entities(DM.dag_id, DM.owners):
             auto_complete_data.add(row.dag_id)
             auto_complete_data.add(row.owners)
+
+        user = None
         if "COUTURE_WORKFLOW_USER" in os.environ:
             user = os.environ['COUTURE_WORKFLOW_USER']
-        else:
-            user = ''
+
         return self.render(
             'airflow/dags.html',
             dags=dags,
