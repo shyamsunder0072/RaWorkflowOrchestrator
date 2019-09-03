@@ -15,6 +15,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Optional
 import socket
 import subprocess
 import sys
@@ -22,7 +23,7 @@ import time
 
 from airflow import configuration, LoggingMixin
 
-NEED_KRB181_WORKAROUND = None
+NEED_KRB181_WORKAROUND = None  # type: Optional[bool]
 
 log = LoggingMixin().log
 
@@ -97,7 +98,7 @@ def perform_krb181_workaround(principal):
         sys.exit(ret)
 
 
-def detect_conf_var():
+def detect_conf_var() -> bool:
     """Return true if the ticket cache contains "conf" information as is found
     in ticket caches of Kerberos 1.8.1 or later. This is incompatible with the
     Sun Java Krb5LoginModule in Java6, so we need to take an action to work
@@ -105,9 +106,9 @@ def detect_conf_var():
     """
     ticket_cache = configuration.conf.get('kerberos', 'ccache')
 
-    with open(ticket_cache, 'rb') as f:
+    with open(ticket_cache, 'rb') as file:
         # Note: this file is binary, so we check against a bytearray.
-        return b'X-CACHECONF:' in f.read()
+        return b'X-CACHECONF:' in file.read()
 
 
 def run(principal, keytab):

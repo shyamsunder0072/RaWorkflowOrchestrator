@@ -24,7 +24,8 @@ implement their own login mechanisms by providing an `airflow_login` module
 in their PYTHONPATH. airflow_login should be based off the
 `airflow.www.login`
 """
-from builtins import object
+
+from typing import Optional, Callable
 from airflow import version
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -39,10 +40,10 @@ from airflow.exceptions import AirflowException
 
 settings.initialize()
 
-login = None
+login = None  # type: Optional[Callable]
 
 
-class AirflowMacroPlugin(object):
+class AirflowMacroPlugin:
     def __init__(self, namespace):
         self.namespace = namespace
 

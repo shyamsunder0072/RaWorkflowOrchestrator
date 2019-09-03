@@ -25,7 +25,7 @@ import time
 from airflow.hooks.base_hook import BaseHook
 from airflow.exceptions import AirflowException
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.contrib.kubernetes import kube_client
+from airflow.kubernetes import kube_client
 
 
 class SparkSubmitHook(BaseHook, LoggingMixin):
@@ -114,7 +114,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                  application_args=None,
                  env_vars=None,
                  verbose=False,
-                 spark_binary="spark-submit"):
+                 spark_binary=None):
         self._conf = conf
         self._conn_id = conn_id
         self._files = files
@@ -170,7 +170,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                      'queue': None,
                      'deploy_mode': None,
                      'spark_home': None,
-                     'spark_binary': self._spark_binary,
+                     'spark_binary': self._spark_binary or "spark-submit",
                      'namespace': 'default'}
 
         try:
@@ -187,10 +187,11 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             conn_data['queue'] = extra.get('queue', None)
             conn_data['deploy_mode'] = extra.get('deploy-mode', None)
             conn_data['spark_home'] = extra.get('spark-home', None)
-            conn_data['spark_binary'] = extra.get('spark-binary', "spark-submit")
+            conn_data['spark_binary'] = self._spark_binary or  \
+                extra.get('spark-binary', "spark-submit")
             conn_data['namespace'] = extra.get('namespace', 'default')
         except AirflowException:
-            self.log.debug(
+            self.log.info(
                 "Could not load connection string %s, defaulting to %s",
                 self._conn_id, conn_data['master']
             )
@@ -423,10 +424,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                     self.log.info("identified spark driver id: {}"
                                   .format(self._driver_id))
 
-            else:
-                self.log.info(line)
-
-            self.log.debug("spark submit log: {}".format(line))
+            self.log.info(line)
 
     def _process_spark_status_log(self, itr):
         """

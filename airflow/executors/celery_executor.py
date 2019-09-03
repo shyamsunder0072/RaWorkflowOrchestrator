@@ -72,7 +72,7 @@ def execute_command(command_to_exec):
         raise AirflowException('Celery command failed')
 
 
-class ExceptionWithTraceback(object):
+class ExceptionWithTraceback:
     """
     Wrapper class used to propagate exceptions to parent processes from subprocesses.
 
@@ -112,7 +112,7 @@ def fetch_celery_task_state(celery_task):
 
 
 def send_task_to_executor(task_tuple):
-    key, simple_ti, command, queue, task = task_tuple
+    key, _, command, queue, task = task_tuple
     try:
         with timeout(seconds=2):
             result = task.apply_async(args=[command], queue=queue)
@@ -175,17 +175,13 @@ class CeleryExecutor(BaseExecutor):
         return max(1,
                    int(math.ceil(1.0 * len(self.tasks) / self._sync_parallelism)))
 
-    def heartbeat(self):
-        # Triggering new jobs
-        if not self.parallelism:
-            open_slots = len(self.queued_tasks)
-        else:
-            open_slots = self.parallelism - len(self.running)
+    def trigger_tasks(self, open_slots):
+        """
+        Overwrite trigger_tasks function from BaseExecutor
 
-        self.log.debug("%s running task instances", len(self.running))
-        self.log.debug("%s in queue", len(self.queued_tasks))
-        self.log.debug("%s open slots", open_slots)
-
+        :param open_slots: Number of open slots
+        :return:
+        """
         sorted_queue = sorted(
             [(k, v) for k, v in self.queued_tasks.items()],
             key=lambda x: x[1][1],
@@ -193,7 +189,7 @@ class CeleryExecutor(BaseExecutor):
 
         task_tuples_to_send = []
 
-        for i in range(min((open_slots, len(self.queued_tasks)))):
+        for _ in range(min((open_slots, len(self.queued_tasks)))):
             key, (command, _, queue, simple_ti) = sorted_queue.pop(0)
             task_tuples_to_send.append((key, simple_ti, command, queue,
                                         execute_command))
@@ -235,10 +231,6 @@ class CeleryExecutor(BaseExecutor):
                     self.running[key] = command
                     self.tasks[key] = result
                     self.last_state[key] = celery_states.PENDING
-
-        # Calling child class sync method
-        self.log.debug("Calling the %s sync method", self.__class__)
-        self.sync()
 
     def sync(self):
         num_processes = min(len(self.tasks), self._sync_parallelism)

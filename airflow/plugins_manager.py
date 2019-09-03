@@ -17,7 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from builtins import object
 import imp
 import inspect
 import os
@@ -38,7 +37,7 @@ class AirflowPluginException(Exception):
     pass
 
 
-class AirflowPlugin(object):
+class AirflowPlugin:
     name = None  # type: str
     operators = []  # type: List[Any]
     sensors = []  # type: List[Any]
@@ -73,7 +72,6 @@ class AirflowPlugin(object):
         :param args: If future arguments are passed in on call.
         :param kwargs: If future arguments are passed in on call.
         """
-        pass
 
 
 def load_entrypoint_plugins(entry_points, airflow_plugins):
@@ -121,6 +119,9 @@ def is_valid_plugin(plugin_obj, existing_plugins):
 plugins = []  # type: List[AirflowPlugin]
 
 norm_pattern = re.compile(r'[/|.]')
+
+if settings.PLUGINS_FOLDER is None:
+    raise AirflowPluginException("Plugins folder is not set")
 
 # Crawl through the plugins folder to find AirflowPlugin derivatives
 for root, dirs, files in os.walk(settings.PLUGINS_FOLDER, followlinks=True):

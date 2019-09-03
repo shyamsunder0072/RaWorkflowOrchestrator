@@ -19,9 +19,9 @@
 #
 
 import os
+import pathlib
 import time
 import datetime
-import six
 import re
 
 from airflow.exceptions import AirflowException
@@ -177,7 +177,7 @@ class QuboleHook(BaseHook):
                 configuration.conf.get('core', 'BASE_LOG_FOLDER')
             )
             resultpath = logpath + '/' + self.dag_id + '/' + self.task_id + '/results'
-            configuration.mkdir_p(resultpath)
+            pathlib.Path(resultpath).mkdir(parents=True, exist_ok=True)
             fp = open(resultpath + '/' + iso, 'wb')
 
         if self.cmd is None:
@@ -242,7 +242,7 @@ class QuboleHook(BaseHook):
                 elif k in positional_args_list:
                     inplace_args = v
                 elif k == 'tags':
-                    if isinstance(v, six.string_types):
+                    if isinstance(v, str):
                         tags.add(v)
                     elif isinstance(v, (list, tuple)):
                         for val in v:

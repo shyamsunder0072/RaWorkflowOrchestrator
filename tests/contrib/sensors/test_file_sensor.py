@@ -22,7 +22,6 @@ import unittest
 import shutil
 import tempfile
 
-from airflow import configuration
 from airflow import models, DAG
 from airflow.exceptions import AirflowSensorTimeout
 from airflow.contrib.sensors.file_sensor import FileSensor
@@ -31,7 +30,6 @@ from airflow.utils.timezone import datetime
 
 TEST_DAG_ID = 'unit_tests'
 DEFAULT_DATE = datetime(2015, 1, 1)
-configuration.load_test_config()
 
 
 def reset(dag_id=TEST_DAG_ID):
@@ -45,9 +43,8 @@ def reset(dag_id=TEST_DAG_ID):
 reset()
 
 
-class FileSensorTest(unittest.TestCase):
+class TestFileSensor(unittest.TestCase):
     def setUp(self):
-        configuration.load_test_config()
         from airflow.contrib.hooks.fs_hook import FSHook
         hook = FSHook()
         args = {
