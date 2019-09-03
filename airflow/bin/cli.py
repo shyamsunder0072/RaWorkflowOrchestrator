@@ -70,11 +70,12 @@ from airflow.www_rbac.app import create_app as create_app_rbac
 from airflow.www_rbac.app import cached_appbuilder
 
 from sqlalchemy.orm import exc
+import six
 
 api.load_auth()
 api_module = import_module(conf.get('cli', 'api_client'))  # type: Any
 api_client = api_module.Client(api_base_url=conf.get('cli', 'endpoint_url'),
-                               auth=api.api_auth.client_auth)
+                               auth=api.API_AUTH.api_auth.CLIENT_AUTH)
 
 log = LoggingMixin().log
 
@@ -370,18 +371,18 @@ def import_helper(filepath):
     except Exception:
         print("Invalid variables file.")
     else:
-        try:
-            n = 0
-            for k, v in d.items():
-                if isinstance(v, dict):
-                    Variable.set(k, v, serialize_json=True)
-                else:
-                    Variable.set(k, v)
-                n += 1
-        except Exception:
-            pass
-        finally:
-            print("{} of {} variables successfully updated.".format(n, len(d)))
+        suc_count = fail_count = 0
+        for k, v in d.items():
+            try:
+                Variable.set(k, v, serialize_json=not isinstance(v, six.string_types))
+            except Exception as e:
+                print('Variable import failed: {}'.format(repr(e)))
+                fail_count += 1
+            else:
+                suc_count += 1
+        print("{} of {} variables successfully updated.".format(suc_count, len(d)))
+        if fail_count:
+            print("{} variable(s) failed to be updated.".format(fail_count))
 
 
 def export_helper(filepath):
@@ -403,24 +404,21 @@ def export_helper(filepath):
 
 
 @cli_utils.action_logging
-def pause(args, dag=None):
-    set_is_paused(True, args, dag)
+def pause(args):
+    set_is_paused(True, args)
 
 
 @cli_utils.action_logging
-def unpause(args, dag=None):
-    set_is_paused(False, args, dag)
+def unpause(args):
+    set_is_paused(False, args)
 
 
-def set_is_paused(is_paused, args, dag=None):
-    dag = dag or get_dag(args)
+def set_is_paused(is_paused, args):
+    DagModel.get_dagmodel(args.dag_id).set_is_paused(
+        is_paused=is_paused,
+    )
 
-    with db.create_session() as session:
-        dm = session.query(DagModel).filter(DagModel.dag_id == dag.dag_id).first()
-        dm.is_paused = is_paused
-        session.commit()
-
-    print("Dag: {}, paused: {}".format(dag, str(dag.is_paused)))
+    print("Dag: {}, paused: {}".format(args.dag_id, str(is_paused)))
 
 
 def _run(args, dag, ti):
@@ -842,6 +840,7 @@ def restart_workers(gunicorn_master_proc, num_workers_expected, master_timeout):
 
 @cli_utils.action_logging
 def webserver(args):
+    py2_deprecation_waring()
     print(settings.HEADER)
 
     access_logfile = args.access_logfile or conf.get('webserver', 'access_logfile')
@@ -977,6 +976,7 @@ def webserver(args):
 
 @cli_utils.action_logging
 def scheduler(args):
+    py2_deprecation_waring()
     print(settings.HEADER)
     job = jobs.SchedulerJob(
         dag_id=args.dag_id,
@@ -1060,6 +1060,9 @@ def worker(args):
         'loglevel': conf.get('core', 'LOGGING_LEVEL'),
     }
 
+    if conf.has_option("celery", "pool"):
+        options["pool"] = conf.get("celery", "pool")
+
     if args.daemon:
         pid, stdout, stderr, log_file = setup_locations("worker",
                                                         args.pid,
@@ -1094,12 +1097,14 @@ def worker(args):
 
 
 def initdb(args):  # noqa
+    py2_deprecation_waring()
     print("DB: " + repr(settings.engine.url))
     db.initdb(settings.RBAC)
     print("Done.")
 
 
 def resetdb(args):
+    py2_deprecation_waring()
     print("DB: " + repr(settings.engine.url))
     if args.yes or input("This will drop existing tables "
                          "if they exist. Proceed? "
@@ -1111,12 +1116,14 @@ def resetdb(args):
 
 @cli_utils.action_logging
 def upgradedb(args):  # noqa
+    py2_deprecation_waring()
     print("DB: " + repr(settings.engine.url))
     db.upgradedb()
 
 
 @cli_utils.action_logging
 def version(args):  # noqa
+    py2_deprecation_waring()
     print(settings.HEADER + "  v" + airflow.__version__)
 
 
@@ -2148,3 +2155,48 @@ class CLIFactory(object):
 
 def get_parser():
     return CLIFactory.get_parser()
+
+
+def py2_deprecation_waring():
+
+    if sys.version_info[0] != 2:
+        return
+
+    stream = sys.stderr
+    try:
+        from pip._vendor import colorama
+        WINDOWS = (sys.platform.startswith("win") or
+                   (sys.platform == 'cli' and os.name == 'nt'))
+        if WINDOWS:
+            stream = colorama.AnsiToWin32(sys.stderr)
+    except Exception:
+        colorama = None
+
+    def should_color():
+        # Don't colorize things if we do not have colorama or if told not to
+        if not colorama:
+            return False
+
+        real_stream = (
+            stream if not isinstance(stream, colorama.AnsiToWin32)
+            else stream.wrapped
+        )
+
+        # If the stream is a tty we should color it
+        if hasattr(real_stream, "isatty") and real_stream.isatty():
+            return True
+
+        if os.environ.get("TERM") and "color" in os.environ.get("TERM"):
+            return True
+
+        # If anything else we should not color it
+        return False
+
+    msg = (
+        "DEPRECATION: Python 2.7 will reach the end of its life on January 1st, 2020. Airflow 1.10 "
+        "will be the last release series to support Python 2\n"
+    )
+    if should_color():
+        msg = "".join([colorama.Fore.YELLOW, msg, colorama.Style.RESET_ALL])
+    stream.write(msg)
+    stream.flush()

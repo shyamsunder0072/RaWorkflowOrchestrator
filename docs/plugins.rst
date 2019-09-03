@@ -1,4 +1,4 @@
-..  Licensed to the Apache Software Foundation (ASF) under one
+ .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
     regarding copyright ownership.  The ASF licenses this file
@@ -6,14 +6,16 @@
     "License"); you may not use this file except in compliance
     with the License.  You may obtain a copy of the License at
 
-..    http://www.apache.org/licenses/LICENSE-2.0
+ ..   http://www.apache.org/licenses/LICENSE-2.0
 
-..  Unless required by applicable law or agreed to in writing,
+ .. Unless required by applicable law or agreed to in writing,
     software distributed under the License is distributed on an
     "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
     KIND, either express or implied.  See the License for the
     specific language governing permissions and limitations
     under the License.
+
+
 
 Plugins
 =======
@@ -98,6 +100,14 @@ looks like:
         # A list of dictionaries containing FlaskAppBuilder BaseView object and some metadata. See example below
         appbuilder_menu_items = []
 
+        # A list of global operator extra links that can redirect users to
+        # external systems. These extra links will be available on the
+        # task page in the form of buttons.
+        #
+        # Note: the global operator extra link can be overridden at each
+        # operator level.
+        global_operator_extra_links = []
+
 
 
 You can derive it by inheritance (please refer to the example below).
@@ -122,6 +132,8 @@ For example,
 Make sure you restart the webserver and scheduler after making changes to plugins so that they take effect.
 
 
+.. _plugin-example:
+
 Example
 -------
 
@@ -140,6 +152,7 @@ definitions in Airflow.
     # Importing base classes that we need to derive
     from airflow.hooks.base_hook import BaseHook
     from airflow.models import BaseOperator
+    from airflow.models.baseoperator import BaseOperatorLink
     from airflow.sensors.base_sensor_operator import BaseSensorOperator
     from airflow.executors.base_executor import BaseExecutor
 
@@ -200,6 +213,19 @@ definitions in Airflow.
                         "category_icon": "fa-th",
                         "href": "https://www.google.com"}
 
+    # A global operator extra link that redirect you to
+    # task logs stored in S3
+    class S3LogLink(BaseOperatorLink):
+        name = 'S3'
+
+        def get_link(self, operator, dttm):
+            return 'https://s3.amazonaws.com/airflow-logs/{dag_id}/{task_id}/{execution_date}'.format(
+                dag_id=operator.dag_id,
+                task_id=operator.task_id,
+                execution_date=dttm,
+            )
+
+
     # Defining the plugin class
     class AirflowTestPlugin(AirflowPlugin):
         name = "test_plugin"
@@ -213,6 +239,7 @@ definitions in Airflow.
         menu_links = [ml]
         appbuilder_views = [v_appbuilder_package]
         appbuilder_menu_items = [appbuilder_mitem]
+        global_operator_extra_links = [S3LogLink(),]
 
 
 Note on role based views

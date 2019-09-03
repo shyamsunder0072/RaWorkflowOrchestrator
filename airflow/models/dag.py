@@ -29,7 +29,7 @@ import traceback
 import warnings
 from collections import OrderedDict, defaultdict
 from datetime import timedelta, datetime
-from typing import Union, Optional, Iterable, Dict, Type, Callable
+from typing import Union, Optional, Iterable, Dict, Type, Callable, List
 
 import jinja2
 import pendulum
@@ -165,7 +165,22 @@ class DAG(BaseDag, LoggingMixin):
     :param access_control: Specify optional DAG-level permissions, e.g.,
         "{'role1': {'can_dag_read'}, 'role2': {'can_dag_read', 'can_dag_edit'}}"
     :type access_control: dict
+    :param is_paused_upon_creation: Specifies if the dag is paused when created for the first time.
+        If the dag exists already, this flag will be ignored. If this optional parameter
+        is not specified, the global config setting will be used.
+    :type is_paused_upon_creation: bool or None
     """
+
+    _comps = {
+        'dag_id',
+        'task_ids',
+        'parent_dag',
+        'start_date',
+        'schedule_interval',
+        'full_filepath',
+        'template_searchpath',
+        'last_loaded',
+    }
 
     def __init__(
         self,
@@ -192,11 +207,12 @@ class DAG(BaseDag, LoggingMixin):
         on_failure_callback=None,  # type: Optional[Callable]
         doc_md=None,  # type: Optional[str]
         params=None,  # type: Optional[Dict]
-        access_control=None  # type: Optional[Dict]
+        access_control=None,  # type: Optional[Dict]
+        is_paused_upon_creation=None,  # type: Optional[bool]
     ):
         self.user_defined_macros = user_defined_macros
         self.user_defined_filters = user_defined_filters
-        self.default_args = default_args or {}
+        self.default_args = copy.deepcopy(default_args or {})
         self.params = params or {}
 
         # merging potentially conflicting default_args['params'] into params
@@ -217,7 +233,7 @@ class DAG(BaseDag, LoggingMixin):
         self.fileloc = sys._getframe().f_back.f_code.co_filename
         self.task_dict = dict()  # type: Dict[str, TaskInstance]
 
-        # set timezone
+        # set timezone from start_date
         if start_date and start_date.tzinfo:
             self.timezone = start_date.tzinfo
         elif 'start_date' in self.default_args and self.default_args['start_date']:
@@ -229,6 +245,13 @@ class DAG(BaseDag, LoggingMixin):
 
         if not hasattr(self, 'timezone') or not self.timezone:
             self.timezone = settings.TIMEZONE
+
+        # Apply the timezone we settled on to end_date if it wasn't supplied
+        if 'end_date' in self.default_args and self.default_args['end_date']:
+            if isinstance(self.default_args['end_date'], six.string_types):
+                self.default_args['end_date'] = (
+                    timezone.parse(self.default_args['end_date'], timezone=self.timezone)
+                )
 
         self.start_date = timezone.convert_to_utc(start_date)
         self.end_date = timezone.convert_to_utc(end_date)
@@ -272,17 +295,7 @@ class DAG(BaseDag, LoggingMixin):
 
         self._old_context_manager_dags = []  # type: Iterable[DAG]
         self._access_control = access_control
-
-        self._comps = {
-            'dag_id',
-            'task_ids',
-            'parent_dag',
-            'start_date',
-            'schedule_interval',
-            'full_filepath',
-            'template_searchpath',
-            'last_loaded',
-        }
+        self.is_paused_upon_creation = is_paused_upon_creation
 
     def __repr__(self):
         return "<DAG: {self.dag_id}>".format(self=self)
@@ -542,7 +555,13 @@ class DAG(BaseDag, LoggingMixin):
 
     @property
     def owner(self):
-        return ", ".join(list(set([t.owner for t in self.tasks])))
+        """
+        Return list of all owners found in DAG tasks.
+
+        :return: Comma separated list of owners in DAG tasks
+        :rtype: str
+        """
+        return ", ".join({t.owner for t in self.tasks})
 
     @provide_session
     def _get_concurrency_reached(self, session=None):
@@ -652,6 +671,26 @@ class DAG(BaseDag, LoggingMixin):
             .first())
 
         return dagrun
+
+    @provide_session
+    def get_dagruns_between(self, start_date, end_date, session=None):
+        """
+        Returns the list of dag runs between start_date (inclusive) and end_date (inclusive).
+
+        :param start_date: The starting execution date of the DagRun to find.
+        :param end_date: The ending execution date of the DagRun to find.
+        :param session:
+        :return: The list of DagRuns found.
+        """
+        dagruns = (
+            session.query(DagRun)
+            .filter(
+                DagRun.dag_id == self.dag_id,
+                DagRun.execution_date >= start_date,
+                DagRun.execution_date <= end_date)
+            .all())
+
+        return dagruns
 
     @provide_session
     def _get_latest_execution_date(self, session=None):
@@ -844,7 +883,7 @@ class DAG(BaseDag, LoggingMixin):
         if include_parentdag and self.is_subdag:
 
             p_dag = self.parent_dag.sub_dag(
-                task_regex=self.dag_id.split('.')[1],
+                task_regex=r"^{}$".format(self.dag_id.split('.')[1]),
                 include_upstream=False,
                 include_downstream=True)
 
@@ -1279,8 +1318,10 @@ class DAG(BaseDag, LoggingMixin):
             DagModel).filter(DagModel.dag_id == self.dag_id).first()
         if not orm_dag:
             orm_dag = DagModel(dag_id=self.dag_id)
+            if self.is_paused_upon_creation is not None:
+                orm_dag.is_paused = self.is_paused_upon_creation
             self.log.info("Creating ORM DAG for %s", self.dag_id)
-        orm_dag.fileloc = self.fileloc
+        orm_dag.fileloc = self.parent_dag.fileloc if self.is_subdag else self.fileloc
         orm_dag.is_subdag = self.is_subdag
         orm_dag.owners = owner
         orm_dag.is_active = True
@@ -1439,6 +1480,9 @@ class DagModel(Base):
     # Foreign key to the latest pickle_id
     pickle_id = Column(Integer)
     # The location of the file containing the DAG object
+    # Note: Do not depend on fileloc pointing to a file; in the case of a
+    # packaged DAG, it will point to the subpath of the DAG within the
+    # associated zip.
     fileloc = Column(String(2000))
     # String representing the owners
     owners = Column(String(2000))
@@ -1518,3 +1562,30 @@ class DagModel(Base):
                                             external_trigger=external_trigger,
                                             conf=conf,
                                             session=session)
+
+    @provide_session
+    def set_is_paused(self,
+                      is_paused,  # type: bool
+                      including_subdags=True,  # type: bool
+                      session=None,
+                      ):
+        # type: (...) -> None
+        """
+        Pause/Un-pause a DAG.
+
+        :param is_paused: Is the DAG paused
+        :param including_subdags: whether to include the DAG's subdags
+        :param session: session
+        """
+        dag_ids = [self.dag_id]  # type: List[str]
+        if including_subdags:
+            subdags = self.get_dag().subdags
+            dag_ids.extend([subdag.dag_id for subdag in subdags])
+        dag_models = session.query(DagModel).filter(DagModel.dag_id.in_(dag_ids)).all()
+        try:
+            for dag_model in dag_models:
+                dag_model.is_paused = is_paused
+            session.commit()
+        except Exception:
+            session.rollback()
+            raise

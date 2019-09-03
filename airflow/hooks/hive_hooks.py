@@ -107,6 +107,21 @@ class HiveCliHook(BaseHook):
         self.mapred_queue_priority = mapred_queue_priority
         self.mapred_job_name = mapred_job_name
 
+    def _get_proxy_user(self):
+        """
+        This function set the proper proxy_user value in case the user overwtire the default.
+        """
+        conn = self.conn
+
+        proxy_user_value = conn.extra_dejson.get('proxy_user', "")
+        if proxy_user_value == "login" and conn.login:
+            return "hive.server2.proxy.user={0}".format(conn.login)
+        if proxy_user_value == "owner" and self.run_as:
+            return "hive.server2.proxy.user={0}".format(self.run_as)
+        if proxy_user_value != "":  # There is a custom proxy user
+            return "hive.server2.proxy.user={0}".format(proxy_user_value)
+        return proxy_user_value  # The default proxy user (undefined)
+
     def _prepare_cli_cmd(self):
         """
         This function creates the command list from available information
@@ -126,11 +141,7 @@ class HiveCliHook(BaseHook):
                     template = utils.replace_hostname_pattern(
                         utils.get_components(template))
 
-                proxy_user = ""  # noqa
-                if conn.extra_dejson.get('proxy_user') == "login" and conn.login:
-                    proxy_user = "hive.server2.proxy.user={0}".format(conn.login)
-                elif conn.extra_dejson.get('proxy_user') == "owner" and self.run_as:
-                    proxy_user = "hive.server2.proxy.user={0}".format(self.run_as)
+                proxy_user = self._get_proxy_user()
 
                 jdbc_url += ";principal={template};{proxy_user}".format(
                     template=template, proxy_user=proxy_user)
@@ -755,8 +766,12 @@ class HiveServer2Hook(BaseHook):
     """
     Wrapper around the pyhive library
 
-    Note that the default authMechanism is PLAIN, to override it you
-    can specify it in the ``extra`` of your connection in the UI as in
+    Notes:
+    * the default authMechanism is PLAIN, to override it you
+    can specify it in the ``extra`` of your connection in the UI
+    * the default for run_set_variable_statements is true, if you
+    are using impala you may need to set it to false in the
+    ``extra`` of your connection in the UI
     """
     def __init__(self, hiveserver2_conn_id='hiveserver2_default'):
         self.hiveserver2_conn_id = hiveserver2_conn_id
@@ -802,11 +817,14 @@ class HiveServer2Hook(BaseHook):
                 contextlib.closing(conn.cursor()) as cur:
             cur.arraysize = fetch_size or 1000
 
-            env_context = get_context_from_env_var()
-            if hive_conf:
-                env_context.update(hive_conf)
-            for k, v in env_context.items():
-                cur.execute("set {}={}".format(k, v))
+            # not all query services (e.g. impala AIRFLOW-4434) support the set command
+            db = self.get_connection(self.hiveserver2_conn_id)
+            if db.extra_dejson.get('run_set_variable_statements', True):
+                env_context = get_context_from_env_var()
+                if hive_conf:
+                    env_context.update(hive_conf)
+                for k, v in env_context.items():
+                    cur.execute("set {}={}".format(k, v))
 
             for statement in hql:
                 cur.execute(statement)

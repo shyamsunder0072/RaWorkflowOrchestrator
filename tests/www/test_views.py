@@ -28,7 +28,7 @@ import unittest
 import sys
 import json
 
-from urllib.parse import quote_plus
+from six.moves.urllib.parse import quote_plus
 from werkzeug.test import Client
 from werkzeug.wrappers import BaseResponse
 
@@ -332,6 +332,10 @@ class TestLogView(unittest.TestCase):
 
     def setUp(self):
         super(TestLogView, self).setUp()
+        # Make sure that the configure_logging is not cached
+        self.old_modules = dict(sys.modules)
+
+        conf.load_test_config()
 
         # Create a custom logging configuration
         configuration.load_test_config()
@@ -372,6 +376,11 @@ class TestLogView(unittest.TestCase):
         self.session.commit()
         self.session.close()
 
+        # Remove any new modules imported during the test run. This lets us
+        # import the same source files for more than one test.
+        for m in [m for m in sys.modules if m not in self.old_modules]:
+            del sys.modules[m]
+
         sys.path.remove(self.settings_folder)
         shutil.rmtree(self.settings_folder)
         conf.set('core', 'logging_config_class', '')
@@ -408,6 +417,29 @@ class TestLogView(unittest.TestCase):
         self.assertTrue(expected_filename in content_disposition)
         self.assertEqual(200, response.status_code)
         self.assertIn('Log for testing.', response.data.decode('utf-8'))
+
+    def test_get_logs_with_metadata_as_download_large_file(self):
+        with mock.patch("airflow.utils.log.file_task_handler.FileTaskHandler.read") as read_mock:
+            first_return = (['1st line'], [{}])
+            second_return = (['2nd line'], [{'end_of_log': False}])
+            third_return = (['3rd line'], [{'end_of_log': True}])
+            fourth_return = (['should never be read'], [{'end_of_log': True}])
+            read_mock.side_effect = [first_return, second_return, third_return, fourth_return]
+            url_template = "/admin/airflow/get_logs_with_metadata?dag_id={}&" \
+                           "task_id={}&execution_date={}&" \
+                           "try_number={}&metadata={}&format=file"
+            try_number = 1
+            url = url_template.format(self.DAG_ID,
+                                      self.TASK_ID,
+                                      quote_plus(self.DEFAULT_DATE.isoformat()),
+                                      try_number,
+                                      json.dumps({}))
+            response = self.app.get(url)
+
+            self.assertIn('1st line', response.data.decode('utf-8'))
+            self.assertIn('2nd line', response.data.decode('utf-8'))
+            self.assertIn('3rd line', response.data.decode('utf-8'))
+            self.assertNotIn('should never be read', response.data.decode('utf-8'))
 
     def test_get_logs_with_metadata(self):
         url_template = "/admin/airflow/get_logs_with_metadata?dag_id={}&" \
@@ -521,10 +553,10 @@ class TestVarImportView(unittest.TestCase):
         self.assertIn('dict_key', db_dict)
         self.assertEqual('str_value', db_dict['str_key'])
         self.assertEqual('60', db_dict['int_key'])
-        self.assertEqual('[1, 2]', db_dict['list_key'])
+        self.assertEqual(u'[\n  1,\n  2\n]', db_dict['list_key'])
 
-        case_a_dict = '{"k_a": 2, "k_b": 3}'
-        case_b_dict = '{"k_b": 3, "k_a": 2}'
+        case_a_dict = u'{\n  "k_a": 2,\n  "k_b": 3\n}'
+        case_b_dict = u'{\n  "k_b": 3,\n  "k_a": 2\n}'
         try:
             self.assertEqual(case_a_dict, db_dict['dict_key'])
         except AssertionError:
@@ -937,6 +969,92 @@ class HelpersTest(unittest.TestCase):
         self.assertIn('%3Cb2%3E', html)
         self.assertNotIn('<a&1>', html)
         self.assertNotIn('<b2>', html)
+
+
+class TestConnectionModelView(unittest.TestCase):
+
+    CREATE_ENDPOINT = '/admin/connection/new/?url=/admin/connection/'
+    CONN_ID = "new_conn"
+
+    CONN = {
+        "conn_id": CONN_ID,
+        "conn_type": "http",
+        "host": "https://example.com",
+    }
+
+    @classmethod
+    def setUpClass(cls):
+        super(TestConnectionModelView, cls).setUpClass()
+        app = application.create_app(testing=True)
+        app.config['WTF_CSRF_METHODS'] = []
+        cls.app = app.test_client()
+
+    def setUp(self):
+        self.session = Session()
+
+    def tearDown(self):
+        self.session.query(models.Connection) \
+                    .filter(models.Connection.conn_id == self.CONN_ID).delete()
+        self.session.commit()
+        self.session.close()
+        super(TestConnectionModelView, self).tearDown()
+
+    def test_create(self):
+        response = self.app.post(
+            self.CREATE_ENDPOINT,
+            data=self.CONN,
+            follow_redirects=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            self.session.query(models.Connection).filter(models.Connection.conn_id == self.CONN_ID).count(),
+            1
+        )
+
+    def test_create_error(self):
+        response = self.app.post(
+            self.CREATE_ENDPOINT,
+            data={"conn_type": "http"},
+            follow_redirects=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b'has-error', response.data)
+        self.assertEqual(
+            self.session.query(models.Connection).filter(models.Connection.conn_id == self.CONN_ID).count(),
+            0
+        )
+
+    def test_create_extras(self):
+        data = self.CONN.copy()
+        data.update({
+            "conn_type": "google_cloud_platform",
+            "extra__google_cloud_platform__num_retries": "2",
+        })
+        response = self.app.post(
+            self.CREATE_ENDPOINT,
+            data=data,
+            follow_redirects=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        conn = self.session.query(models.Connection).filter(models.Connection.conn_id == self.CONN_ID).one()
+
+        self.assertEqual(conn.extra_dejson['extra__google_cloud_platform__num_retries'], 2)
+
+    def test_create_extras_empty_field(self):
+        data = self.CONN.copy()
+        data.update({
+            "conn_type": "google_cloud_platform",
+            "extra__google_cloud_platform__num_retries": "",
+        })
+        response = self.app.post(
+            self.CREATE_ENDPOINT,
+            data=data,
+            follow_redirects=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        conn = self.session.query(models.Connection).filter(models.Connection.conn_id == self.CONN_ID).one()
+
+        self.assertIsNone(conn.extra_dejson['extra__google_cloud_platform__num_retries'])
 
 
 if __name__ == '__main__':

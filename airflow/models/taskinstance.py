@@ -22,15 +22,21 @@ import functools
 import getpass
 import hashlib
 import logging
+import math
 import os
 import signal
 import time
 from datetime import timedelta
+from typing import Optional
 from urllib.parse import quote
 
 import dill
+import lazy_object_proxy
+import pendulum
+from six.moves.urllib.parse import quote_plus
 from sqlalchemy import Column, String, Float, Integer, PickleType, Index, func
 from sqlalchemy.orm import reconstructor
+from sqlalchemy.orm.session import Session
 
 from airflow import configuration, settings
 from airflow.exceptions import (
@@ -135,8 +141,8 @@ class TaskInstance(Base, LoggingMixin):
     hostname = Column(String(1000))
     unixname = Column(String(1000))
     job_id = Column(Integer)
-    pool = Column(String(50))
-    queue = Column(String(50))
+    pool = Column(String(50), nullable=False)
+    queue = Column(String(256))
     priority_weight = Column(Integer)
     operator = Column(String(1000))
     queued_dttm = Column(UtcDateTime)
@@ -316,7 +322,7 @@ class TaskInstance(Base, LoggingMixin):
         :param task_id: Task ID
         :type task_id: unicode
         :param execution_date: Execution date for the task
-        :type execution_date: datetime
+        :type execution_date: datetime.datetime
         :param mark_success: Whether to mark the task as successful
         :type mark_success: bool
         :param ignore_all_deps: Ignore all ignorable dependencies.
@@ -369,14 +375,14 @@ class TaskInstance(Base, LoggingMixin):
 
     @property
     def log_url(self):
-        iso = quote(self.execution_date.isoformat())
+        iso = self.execution_date.isoformat()
         base_url = configuration.conf.get('webserver', 'BASE_URL')
-        return base_url + (
-            "/log?"
-            "execution_date={iso}"
-            "&task_id={task_id}"
-            "&dag_id={dag_id}"
-        ).format(iso=iso, task_id=self.task_id, dag_id=self.dag_id)
+        relative_url = '/log?execution_date={iso}&task_id={task_id}&dag_id={dag_id}'.format(
+            iso=quote_plus(iso), task_id=quote_plus(self.task_id), dag_id=quote_plus(self.dag_id))
+
+        if configuration.conf.getboolean('webserver', 'rbac'):
+            return '{base_url}{relative_url}'.format(base_url=base_url, relative_url=relative_url)
+        return '{base_url}/admin/airflow{relative_url}'.format(base_url=base_url, relative_url=relative_url)
 
     @property
     def mark_success_url(self):
@@ -421,10 +427,13 @@ class TaskInstance(Base, LoggingMixin):
         session.commit()
 
     @provide_session
-    def refresh_from_db(self, session=None, lock_for_update=False):
+    def refresh_from_db(self, session=None, lock_for_update=False, refresh_executor_config=False):
         """
         Refreshes the task instance from the database based on the primary key
 
+        :param refresh_executor_config: if True, revert executor config to
+            result from DB. Often, however, we will want to keep the newest
+            version
         :param lock_for_update: if True, indicates that the database should
             lock the TaskInstance (issuing a FOR UPDATE clause) until the
             session is committed.
@@ -450,7 +459,8 @@ class TaskInstance(Base, LoggingMixin):
             self.max_tries = ti.max_tries
             self.hostname = ti.hostname
             self.pid = ti.pid
-            self.executor_config = ti.executor_config
+            if refresh_executor_config:
+                self.executor_config = ti.executor_config
         else:
             self.state = None
 
@@ -474,12 +484,13 @@ class TaskInstance(Base, LoggingMixin):
         return self.dag_id, self.task_id, self.execution_date, self.try_number
 
     @provide_session
-    def set_state(self, state, session=None):
+    def set_state(self, state, session=None, commit=True):
         self.state = state
         self.start_date = timezone.utcnow()
         self.end_date = timezone.utcnow()
         session.merge(self)
-        session.commit()
+        if commit:
+            session.commit()
 
     @property
     def is_premature(self):
@@ -515,7 +526,8 @@ class TaskInstance(Base, LoggingMixin):
         return count == len(task.downstream_task_ids)
 
     @provide_session
-    def _get_previous_ti(self, session=None):
+    def _get_previous_ti(self, state=None, session=None):
+        # type: (Optional[str], Session) -> Optional['TaskInstance']
         dag = self.task.dag
         if dag:
             dr = self.get_dagrun(session=session)
@@ -527,14 +539,18 @@ class TaskInstance(Base, LoggingMixin):
                 if not previous_scheduled_date:
                     return None
 
-                return TaskInstance(task=self.task,
-                                    execution_date=previous_scheduled_date)
+                return TaskInstance(task=self.task, execution_date=previous_scheduled_date)
 
             dr.dag = dag
-            if dag.catchup:
+
+            # We always ignore schedule in dagrun lookup when `state` is given or `schedule_interval is None`.
+            # For legacy reasons, when `catchup=True`, we use `get_previous_scheduled_dagrun` unless
+            # `ignore_schedule` is `True`.
+            ignore_schedule = state is not None or dag.schedule_interval is None
+            if dag.catchup is True and not ignore_schedule:
                 last_dagrun = dr.get_previous_scheduled_dagrun(session=session)
             else:
-                last_dagrun = dr.get_previous_dagrun(session=session)
+                last_dagrun = dr.get_previous_dagrun(session=session, state=state)
 
             if last_dagrun:
                 return last_dagrun.get_task_instance(self.task_id, session=session)
@@ -542,9 +558,28 @@ class TaskInstance(Base, LoggingMixin):
         return None
 
     @property
-    def previous_ti(self):
+    def previous_ti(self):  # type: () -> Optional['TaskInstance']
         """The task instance for the task that ran before this task instance."""
         return self._get_previous_ti()
+
+    @property
+    def previous_ti_success(self):  # type: () -> Optional['TaskInstance']
+        """The ti from prior succesful dag run for this task, by execution date."""
+        return self._get_previous_ti(state=State.SUCCESS)
+
+    @property
+    def previous_execution_date_success(self):  # type: () -> Optional[pendulum.datetime]
+        """The execution date from property previous_ti_success."""
+        self.log.debug("previous_execution_date_success was called")
+        prev_ti = self._get_previous_ti(state=State.SUCCESS)
+        return prev_ti and prev_ti.execution_date
+
+    @property
+    def previous_start_date_success(self):  # type: () -> Optional[pendulum.datetime]
+        """The start date from property previous_ti_success."""
+        self.log.debug("previous_start_date_success was called")
+        prev_ti = self._get_previous_ti(state=State.SUCCESS)
+        return prev_ti and prev_ti.start_date
 
     @provide_session
     def are_dependencies_met(
@@ -618,14 +653,17 @@ class TaskInstance(Base, LoggingMixin):
         """
         delay = self.task.retry_delay
         if self.task.retry_exponential_backoff:
-            min_backoff = int(delay.total_seconds() * (2 ** (self.try_number - 2)))
+            # If the min_backoff calculation is below 1, it will be converted to 0 via int. Thus,
+            # we must round up prior to converting to an int, otherwise a divide by zero error
+            # will occurr in the modded_hash calculation.
+            min_backoff = int(math.ceil(delay.total_seconds() * (2 ** (self.try_number - 2))))
             # deterministic per task instance
             hash = int(hashlib.sha1("{}#{}#{}#{}".format(self.dag_id,
                                                          self.task_id,
                                                          self.execution_date,
                                                          self.try_number)
                                     .encode('utf-8')).hexdigest(), 16)
-            # between 0.5 * delay * (2^retry_number) and 1.0 * delay * (2^retry_number)
+            # between 1 and 1.0 * delay * (2^retry_number)
             modded_hash = min_backoff + hash % min_backoff
             # timedelta has a maximum representable value. The exponentiation
             # here means this value can be exceeded after a certain number
@@ -870,7 +908,7 @@ class TaskInstance(Base, LoggingMixin):
 
                 start_time = time.time()
 
-                self.render_templates()
+                self.render_templates(context=context)
                 task_copy.pre_execute(context=context)
 
                 # If a timeout is specified for the task, make it fail
@@ -1113,12 +1151,14 @@ class TaskInstance(Base, LoggingMixin):
         if next_execution_date:
             next_ds = next_execution_date.strftime('%Y-%m-%d')
             next_ds_nodash = next_ds.replace('-', '')
+            next_execution_date = pendulum.instance(next_execution_date)
 
         prev_ds = None
         prev_ds_nodash = None
         if prev_execution_date:
             prev_ds = prev_execution_date.strftime('%Y-%m-%d')
             prev_ds_nodash = prev_ds.replace('-', '')
+            prev_execution_date = pendulum.instance(prev_execution_date)
 
         ds_nodash = ds.replace('-', '')
         ts_nodash = self.execution_date.strftime('%Y%m%dT%H%M%S')
@@ -1184,8 +1224,11 @@ class TaskInstance(Base, LoggingMixin):
             'end_date': ds,
             'dag_run': dag_run,
             'run_id': run_id,
-            'execution_date': self.execution_date,
+            'execution_date': pendulum.instance(self.execution_date),
             'prev_execution_date': prev_execution_date,
+            'prev_execution_date_success': lazy_object_proxy.Proxy(
+                lambda: self.previous_execution_date_success),
+            'prev_start_date_success': lazy_object_proxy.Proxy(lambda: self.previous_start_date_success),
             'next_execution_date': next_execution_date,
             'latest_date': ds,
             'macros': macros,
@@ -1209,19 +1252,20 @@ class TaskInstance(Base, LoggingMixin):
         if dag_run and dag_run.conf:
             params.update(dag_run.conf)
 
-    def render_templates(self):
+    def render_templates(self, context=None):
         task = self.task
-        jinja_context = self.get_template_context()
+        if not context:
+            context = self.get_template_context()
+
         if hasattr(self, 'task') and hasattr(self.task, 'dag'):
             if self.task.dag.user_defined_macros:
-                jinja_context.update(
-                    self.task.dag.user_defined_macros)
+                context.update(self.task.dag.user_defined_macros)
 
         rt = self.task.render_template  # shortcut to method
         for attr in task.__class__.template_fields:
             content = getattr(task, attr)
             if content:
-                rendered_content = rt(attr, content, jinja_context)
+                rendered_content = rt(attr, content, context)
                 setattr(task, attr, rendered_content)
 
     def email_alert(self, exception):

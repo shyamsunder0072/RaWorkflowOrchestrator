@@ -1,4 +1,4 @@
-..  Licensed to the Apache Software Foundation (ASF) under one
+ .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
     regarding copyright ownership.  The ASF licenses this file
@@ -6,14 +6,16 @@
     "License"); you may not use this file except in compliance
     with the License.  You may obtain a copy of the License at
 
-..    http://www.apache.org/licenses/LICENSE-2.0
+ ..   http://www.apache.org/licenses/LICENSE-2.0
 
-..  Unless required by applicable law or agreed to in writing,
+ .. Unless required by applicable law or agreed to in writing,
     software distributed under the License is distributed on an
     "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
     KIND, either express or implied.  See the License for the
     specific language governing permissions and limitations
     under the License.
+
+
 
 Google Cloud Vision Operators
 =============================
@@ -95,7 +97,7 @@ Otherwise it can be specified explicitly:
 Templating
 """"""""""
 
-.. exampleinclude:: ../../../../airflow/contrib/operators/gcp_vision_operator.py
+.. literalinclude:: ../../../../airflow/contrib/operators/gcp_vision_operator.py
     :language: python
     :dedent: 4
     :start-after: [START vision_add_product_to_product_set_template_fields]
@@ -169,7 +171,7 @@ The result can be extracted from XCOM:
 Templating
 """"""""""
 
-.. exampleinclude:: ../../../../airflow/contrib/operators/gcp_vision_operator.py
+.. literalinclude:: ../../../../airflow/contrib/operators/gcp_vision_operator.py
     :language: python
     :dedent: 4
     :start-after: [START vision_annotate_image_template_fields]
@@ -252,7 +254,7 @@ Or it can be specified explicitly:
 Templating
 """"""""""
 
-.. exampleinclude:: ../../../../airflow/contrib/operators/gcp_vision_operator.py
+.. literalinclude:: ../../../../airflow/contrib/operators/gcp_vision_operator.py
     :language: python
     :dedent: 4
     :start-after: [START vision_product_create_template_fields]
@@ -319,7 +321,7 @@ Otherwise it can be specified explicitly:
 Templating
 """"""""""
 
-.. exampleinclude:: ../../../../airflow/contrib/operators/gcp_vision_operator.py
+.. literalinclude:: ../../../../airflow/contrib/operators/gcp_vision_operator.py
     :language: python
     :dedent: 4
     :start-after: [START vision_product_delete_template_fields]
@@ -382,7 +384,7 @@ Otherwise it can be specified explicitly:
 Templating
 """"""""""
 
-.. exampleinclude:: ../../../../airflow/contrib/operators/gcp_vision_operator.py
+.. literalinclude:: ../../../../airflow/contrib/operators/gcp_vision_operator.py
     :language: python
     :dedent: 4
     :start-after: [START vision_product_get_template_fields]
@@ -459,7 +461,7 @@ Or it can be specified explicitly:
 Templating
 """"""""""
 
-.. exampleinclude:: ../../../../airflow/contrib/operators/gcp_vision_operator.py
+.. literalinclude:: ../../../../airflow/contrib/operators/gcp_vision_operator.py
     :language: python
     :dedent: 4
     :start-after: [START vision_productset_create_template_fields]
@@ -520,7 +522,7 @@ Otherwise it can be specified explicitly:
 Templating
 """"""""""
 
-.. exampleinclude:: ../../../../airflow/contrib/operators/gcp_vision_operator.py
+.. literalinclude:: ../../../../airflow/contrib/operators/gcp_vision_operator.py
     :language: python
     :dedent: 4
     :start-after: [START vision_productset_delete_template_fields]
@@ -579,7 +581,7 @@ Otherwise it can be specified explicitly:
 Templating
 """"""""""
 
-.. exampleinclude:: ../../../../airflow/contrib/operators/gcp_vision_operator.py
+.. literalinclude:: ../../../../airflow/contrib/operators/gcp_vision_operator.py
     :language: python
     :dedent: 4
     :start-after: [START vision_productset_get_template_fields]
@@ -664,7 +666,7 @@ Otherwise it can be specified explicitly:
 Templating
 """"""""""
 
-.. exampleinclude:: ../../../../airflow/contrib/operators/gcp_vision_operator.py
+.. literalinclude:: ../../../../airflow/contrib/operators/gcp_vision_operator.py
     :language: python
     :dedent: 4
     :start-after: [START vision_productset_update_template_fields]
@@ -758,7 +760,7 @@ Otherwise it can be specified explicitly:
 Templating
 """"""""""
 
-.. exampleinclude:: ../../../../airflow/contrib/operators/gcp_vision_operator.py
+.. literalinclude:: ../../../../airflow/contrib/operators/gcp_vision_operator.py
     :language: python
     :dedent: 4
     :start-after: [START vision_product_update_template_fields]
@@ -835,7 +837,7 @@ Or it can be specified explicitly:
 Templating
 """"""""""
 
-.. exampleinclude:: ../../../../airflow/contrib/operators/gcp_vision_operator.py
+.. literalinclude:: ../../../../airflow/contrib/operators/gcp_vision_operator.py
     :language: python
     :dedent: 4
     :start-after: [START vision_reference_image_create_template_fields]
@@ -920,7 +922,7 @@ Otherwise it can be specified explicitly:
 Templating
 """"""""""
 
-.. exampleinclude:: ../../../../airflow/contrib/operators/gcp_vision_operator.py
+.. literalinclude:: ../../../../airflow/contrib/operators/gcp_vision_operator.py
     :language: python
     :dedent: 4
     :start-after: [START vision_remove_product_from_product_set_template_fields]
@@ -948,7 +950,7 @@ Arguments
 
 Some arguments in the example DAG are taken from the OS environment variables:
 
-.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_vision.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_vision.py
       :language: python
       :start-after: [START howto_operator_vision_annotate_image_url]
       :end-before: [END howto_operator_vision_annotate_image_url]
@@ -960,12 +962,12 @@ Using the operator
 We are using the :class:`Retry` objects from
 Google libraries:
 
-.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_vision.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_vision.py
       :language: python
       :start-after: [START howto_operator_vision_retry_import]
       :end-before: [END howto_operator_vision_retry_import]
 
-.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_vision.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_vision.py
       :language: python
       :dedent: 4
       :start-after: [START howto_operator_vision_detect_text]
@@ -973,7 +975,7 @@ Google libraries:
 
 The result can be extracted from XCOM:
 
-.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_vision.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_vision.py
       :language: python
       :dedent: 4
       :start-after: [START howto_operator_vision_detect_text_result]
@@ -1010,7 +1012,7 @@ Arguments
 
 Some arguments in the example DAG are taken from the OS environment variables:
 
-.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_vision.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_vision.py
       :language: python
       :start-after: [START howto_operator_vision_annotate_image_url]
       :end-before: [END howto_operator_vision_annotate_image_url]
@@ -1022,12 +1024,12 @@ Using the operator
 We are using the :class:`Retry` objects from
 Google libraries:
 
-.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_vision.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_vision.py
       :language: python
       :start-after: [START howto_operator_vision_retry_import]
       :end-before: [END howto_operator_vision_retry_import]
 
-.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_vision.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_vision.py
       :language: python
       :dedent: 4
       :start-after: [START howto_operator_vision_document_detect_text]
@@ -1035,7 +1037,7 @@ Google libraries:
 
 The result can be extracted from XCOM:
 
-.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_vision.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_vision.py
       :language: python
       :dedent: 4
       :start-after: [START howto_operator_vision_document_detect_text_result]
@@ -1072,7 +1074,7 @@ Arguments
 
 Some arguments in the example DAG are taken from the OS environment variables:
 
-.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_vision.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_vision.py
       :language: python
       :start-after: [START howto_operator_vision_annotate_image_url]
       :end-before: [END howto_operator_vision_annotate_image_url]
@@ -1084,12 +1086,12 @@ Using the operator
 We are using the :class:`Retry` objects from
 Google libraries:
 
-.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_vision.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_vision.py
       :language: python
       :start-after: [START howto_operator_vision_retry_import]
       :end-before: [END howto_operator_vision_retry_import]
 
-.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_vision.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_vision.py
       :language: python
       :dedent: 4
       :start-after: [START howto_operator_vision_detect_labels]
@@ -1097,7 +1099,7 @@ Google libraries:
 
 The result can be extracted from XCOM:
 
-.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_vision.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_vision.py
       :language: python
       :dedent: 4
       :start-after: [START howto_operator_vision_detect_labels_result]
@@ -1134,7 +1136,7 @@ Arguments
 
 Some arguments in the example DAG are taken from the OS environment variables:
 
-.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_vision.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_vision.py
       :language: python
       :start-after: [START howto_operator_vision_annotate_image_url]
       :end-before: [END howto_operator_vision_annotate_image_url]
@@ -1146,12 +1148,12 @@ Using the operator
 We are using the :class:`Retry` objects from
 Google libraries:
 
-.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_vision.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_vision.py
       :language: python
       :start-after: [START howto_operator_vision_retry_import]
       :end-before: [END howto_operator_vision_retry_import]
 
-.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_vision.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_vision.py
       :language: python
       :dedent: 4
       :start-after: [START howto_operator_vision_detect_safe_search]
@@ -1159,7 +1161,7 @@ Google libraries:
 
 The result can be extracted from XCOM:
 
-.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_vision.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_vision.py
       :language: python
       :dedent: 4
       :start-after: [START howto_operator_vision_detect_safe_search_result]

@@ -25,6 +25,7 @@ from kubernetes.client.rest import ApiException
 from subprocess import check_call
 import json
 from airflow.contrib.kubernetes.pod_launcher import PodLauncher
+from airflow.contrib.kubernetes.pod import Port
 from airflow.contrib.kubernetes.volume_mount import VolumeMount
 from airflow.contrib.kubernetes.volume import Volume
 from tests.compat import mock
@@ -171,6 +172,21 @@ class KubernetesPodOperatorTest(unittest.TestCase):
         k.execute(None)
 
     @staticmethod
+    def test_pod_dnspolicy():
+        k = KubernetesPodOperator(
+            namespace='default',
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo 10"],
+            labels={"foo": "bar"},
+            name="test",
+            task_id="task",
+            hostnetwork=True,
+            dnspolicy="ClusterFirstWithHostNet"
+        )
+        k.execute(None)
+
+    @staticmethod
     def test_pod_node_selectors():
         node_selectors = {
             'beta.kubernetes.io/os': 'linux'
@@ -185,6 +201,22 @@ class KubernetesPodOperatorTest(unittest.TestCase):
             task_id="task",
             node_selectors=node_selectors,
             executor_config={'KubernetesExecutor': {'node_selectors': node_selectors}}
+        )
+        k.execute(None)
+
+    @staticmethod
+    def test_pod_resources():
+        resources = {}
+        k = KubernetesPodOperator(
+            namespace='default',
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo", "10"],
+            labels={"foo": "bar"},
+            name="test",
+            task_id="task",
+            resources=resources,
+            executor_config={'KubernetesExecutor': {'resources': resources}}
         )
         k.execute(None)
 
@@ -235,6 +267,22 @@ class KubernetesPodOperatorTest(unittest.TestCase):
             )
             k.execute(None)
             mock_logger.info.assert_any_call(b"+ echo 10\n")
+
+    @staticmethod
+    def test_port():
+        port = Port('http', 80)
+
+        k = KubernetesPodOperator(
+            namespace='default',
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo 10"],
+            labels={"foo": "bar"},
+            name="test",
+            task_id="task",
+            ports=[port]
+        )
+        k.execute(None)
 
     @staticmethod
     def test_volume_mount():

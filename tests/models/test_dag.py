@@ -22,6 +22,7 @@ import logging
 import os
 import re
 import unittest
+from collections import namedtuple
 import uuid
 from tempfile import NamedTemporaryFile
 
@@ -202,6 +203,28 @@ class DagTest(unittest.TestCase):
             default_args={'owner': 'owner1'})
 
         self.assertEqual(tuple(), dag.topological_sort())
+
+    def test_dag_naive_start_date_string(self):
+        DAG('DAG', default_args={'start_date': '2019-06-01'})
+
+    def test_dag_naive_start_end_dates_strings(self):
+        DAG('DAG', default_args={'start_date': '2019-06-01', 'end_date': '2019-06-05'})
+
+    def test_dag_start_date_propagates_to_end_date(self):
+        """
+        Tests that a start_date string with a timezone and an end_date string without a timezone
+        are accepted and that the timezone from the start carries over the end
+
+        This test is a little indirect, it works by setting start and end equal except for the
+        timezone and then testing for equality after the DAG construction.  They'll be equal
+        only if the same timezone was applied to both.
+
+        An explicit check the the `tzinfo` attributes for both are the same is an extra check.
+        """
+        dag = DAG('DAG', default_args={'start_date': '2019-06-05T00:00:00+05:00',
+                                       'end_date': '2019-06-05T00:00:00'})
+        self.assertEqual(dag.default_args['start_date'], dag.default_args['end_date'])
+        self.assertEqual(dag.default_args['start_date'].tzinfo, dag.default_args['end_date'].tzinfo)
 
     def test_dag_naive_default_args_start_date(self):
         dag = DAG('DAG', default_args={'start_date': datetime.datetime(2018, 1, 1)})
@@ -425,10 +448,37 @@ class DagTest(unittest.TestCase):
         with dag:
             task = DummyOperator(task_id='op1')
 
-        # tuple is replaced by a list
-        self.assertListEqual(
+        # tuple is returned
+        self.assertTupleEqual(
             task.render_template('', ('{{ foo }}_1', '{{ foo }}_2'), {'foo': 'bar'}),
-            ['bar_1', 'bar_2']
+            ('bar_1', 'bar_2')
+        )
+
+    def test_render_template_named_tuple_field(self):
+        """Tests if render_template from a named tuple field works"""
+
+        Named = namedtuple('Named', ['var1', 'var2'])
+
+        dag = DAG('test-dag',
+                  start_date=DEFAULT_DATE)
+
+        with dag:
+            task = DummyOperator(task_id='op1')
+
+        expected = Named('bar_1', 'bar_2')
+        actual = task.render_template('', Named('{{ foo }}_1', '{{ foo }}_2'), {'foo': 'bar'})
+
+        # Named tuple's field access is preserved but are still rendered
+        self.assertTupleEqual(expected, actual)
+        self.assertEqual(
+            expected.var1,
+            actual.var1,
+            msg="Named tuples may not have been preserved in rendering"
+        )
+        self.assertEqual(
+            expected.var2,
+            actual.var2,
+            msg="Named tuples may not have been preserved in rendering"
         )
 
     def test_render_template_dict_field(self):
@@ -872,6 +922,7 @@ class DagTest(unittest.TestCase):
         self.assertEqual(orm_subdag.last_scheduler_run, now)
         self.assertTrue(orm_subdag.is_active)
         self.assertEqual(orm_subdag.safe_dag_id, 'dag__dot__subtask')
+        self.assertEqual(orm_subdag.fileloc, orm_dag.fileloc)
 
     @patch('airflow.models.dag.timezone.utcnow')
     def test_sync_to_db_default_view(self, mock_now):
@@ -898,3 +949,93 @@ class DagTest(unittest.TestCase):
         orm_dag = session.query(DagModel).filter(DagModel.dag_id == 'dag').one()
         self.assertIsNotNone(orm_dag.default_view)
         self.assertEqual(orm_dag.get_default_view(), "graph")
+
+    @patch('airflow.models.dag.DagBag')
+    def test_is_paused_subdag(self, mock_dag_bag):
+        subdag_id = 'dag.subdag'
+        subdag = DAG(
+            subdag_id,
+            start_date=DEFAULT_DATE,
+        )
+        with subdag:
+            DummyOperator(
+                task_id='dummy_task',
+            )
+
+        dag_id = 'dag'
+        dag = DAG(
+            dag_id,
+            start_date=DEFAULT_DATE,
+        )
+
+        with dag:
+            SubDagOperator(
+                task_id='subdag',
+                subdag=subdag
+            )
+
+        mock_dag_bag.return_value.get_dag.return_value = dag
+
+        session = settings.Session()
+        dag.sync_to_db(session=session)
+
+        unpaused_dags = session.query(
+            DagModel
+        ).filter(
+            DagModel.dag_id.in_([subdag_id, dag_id]),
+        ).filter(
+            DagModel.is_paused.is_(False)
+        ).count()
+
+        self.assertEqual(2, unpaused_dags)
+
+        DagModel.get_dagmodel(dag.dag_id).set_is_paused(is_paused=True)
+
+        paused_dags = session.query(
+            DagModel
+        ).filter(
+            DagModel.dag_id.in_([subdag_id, dag_id]),
+        ).filter(
+            DagModel.is_paused.is_(True)
+        ).count()
+
+        self.assertEqual(2, paused_dags)
+
+    def test_existing_dag_is_paused_upon_creation(self):
+        dag = DAG(
+            'dag'
+        )
+        session = settings.Session()
+        dag.sync_to_db(session=session)
+        orm_dag = session.query(DagModel).filter(DagModel.dag_id == 'dag').one()
+        self.assertFalse(orm_dag.is_paused)
+        dag = DAG(
+            'dag',
+            is_paused_upon_creation=True
+        )
+        dag.sync_to_db(session=session)
+        orm_dag = session.query(DagModel).filter(DagModel.dag_id == 'dag').one()
+        # Since the dag existed before, it should not follow the pause flag upon creation
+        self.assertFalse(orm_dag.is_paused)
+
+    def test_new_dag_is_paused_upon_creation(self):
+        dag = DAG(
+            'new_nonexisting_dag',
+            is_paused_upon_creation=True
+        )
+        session = settings.Session()
+        dag.sync_to_db(session=session)
+
+        orm_dag = session.query(DagModel).filter(DagModel.dag_id == 'new_nonexisting_dag').one()
+        # Since the dag didn't exist before, it should follow the pause flag upon creation
+        self.assertTrue(orm_dag.is_paused)
+
+    def test_dag_naive_default_args_start_date_with_timezone(self):
+        local_tz = pendulum.timezone('Europe/Zurich')
+        default_args = {'start_date': datetime.datetime(2018, 1, 1, tzinfo=local_tz)}
+
+        dag = DAG('DAG', default_args=default_args)
+        self.assertEqual(dag.timezone.name, local_tz.name)
+
+        dag = DAG('DAG', default_args=default_args)
+        self.assertEqual(dag.timezone.name, local_tz.name)

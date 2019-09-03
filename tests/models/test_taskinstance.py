@@ -21,12 +21,12 @@ import datetime
 import time
 import unittest
 import urllib
-
+from typing import Union, List
 import pendulum
 from freezegun import freeze_time
 from mock import patch, mock_open
-from parameterized import parameterized
-
+from parameterized import parameterized, param
+from sqlalchemy.orm.session import Session
 from airflow import models, settings, configuration
 from airflow.contrib.sensors.python_sensor import PythonSensor
 from airflow.exceptions import AirflowException, AirflowSkipException
@@ -36,7 +36,7 @@ from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python_operator import PythonOperator
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
 from airflow.utils import timezone
-from airflow.utils.db import create_session
+from airflow.utils.db import create_session, provide_session
 from airflow.utils.state import State
 from tests.models import DEFAULT_DATE
 
@@ -48,6 +48,7 @@ class TaskInstanceTest(unittest.TestCase):
             session.query(TaskFail).delete()
             session.query(TaskReschedule).delete()
             session.query(models.TaskInstance).delete()
+            session.query(models.DagRun).delete()
 
     def test_set_task_dates(self):
         """
@@ -238,6 +239,32 @@ class TaskInstanceTest(unittest.TestCase):
         ti.run()
         self.assertEqual(ti.state, State.SUCCESS)
 
+    @provide_session
+    def test_ti_updates_with_task(self, session=None):
+        """
+        test that updating the executor_config propogates to the TaskInstance DB
+        """
+        dag = models.DAG(dag_id='test_run_pooling_task')
+        task = DummyOperator(task_id='test_run_pooling_task_op', dag=dag, owner='airflow',
+                             executor_config={'foo': 'bar'},
+                             start_date=timezone.datetime(2016, 2, 1, 0, 0, 0))
+        ti = TI(
+            task=task, execution_date=timezone.utcnow())
+
+        ti.run(session=session)
+        tis = dag.get_task_instances()
+        self.assertEqual({'foo': 'bar'}, tis[0].executor_config)
+
+        task2 = DummyOperator(task_id='test_run_pooling_task_op', dag=dag, owner='airflow',
+                              executor_config={'bar': 'baz'},
+                              start_date=timezone.datetime(2016, 2, 1, 0, 0, 0))
+
+        ti = TI(
+            task=task2, execution_date=timezone.utcnow())
+        ti.run(session=session)
+        tis = dag.get_task_instances()
+        self.assertEqual({'bar': 'baz'}, tis[1].executor_config)
+
     @patch.object(TI, 'pool_full')
     def test_run_pooling_task_with_mark_success(self, mock_pool_full):
         """
@@ -419,6 +446,30 @@ class TaskInstanceTest(unittest.TestCase):
         dt = ti.next_retry_datetime()
         self.assertEqual(dt, ti.end_date + max_delay)
 
+    def test_next_retry_datetime_short_intervals(self):
+        delay = datetime.timedelta(seconds=1)
+        max_delay = datetime.timedelta(minutes=60)
+
+        dag = models.DAG(dag_id='fail_dag')
+        task = BashOperator(
+            task_id='task_with_exp_backoff_and_short_time_interval',
+            bash_command='exit 1',
+            retries=3,
+            retry_delay=delay,
+            retry_exponential_backoff=True,
+            max_retry_delay=max_delay,
+            dag=dag,
+            owner='airflow',
+            start_date=timezone.datetime(2016, 2, 1, 0, 0, 0))
+        ti = TI(
+            task=task, execution_date=DEFAULT_DATE)
+        ti.end_date = pendulum.instance(timezone.utcnow())
+
+        dt = ti.next_retry_datetime()
+        # between 1 * 2^0.5 and 1 * 2^1 (15 and 30)
+        period = ti.end_date.add(seconds=1) - ti.end_date.add(seconds=15)
+        self.assertTrue(dt in period)
+
     @patch.object(TI, 'pool_full')
     def test_reschedule_handling(self, mock_pool_full):
         """
@@ -516,11 +567,20 @@ class TaskInstanceTest(unittest.TestCase):
         run_ti_and_assert(date4, date3, date4, 60, State.SUCCESS, 3, 0)
 
     def test_depends_on_past(self):
-        dagbag = models.DagBag()
-        dag = dagbag.get_dag('test_depends_on_past')
+        dag = DAG(
+            dag_id='test_depends_on_past',
+            start_date=DEFAULT_DATE
+        )
+
+        task = DummyOperator(
+            task_id='test_dop_task',
+            dag=dag,
+            depends_on_past=True,
+        )
         dag.clear()
-        task = dag.tasks[0]
+
         run_date = task.start_date + datetime.timedelta(days=5)
+
         ti = TI(task, run_date)
 
         # depends_on_past prevents the run
@@ -824,22 +884,24 @@ class TaskInstanceTest(unittest.TestCase):
         self.assertEqual(1, ti2.get_num_running_task_instances(session=session))
         self.assertEqual(1, ti3.get_num_running_task_instances(session=session))
 
-    # def test_log_url(self):
-    #     now = pendulum.now('Europe/Brussels')
-    #     dag = DAG('dag', start_date=DEFAULT_DATE)
-    #     task = DummyOperator(task_id='op', dag=dag)
-    #     ti = TI(task=task, execution_date=now)
-    #     d = urllib.parse.parse_qs(
-    #         urllib.parse.urlparse(ti.log_url).query,
-    #         keep_blank_values=True, strict_parsing=True)
-    #     self.assertEqual(d['dag_id'][0], 'dag')
-    #     self.assertEqual(d['task_id'][0], 'op')
-    #     self.assertEqual(pendulum.parse(d['execution_date'][0]), now)
-
     def test_log_url(self):
         dag = DAG('dag', start_date=DEFAULT_DATE)
         task = DummyOperator(task_id='op', dag=dag)
         ti = TI(task=task, execution_date=datetime.datetime(2018, 1, 1))
+
+        expected_url = (
+            'http://localhost:8080/admin/airflow/log?'
+            'execution_date=2018-01-01T00%3A00%3A00%2B00%3A00'
+            '&task_id=op'
+            '&dag_id=dag'
+        )
+        self.assertEqual(ti.log_url, expected_url)
+
+    def test_log_url_rbac(self):
+        dag = DAG('dag', start_date=DEFAULT_DATE)
+        task = DummyOperator(task_id='op', dag=dag)
+        ti = TI(task=task, execution_date=datetime.datetime(2018, 1, 1))
+        configuration.conf.set('webserver', 'rbac', 'True')
 
         expected_url = (
             'http://localhost:8080/log?'
@@ -927,8 +989,8 @@ class TaskInstanceTest(unittest.TestCase):
         ti = TI(
             task=task, execution_date=datetime.datetime.now())
 
-        configuration.set('email', 'SUBJECT_TEMPLATE', '/subject/path')
-        configuration.set('email', 'HTML_CONTENT_TEMPLATE', '/html_content/path')
+        configuration.set('email', 'subject_template', '/subject/path')
+        configuration.set('email', 'html_content_template', '/html_content/path')
 
         opener = mock_open(read_data='template: {{ti.task_id}}')
         with patch('airflow.models.taskinstance.open', opener, create=True):
@@ -976,6 +1038,7 @@ class TaskInstanceTest(unittest.TestCase):
                     TI.dag_id == self.dag_id).filter(
                     TI.execution_date == self.execution_date).one()
                 self.task_state_in_callback = temp_instance.state
+
         cw = CallbackWrapper()
         dag = DAG('test_success_callbak_no_race_condition', start_date=DEFAULT_DATE,
                   end_date=DEFAULT_DATE + datetime.timedelta(days=10))
@@ -992,3 +1055,134 @@ class TaskInstanceTest(unittest.TestCase):
         self.assertEqual(cw.task_state_in_callback, State.RUNNING)
         ti.refresh_from_db()
         self.assertEqual(ti.state, State.SUCCESS)
+
+    @staticmethod
+    def _test_previous_dates_setup(schedule_interval, catchup, scenario):
+        # type: (Union[str, datetime.timedelta, None], bool, List[str]) -> list
+        dag_id = 'test_previous_dates'
+        dag = models.DAG(dag_id=dag_id, schedule_interval=schedule_interval, catchup=catchup)
+        task = DummyOperator(task_id='task', dag=dag, start_date=DEFAULT_DATE)
+
+        def get_test_ti(session, execution_date, state):
+            # type: (...) -> TI
+            dag.create_dagrun(
+                run_id='scheduled__{}'.format(execution_date.to_iso8601_string()),
+                state=state,
+                execution_date=execution_date,
+                start_date=pendulum.utcnow(),
+                session=session
+            )
+            ti = TI(task=task, execution_date=execution_date)
+            ti.set_state(state=State.SUCCESS, session=session)
+            return ti
+
+        with create_session() as session:  # type: Session
+
+            d0 = pendulum.parse('2019-01-01T00:00:00+00:00')
+
+            ret = []
+
+            for idx, state in enumerate(scenario):
+                ed = d0.add(days=idx)
+                ti = get_test_ti(session, ed, state)
+                ret.append(ti)
+
+            return ret
+
+    _prev_dates_param_list = (
+        param('cron/catchup', '0 0 * * * ', True),
+        param('cron/no-catchup', '0 0 * * *', False),
+        param('no-sched/catchup', None, True),
+        param('no-sched/no-catchup', None, False),
+        param('timedelta/catchup', datetime.timedelta(days=1), True),
+        param('timedelta/no-catchup', datetime.timedelta(days=1), False),
+    )
+
+    @parameterized.expand(_prev_dates_param_list)
+    def test_previous_ti(self, _, schedule_interval, catchup):
+
+        scenario = [State.SUCCESS, State.FAILED, State.SUCCESS]
+
+        ti_list = self._test_previous_dates_setup(schedule_interval, catchup, scenario)
+
+        self.assertIsNone(ti_list[0].previous_ti)
+
+        self.assertEqual(
+            ti_list[2].previous_ti.execution_date,
+            ti_list[1].execution_date
+        )
+
+        self.assertNotEqual(
+            ti_list[2].previous_ti.execution_date,
+            ti_list[0].execution_date
+        )
+
+    @parameterized.expand(_prev_dates_param_list)
+    def test_previous_ti_success(self, _, schedule_interval, catchup):
+
+        scenario = [State.FAILED, State.SUCCESS, State.FAILED, State.SUCCESS]
+
+        ti_list = self._test_previous_dates_setup(schedule_interval, catchup, scenario)
+
+        self.assertIsNone(ti_list[0].previous_ti_success)
+        self.assertIsNone(ti_list[1].previous_ti_success)
+
+        self.assertEqual(
+            ti_list[3].previous_ti_success.execution_date,
+            ti_list[1].execution_date
+        )
+
+        self.assertNotEqual(
+            ti_list[3].previous_ti_success.execution_date,
+            ti_list[2].execution_date
+        )
+
+    @parameterized.expand(_prev_dates_param_list)
+    def test_previous_execution_date_success(self, _, schedule_interval, catchup):
+
+        scenario = [State.FAILED, State.SUCCESS, State.FAILED, State.SUCCESS]
+
+        ti_list = self._test_previous_dates_setup(schedule_interval, catchup, scenario)
+
+        self.assertIsNone(ti_list[0].previous_execution_date_success)
+        self.assertIsNone(ti_list[1].previous_execution_date_success)
+        self.assertEqual(
+            ti_list[3].previous_execution_date_success,
+            ti_list[1].execution_date
+        )
+        self.assertNotEqual(
+            ti_list[3].previous_execution_date_success,
+            ti_list[2].execution_date
+        )
+
+    @parameterized.expand(_prev_dates_param_list)
+    def test_previous_start_date_success(self, _, schedule_interval, catchup):
+
+        scenario = [State.FAILED, State.SUCCESS, State.FAILED, State.SUCCESS]
+
+        ti_list = self._test_previous_dates_setup(schedule_interval, catchup, scenario)
+
+        self.assertIsNone(ti_list[0].previous_start_date_success)
+        self.assertIsNone(ti_list[1].previous_start_date_success)
+        self.assertEqual(
+            ti_list[3].previous_start_date_success,
+            ti_list[1].start_date,
+        )
+        self.assertNotEqual(
+            ti_list[3].previous_start_date_success,
+            ti_list[2].start_date,
+        )
+
+    def test_pendulum_template_dates(self):
+        dag = models.DAG(
+            dag_id='test_pendulum_template_dates', schedule_interval='0 12 * * *',
+            start_date=timezone.datetime(2016, 6, 1, 0, 0, 0))
+        task = DummyOperator(task_id='test_pendulum_template_dates_task', dag=dag)
+
+        ti = TI(task=task, execution_date=timezone.utcnow())
+
+        template_context = ti.get_template_context()
+
+        self.assertIsInstance(template_context["execution_date"], pendulum.datetime)
+        self.assertIsInstance(template_context["next_execution_date"], pendulum.datetime)
+        self.assertIsInstance(template_context["prev_execution_date"], pendulum.datetime)

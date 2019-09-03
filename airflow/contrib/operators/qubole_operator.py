@@ -18,11 +18,18 @@
 # under the License.
 
 from typing import Iterable
-
-from airflow.models import BaseOperator
+from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
 from airflow.utils.decorators import apply_defaults
 from airflow.contrib.hooks.qubole_hook import QuboleHook, COMMAND_ARGS, HYPHEN_ARGS, \
     flatten_list, POSITIONAL_ARGS
+
+
+class QDSLink(BaseOperatorLink):
+
+    name = 'Go to QDS'
+
+    def get_link(self, operator, dttm):
+        return operator.get_hook().get_extra_links(operator, dttm)
 
 
 class QuboleOperator(BaseOperator):
@@ -149,6 +156,10 @@ class QuboleOperator(BaseOperator):
     ui_color = '#3064A1'
     ui_fgcolor = '#fff'
     qubole_hook_allowed_args_list = ['command_type', 'qubole_conn_id', 'fetch_logs']
+
+    operator_extra_links = (
+        QDSLink(),
+    )
 
     @apply_defaults
     def __init__(self, qubole_conn_id="qubole_default", *args, **kwargs):
