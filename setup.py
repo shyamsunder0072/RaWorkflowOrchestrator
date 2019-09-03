@@ -141,7 +141,7 @@ azure_cosmos = ['azure-cosmos>=3.0.1']
 azure_container_instances = ['azure-mgmt-containerinstance']
 cassandra = ['cassandra-driver>=3.13.0']
 celery = [
-    'celery>=4.1.1, <4.2.0',
+    'celery~=4.3',
     'flower>=0.7.3, <1.0',
     'tornado>=4.2.0, <6.0',  # Dep of flower. Pin to a version that works on Py3.5.2
 ]
@@ -179,13 +179,16 @@ gcp_api = [
     'google-cloud-container>=0.1.1',
     'google-cloud-language>=1.1.1',
     'google-cloud-spanner>=1.7.1',
+    'google-cloud-storage~=1.14',
     'google-cloud-translate>=1.3.3',
+    'google-cloud-videointelligence>=1.7.0',
     'google-cloud-vision>=0.35.2',
     'grpcio-gcp>=0.2.2',
     'httplib2~=0.9.2',
     'pandas-gbq',
     'PyOpenSSL',
 ]
+grpc = ['grpcio>=1.15.0']
 flask_oauth = [
     'Flask-OAuthlib>=0.9.1',
     'oauthlib!=2.0.3,!=2.0.4,!=2.0.5,<3.0.0,>=1.1.2',
@@ -215,7 +218,7 @@ password = [
 ]
 pinot = ['pinotdb==0.1.1']
 postgres = ['psycopg2>=2.7.4,<2.8']
-qds = ['qds-sdk>=1.9.6']
+qds = ['qds-sdk>=1.10.4']
 rabbitmq = ['librabbitmq>=1.6.1']
 redis = ['redis~=3.2']
 s3 = ['boto3>=1.7.0, <1.8.0']
@@ -240,6 +243,7 @@ all_dbs = postgres + mysql + hive + mssql + hdfs + vertica + cloudant + druid + 
 devel = [
     'beautifulsoup4~=4.7.1',
     'click==6.7',
+    'contextdecorator;python_version<"3.4"',
     'freezegun',
     'jira',
     'mock;python_version<"3.3"',
@@ -261,7 +265,7 @@ devel_minreq = devel + kubernetes + mysql + doc + password + s3 + cgroups
 devel_hadoop = devel_minreq + hive + hdfs + webhdfs + kerberos
 devel_azure = devel_minreq + azure_data_lake + azure_cosmos
 devel_all = (sendgrid + devel + all_dbs + doc + samba + s3 + slack + crypto + oracle +
-             docker + ssh + kubernetes + celery + azure_blob_storage + redis + gcp_api +
+             docker + ssh + kubernetes + celery + azure_blob_storage + redis + gcp_api + grpc +
              datadog + zendesk + jdbc + ldap + kerberos + password + webhdfs + jenkins +
              druid + pinot + segment + snowflake + elasticsearch + azure_data_lake + azure_cosmos +
              atlas + azure_container_instances)
@@ -290,6 +294,7 @@ def do_setup():
         scripts=['airflow/bin/airflow'],
         install_requires=[
             'alembic>=0.9, <1.0',
+            'cached_property~=1.5',
             'configparser>=3.5.0, <3.6.0',
             'croniter>=0.3.17, <0.4',
             'dill>=0.2.2, <0.3',
@@ -307,7 +312,7 @@ def do_setup():
             'gunicorn>=19.5.0, <20.0',
             'iso8601>=0.1.12',
             'json-merge-patch==0.2',
-            'jinja2>=2.10.1',
+            'jinja2>=2.10.1, <2.11.0',
             'lxml>=4.0.0',
             'markdown>=2.5.2, <3.0',
             'pandas>=0.17.1, <1.0.0',
@@ -318,13 +323,13 @@ def do_setup():
             'python-dateutil>=2.3, <3',
             'requests>=2.20.0, <3',
             'setproctitle>=1.1.8, <2',
-            'sqlalchemy>=1.1.15, <1.3.0',
+            'sqlalchemy~=1.3',
             'tabulate>=0.7.5, <0.9',
             'tenacity==4.12.0',
             'text-unidecode==1.2',
             'typing;python_version<"3.5"',
             'thrift>=0.9.2',
-            'tzlocal==1.5.1',
+            'tzlocal>=1.4',
             'unicodecsv>=0.14.1',
             'zope.deprecation>=4.0, <5.0',
         ],
@@ -360,6 +365,7 @@ def do_setup():
             'gcp_api': gcp_api,
             'github_enterprise': flask_oauth,
             'google_auth': flask_oauth,
+            'grpc': grpc,
             'hdfs': hdfs,
             'hive': hive,
             'jdbc': jdbc,

@@ -53,10 +53,7 @@ from airflow import models, jobs
 from airflow import settings
 from airflow.api.common.experimental.mark_tasks import (set_dag_run_state_to_success,
                                                         set_dag_run_state_to_failed)
-from airflow.models import XCom, DagRun, errors, DagModel
-from airflow.models.connection import Connection
-from airflow.models.log import Log
-from airflow.models.taskfail import TaskFail
+from airflow.models import Connection, DagModel, DagRun, errors, Log, SlaMiss, TaskFail, XCom
 from airflow.ti_deps.dep_context import DepContext, QUEUE_DEPS, SCHEDULER_DEPS
 from airflow.utils import timezone
 from airflow.utils.dates import infer_time_unit, scale_time_units
@@ -136,15 +133,24 @@ def get_date_time_num_runs_dag_runs_form_data(request, session, dag):
 #                                    BaseViews
 ######################################################################################
 
+@app.errorhandler(404)
+def circles(error):
+    return render_template(
+        'airflow/circles.html', hostname=socket.getfqdn()), 404
+
+
+@app.errorhandler(500)
+def show_traceback(error):
+    from airflow.utils import asciiart as ascii_
+    return render_template(
+        'airflow/traceback.html',
+        hostname=socket.getfqdn(),
+        nukular=ascii_.nukular,
+        info=traceback.format_exc()), 500
+
 
 class AirflowBaseView(BaseView):
     route_base = ''
-
-    def render(self, template, **context):
-        return render_template(template,
-                               base_template=self.appbuilder.base_template,
-                               appbuilder=self.appbuilder,
-                               **context)
 
 
 class Airflow(AirflowBaseView):
@@ -227,7 +233,10 @@ class Airflow(AirflowBaseView):
             query = query.filter(~DM.is_paused)
 
         if arg_search_query:
-            query = query.filter(sqla.func.lower(DM.dag_id) == arg_search_query.lower())
+            query = query.filter(
+                DagModel.dag_id.ilike('%' + arg_search_query + '%') |
+                DagModel.owners.ilike('%' + arg_search_query + '%')
+            )
 
         import_errors = session.query(errors.ImportError).all()
         for ie in import_errors:
@@ -264,7 +273,7 @@ class Airflow(AirflowBaseView):
             auto_complete_data.add(row.dag_id)
             auto_complete_data.add(row.owners)
 
-        return self.render(
+        return self.render_template(
             'airflow/dags.html',
             dags=dags,
             hide_paused=hide_paused,
@@ -410,7 +419,7 @@ class Airflow(AirflowBaseView):
         except IOError as e:
             html_code = str(e)
 
-        return self.render(
+        return self.render_template(
             'airflow/dag_code.html', html_code=html_code, dag=dag, title=dag_id,
             root=request.args.get('root'),
             demo_mode=conf.getboolean('webserver', 'demo_mode'))
@@ -441,23 +450,9 @@ class Airflow(AirflowBaseView):
             external_trigger=False
         )
 
-        return self.render(
+        return self.render_template(
             'airflow/dag_details.html',
             dag=dag, title=title, root=root, states=states, State=State, active_runs=active_runs)
-
-    @app.errorhandler(404)
-    def circles(self):
-        return render_template(
-            'airflow/circles.html', hostname=socket.getfqdn()), 404
-
-    @app.errorhandler(500)
-    def show_traceback(self):
-        from airflow.utils import asciiart as ascii_
-        return render_template(
-            'airflow/traceback.html',
-            hostname=socket.getfqdn(),
-            nukular=ascii_.nukular,
-            info=traceback.format_exc()), 500
 
     @expose('/pickle_info')
     @has_access
@@ -503,7 +498,7 @@ class Airflow(AirflowBaseView):
                 html_dict[template_field] = (
                     "<pre><code>" + str(content) + "</pre></code>")
 
-        return self.render(
+        return self.render_template(
             'airflow/ti_code.html',
             html_dict=html_dict,
             dag=dag,
@@ -613,7 +608,7 @@ class Airflow(AirflowBaseView):
                 num_logs += 1
         logs = [''] * num_logs
         root = request.args.get('root', '')
-        return self.render(
+        return self.render_template(
             'airflow/ti_log.html',
             logs=logs, dag=dag, title="Log by attempts",
             dag_id=dag.dag_id, task_id=task_id,
@@ -688,7 +683,7 @@ class Airflow(AirflowBaseView):
                                   dep_context=dep_context)]
 
         title = "Task Instance Details"
-        return self.render(
+        return self.render_template(
             'airflow/task.html',
             task_attrs=task_attrs,
             ti_attrs=ti_attrs,
@@ -736,7 +731,7 @@ class Airflow(AirflowBaseView):
                 attributes.append((xcom.key, xcom.value))
 
         title = "XCom"
-        return self.render(
+        return self.render_template(
             'airflow/xcom.html',
             attributes=attributes,
             task_id=task_id,
@@ -762,8 +757,8 @@ class Airflow(AirflowBaseView):
         ignore_task_deps = request.form.get('ignore_task_deps') == "true"
         ignore_ti_state = request.form.get('ignore_ti_state') == "true"
 
-        from airflow.executors import GetDefaultExecutor
-        executor = GetDefaultExecutor()
+        from airflow.executors import get_default_executor
+        executor = get_default_executor()
         valid_celery_config = False
         valid_kubernetes_config = False
 
@@ -903,7 +898,7 @@ class Airflow(AirflowBaseView):
         else:
             details = "\n".join([str(t) for t in tis])
 
-            response = self.render(
+            response = self.render_template(
                 'airflow/confirm.html',
                 message=("Here's the list of task instances you are about "
                          "to clear:"),
@@ -1010,10 +1005,10 @@ class Airflow(AirflowBaseView):
         else:
             details = '\n'.join([str(t) for t in new_dag_state])
 
-            response = self.render('airflow/confirm.html',
-                                   message=("Here's the list of task instances you are "
-                                            "about to mark as failed"),
-                                   details=details)
+            response = self.render_template(
+                'airflow/confirm.html',
+                message=("Here's the list of task instances you are about to mark as failed"),
+                details=details)
 
             return response
 
@@ -1039,10 +1034,10 @@ class Airflow(AirflowBaseView):
         else:
             details = '\n'.join([str(t) for t in new_dag_state])
 
-            response = self.render('airflow/confirm.html',
-                                   message=("Here's the list of task instances you are "
-                                            "about to mark as success"),
-                                   details=details)
+            response = self.render_template(
+                'airflow/confirm.html',
+                message=("Here's the list of task instances you are about to mark as success"),
+                details=details)
 
             return response
 
@@ -1105,10 +1100,10 @@ class Airflow(AirflowBaseView):
 
         details = "\n".join([str(t) for t in to_be_altered])
 
-        response = self.render("airflow/confirm.html",
-                               message=("Here's the list of task instances you are "
-                                        "about to mark as {}:".format(state)),
-                               details=details)
+        response = self.render_template(
+            "airflow/confirm.html",
+            message=("Here's the list of task instances you are about to mark as {}:".format(state)),
+            details=details)
 
         return response
 
@@ -1201,7 +1196,7 @@ class Airflow(AirflowBaseView):
         min_date = min(dates) if dates else None
 
         tis = dag.get_task_instances(
-            session, start_date=min_date, end_date=base_date)
+            start_date=min_date, end_date=base_date, session=session)
         task_instances = {}
         for ti in tis:
             tid = alchemy_to_dict(ti)
@@ -1271,7 +1266,7 @@ class Airflow(AirflowBaseView):
 
         form = DateTimeWithNumRunsForm(data={'base_date': max_date,
                                              'num_runs': num_runs})
-        return self.render(
+        return self.render_template(
             'airflow/tree.html',
             operators=sorted(
                 list(set([op.__class__ for op in dag.tasks])),
@@ -1348,7 +1343,7 @@ class Airflow(AirflowBaseView):
 
         task_instances = {
             ti.task_id: alchemy_to_dict(ti)
-            for ti in dag.get_task_instances(session, dttm, dttm)}
+            for ti in dag.get_task_instances(dttm, dttm, session=session)}
         tasks = {
             t.task_id: {
                 'dag_id': t.dag_id,
@@ -1363,7 +1358,7 @@ class Airflow(AirflowBaseView):
         doc_md = markdown.markdown(dag.doc_md) \
             if hasattr(dag, 'doc_md') and dag.doc_md else ''
 
-        return self.render(
+        return self.render_template(
             'airflow/graph.html',
             dag=dag,
             form=form,
@@ -1427,7 +1422,7 @@ class Airflow(AirflowBaseView):
         cum_y = defaultdict(list)
 
         tis = dag.get_task_instances(
-            session, start_date=min_date, end_date=base_date)
+            start_date=min_date, end_date=base_date, session=session)
         TF = TaskFail
         ti_fails = (
             session.query(TF)
@@ -1486,7 +1481,7 @@ class Airflow(AirflowBaseView):
                                  "$( document ).trigger('chartload')" +
                                  cum_chart.htmlcontent[s_index:])
 
-        return self.render(
+        return self.render_template(
             'airflow/duration_chart.html',
             dag=dag,
             demo_mode=conf.getboolean('webserver', 'demo_mode'),
@@ -1532,8 +1527,9 @@ class Airflow(AirflowBaseView):
         for task in dag.tasks:
             y = []
             x = []
-            for ti in task.get_task_instances(session, start_date=min_date,
-                                              end_date=base_date):
+            for ti in task.get_task_instances(start_date=min_date,
+                                              end_date=base_date,
+                                              session=session):
                 dttm = wwwutils.epoch(ti.execution_date)
                 x.append(dttm)
                 y.append(ti.try_number)
@@ -1541,7 +1537,7 @@ class Airflow(AirflowBaseView):
                 chart.add_serie(name=task.task_id, x=x, y=y)
 
         tis = dag.get_task_instances(
-            session, start_date=min_date, end_date=base_date)
+            start_date=min_date, end_date=base_date, session=session)
         tries = sorted(list({ti.try_number for ti in tis}))
         max_date = max([ti.execution_date for ti in tis]) if tries else None
 
@@ -1552,7 +1548,7 @@ class Airflow(AirflowBaseView):
 
         chart.buildcontent()
 
-        return self.render(
+        return self.render_template(
             'airflow/chart.html',
             dag=dag,
             demo_mode=conf.getboolean('webserver', 'demo_mode'),
@@ -1597,8 +1593,9 @@ class Airflow(AirflowBaseView):
         for task in dag.tasks:
             y[task.task_id] = []
             x[task.task_id] = []
-            for ti in task.get_task_instances(session, start_date=min_date,
-                                              end_date=base_date):
+            for ti in task.get_task_instances(start_date=min_date,
+                                              end_date=base_date,
+                                              session=session):
                 ts = ti.execution_date
                 if dag.schedule_interval and dag.following_schedule(ts):
                     ts = dag.following_schedule(ts)
@@ -1621,7 +1618,7 @@ class Airflow(AirflowBaseView):
                                 y=scale_time_units(y[task.task_id], y_unit))
 
         tis = dag.get_task_instances(
-            session, start_date=min_date, end_date=base_date)
+            start_date=min_date, end_date=base_date, session=session)
         dates = sorted(list({ti.execution_date for ti in tis}))
         max_date = max([ti.execution_date for ti in tis]) if dates else None
 
@@ -1630,7 +1627,7 @@ class Airflow(AirflowBaseView):
         form = DateTimeWithNumRunsForm(data={'base_date': max_date,
                                              'num_runs': num_runs})
         chart.buildcontent()
-        return self.render(
+        return self.render_template(
             'airflow/chart.html',
             dag=dag,
             chart=chart.htmlcontent,
@@ -1719,7 +1716,7 @@ class Airflow(AirflowBaseView):
         form.execution_date.choices = dt_nr_dr_data['dr_choices']
 
         tis = [
-            ti for ti in dag.get_task_instances(session, dttm, dttm)
+            ti for ti in dag.get_task_instances(dttm, dttm, session=session)
             if ti.start_date]
         tis = sorted(tis, key=lambda ti: ti.start_date)
         TF = TaskFail
@@ -1768,7 +1765,7 @@ class Airflow(AirflowBaseView):
 
         session.commit()
 
-        return self.render(
+        return self.render_template(
             'airflow/gantt.html',
             dag=dag,
             execution_date=dttm.isoformat(),
@@ -1796,7 +1793,7 @@ class Airflow(AirflowBaseView):
 
         task_instances = {
             ti.task_id: alchemy_to_dict(ti)
-            for ti in dag.get_task_instances(session, dttm, dttm)}
+            for ti in dag.get_task_instances(dttm, dttm, session=session)}
 
         return json.dumps(task_instances)
 
@@ -1822,10 +1819,11 @@ class VersionView(AirflowBaseView):
 
         # Render information
         title = "Version Info"
-        return self.render('airflow/version.html',
-                           title=title,
-                           airflow_version=airflow_version,
-                           git_version=git_version)
+        return self.render_template(
+            'airflow/version.html',
+            title=title,
+            airflow_version=airflow_version,
+            git_version=git_version)
 
 
 class ConfigurationView(AirflowBaseView):
@@ -1859,7 +1857,7 @@ class ConfigurationView(AirflowBaseView):
                 lexers.IniLexer(),  # Lexer call
                 HtmlFormatter(noclasses=True))
             )
-            return self.render(
+            return self.render_template(
                 'airflow/config.html',
                 pre_subtitle=settings.HEADER + "  v" + airflow.__version__,
                 code_html=code_html, title=title, subtitle=subtitle,
@@ -1888,7 +1886,7 @@ class AirflowModelView(ModelView):
 class SlaMissModelView(AirflowModelView):
     route_base = '/slamiss'
 
-    datamodel = AirflowModelView.CustomSQLAInterface(models.SlaMiss)
+    datamodel = AirflowModelView.CustomSQLAInterface(SlaMiss)
 
     base_permissions = ['can_list']
 
@@ -1910,7 +1908,7 @@ class SlaMissModelView(AirflowModelView):
 class XComModelView(AirflowModelView):
     route_base = '/xcom'
 
-    datamodel = AirflowModelView.CustomSQLAInterface(models.XCom)
+    datamodel = AirflowModelView.CustomSQLAInterface(XCom)
 
     base_permissions = ['can_add', 'can_list', 'can_edit', 'can_delete']
 
@@ -1941,7 +1939,11 @@ class ConnectionModelView(AirflowModelView):
                     'extra__google_cloud_platform__project',
                     'extra__google_cloud_platform__key_path',
                     'extra__google_cloud_platform__keyfile_dict',
-                    'extra__google_cloud_platform__scope']
+                    'extra__google_cloud_platform__scope',
+                    'extra__google_cloud_platform__num_retries',
+                    'extra__grpc__auth_type',
+                    'extra__grpc__credentials_pem_file',
+                    'extra__grpc__scopes']
     list_columns = ['conn_id', 'conn_type', 'host', 'port', 'is_encrypted',
                     'is_extra_encrypted']
     add_columns = edit_columns = ['conn_id', 'conn_type', 'host', 'schema',
@@ -1962,7 +1964,7 @@ class ConnectionModelView(AirflowModelView):
 
     def process_form(self, form, is_created):
         formdata = form.data
-        if formdata['conn_type'] in ['jdbc', 'google_cloud_platform']:
+        if formdata['conn_type'] in ['jdbc', 'google_cloud_platform', 'grpc']:
             extra = {
                 key: formdata[key]
                 for key in self.extra_fields if key in formdata}
@@ -2010,7 +2012,7 @@ class PoolModelView(AirflowModelView):
         pool_id = attr.get('pool')
         if pool_id is not None:
             url = url_for('TaskInstanceModelView.list', _flt_3_pool=pool_id)
-            return Markup("<a href='{url}'>{pool_id}</a>").format(**locals())
+            return Markup("<a href='{url}'>{pool_id}</a>").format(url=url, pool_id=pool_id)
         else:
             return Markup('<span class="label label-danger">Invalid</span>')
 
@@ -2019,7 +2021,7 @@ class PoolModelView(AirflowModelView):
         used_slots = attr.get('used_slots')
         if pool_id is not None and used_slots is not None:
             url = url_for('TaskInstanceModelView.list', _flt_3_pool=pool_id, _flt_3_state='running')
-            return Markup("<a href='{url}'>{used_slots}</a>").format(**locals())
+            return Markup("<a href='{url}'>{used_slots}</a>").format(url=url, used_slots=used_slots)
         else:
             return Markup('<span class="label label-danger">Invalid</span>')
 
@@ -2028,7 +2030,7 @@ class PoolModelView(AirflowModelView):
         queued_slots = attr.get('queued_slots')
         if pool_id is not None and queued_slots is not None:
             url = url_for('TaskInstanceModelView.list', _flt_3_pool=pool_id, _flt_3_state='queued')
-            return Markup("<a href='{url}'>{queued_slots}</a>").format(**locals())
+            return Markup("<a href='{url}'>{queued_slots}</a>").format(url=url, queued_slots=queued_slots)
         else:
             return Markup('<span class="label label-danger">Invalid</span>')
 
@@ -2216,7 +2218,7 @@ class DagRunModelView(AirflowModelView):
                 dr.start_date = timezone.utcnow()
                 dr.state = State.RUNNING
             session.commit()
-            flash("{count} dag runs were set to running".format(**locals()))
+            flash("{count} dag runs were set to running".format(count=count))
         except Exception as ex:
             flash(str(ex), 'error')
             flash('Failed to set state', 'error')
@@ -2244,7 +2246,7 @@ class DagRunModelView(AirflowModelView):
             altered_ti_count = len(altered_tis)
             flash(
                 "{count} dag runs and {altered_ti_count} task instances "
-                "were set to failed".format(**locals()))
+                "were set to failed".format(count=count, altered_ti_count=altered_ti_count))
         except Exception:
             flash('Failed to set state', 'error')
         return redirect(self.get_default_url())
@@ -2271,7 +2273,7 @@ class DagRunModelView(AirflowModelView):
             altered_ti_count = len(altered_tis)
             flash(
                 "{count} dag runs and {altered_ti_count} task instances "
-                "were set to success".format(**locals()))
+                "were set to success".format(count=count, altered_ti_count=altered_ti_count))
         except Exception:
             flash('Failed to set state', 'error')
         return redirect(self.get_default_url())
@@ -2325,7 +2327,7 @@ class TaskInstanceModelView(AirflowModelView):
         return Markup(
             '<a href="{log_url}">'
             '    <span class="glyphicon glyphicon-book" aria-hidden="true">'
-            '</span></a>').format(**locals())
+            '</span></a>').format(log_url=log_url)
 
     def duration_f(attr):
         end_date = attr.get('end_date')
@@ -2361,7 +2363,7 @@ class TaskInstanceModelView(AirflowModelView):
                 tis.append(ti)
 
             for dag, tis in dag_to_tis.items():
-                models.clear_task_instances(tis, session, dag=dag)
+                models.clear_task_instances(tis, session=session, dag=dag)
 
             session.commit()
             flash("{0} task instances have been cleared".format(len(tis)))
@@ -2376,10 +2378,10 @@ class TaskInstanceModelView(AirflowModelView):
         try:
             count = len(tis)
             for ti in tis:
-                ti.set_state(target_state, session)
+                ti.set_state(target_state, session=session)
             session.commit()
-            flash(
-                "{count} task instances were set to '{target_state}'".format(**locals()))
+            flash("{count} task instances were set to '{target_state}'".format(
+                count=count, target_state=target_state))
         except Exception:
             flash('Failed to set state', 'error')
 

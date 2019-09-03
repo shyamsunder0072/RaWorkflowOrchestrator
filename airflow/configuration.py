@@ -146,10 +146,6 @@ class AirflowConfigParser(ConfigParser):
             'ssl_key': 'celery_ssl_key',
         }
     }
-    deprecation_format_string = (
-        'The {old} option in [{section}] has been renamed to {new} - the old '
-        'setting has been used, but please update your config.'
-    )
 
     # A mapping of old default values that we want to change and warn the user
     # about. Mapping of section -> setting -> { old, replace, by_version }
@@ -158,11 +154,6 @@ class AirflowConfigParser(ConfigParser):
             'task_runner': ('BashTaskRunner', 'StandardTaskRunner', '2.0'),
         },
     }
-    deprecation_value_format_string = (
-        'The {name} setting in [{section}] has the old default value of {old!r}. This '
-        'value has been changed to {new!r} in the running config, but please '
-        'update your config before Apache Airflow {version}.'
-    )
 
     def __init__(self, default_config=None, *args, **kwargs):
         super(AirflowConfigParser, self).__init__(*args, **kwargs)
@@ -210,8 +201,13 @@ class AirflowConfigParser(ConfigParser):
 
                     self.set(section, name, new)
                     warnings.warn(
-                        self.deprecation_value_format_string.format(**locals()),
-                        FutureWarning,
+                        'The {name} setting in [{section}] has the old default value '
+                        'of {old!r}. This value has been changed to {new!r} in the '
+                        'running config, but please update your config before Apache '
+                        'Airflow {version}.'.format(
+                            name=name, section=section, old=old, new=new, version=version
+                        ),
+                        FutureWarning
                     )
 
         self.is_validated = True
@@ -414,7 +410,7 @@ class AirflowConfigParser(ConfigParser):
                 opt = self._get_env_var_option(section, key)
             except ValueError:
                 continue
-            if (not display_sensitive and ev != 'AIRFLOW__CORE__UNIT_TEST_MODE'):
+            if not display_sensitive and ev != 'AIRFLOW__CORE__UNIT_TEST_MODE':
                 opt = '< hidden >'
             elif raw:
                 opt = opt.replace('%', '%%')
@@ -453,7 +449,8 @@ class AirflowConfigParser(ConfigParser):
 
     def _warn_deprecate(self, section, key, deprecated_name):
         warnings.warn(
-            self.deprecation_format_string.format(
+            'The {old} option in [{section}] has been renamed to {new} - the old '
+            'setting has been used, but please update your config.'.format(
                 old=deprecated_name,
                 new=key,
                 section=section,

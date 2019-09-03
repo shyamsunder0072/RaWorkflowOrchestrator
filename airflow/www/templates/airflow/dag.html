@@ -159,12 +159,12 @@
             View Log
           </button>
           <hr/>
-          <div>
+          <div id="dag_dl_logs">
             <label style="display:inline"> Download Log (by attempts): </label>
             <ul class="nav nav-pills" role="tablist" id="try_index" style="display:inline">
             </ul>
+            <hr/>
           </div>
-          <hr/>
           <form method="POST">
             <input name="csrf_token" type="hidden" value="{{ csrf_token() }}"/>
             <input name="dag_id" type="hidden">
@@ -346,7 +346,7 @@ function updateQueryStringParameter(uri, key, value) {
     var id = '';
     var dag_id = '{{ dag.dag_id }}';
     var task_id = '';
-    var exection_date = '';
+    var execution_date = '';
     var subdag_id = '';
     var rundag_id = '';
     function call_modal(t, d, try_numbers, sd, run_dag_id, rd) {
@@ -374,6 +374,10 @@ function updateQueryStringParameter(uri, key, value) {
           $("#div_btn_rundag").show();
           rundag_id = run_dag_id;
       }
+      if (try_numbers > 0)
+          $("#dag_dl_logs").show();
+      else
+          $("#dag_dl_logs").hide();
 
       $("#try_index > li").remove();
       var startIndex = (try_numbers > 2 ? 0 : 1);

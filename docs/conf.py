@@ -50,6 +50,7 @@ autodoc_mock_imports = [
     'cassandra',
     'celery',
     'cloudant',
+    'cryptography',
     'cx_Oracle',
     'datadog',
     'distributed',
@@ -57,6 +58,7 @@ autodoc_mock_imports = [
     'google',
     'google_auth_httplib2',
     'googleapiclient',
+    'grpc',
     'hdfs',
     'httplib2',
     'jaydebeapi',
@@ -120,9 +122,12 @@ extensions = [
     'docroles'
 ]
 
-autodoc_default_flags = ['show-inheritance', 'members']
+autodoc_default_options = {
+    'show-inheritance': True,
+    'members': True
+}
 
-viewcode_import = True
+viewcode_follow_imported_members = True
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['templates']
@@ -417,9 +422,13 @@ autoapi_template_dir = 'autoapi_templates'
 
 # A list of patterns to ignore when finding files
 autoapi_ignore = [
-    os.path.abspath('../airflow/contrib/operators/s3_to_gcs_transfer_operator.py'),
-    os.path.abspath('../airflow/contrib/operators/gcs_to_gcs_transfer_operator.py'),
-    os.path.abspath('../airflow/contrib/operators/gcs_to_gcs_transfer_operator.py'),
+    # These modules are backcompat shims, don't build docs for them
+    '*/airflow/contrib/operators/s3_to_gcs_transfer_operator.py',
+    '*/airflow/contrib/operators/gcs_to_gcs_transfer_operator.py',
+    '*/airflow/contrib/operators/gcs_to_gcs_transfer_operator.py',
+
+    '*/node_modules/*',
+    '*/migrations/*',
 ]
 # Keep the AutoAPI generated files on the filesystem after the run.
 # Useful for debugging.

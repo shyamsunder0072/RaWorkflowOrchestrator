@@ -107,3 +107,13 @@ class TaskInstanceNotFound(AirflowNotFoundException):
 class PoolNotFound(AirflowNotFoundException):
     """Raise when a Pool is not available in the system"""
     pass
+
+
+class NoAvailablePoolSlot(AirflowException):
+    """Raise when there is not enough slots in pool"""
+    pass
+
+
+class DagConcurrencyLimitReached(AirflowException):
+    """Raise when concurrency limit is reached"""
+    pass
