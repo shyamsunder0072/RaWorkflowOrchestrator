@@ -3171,25 +3171,13 @@ class SparkConfView(wwwutils.SuperUserMixin, BaseView):
             return self.render(
                 'airflow/couture_config.html', title=title, len=len(args), Arguments=args, Configurations=configs)
 
-class HadoopConfView(wwwutils.SuperUserMixin, BaseView):
-    @expose('/')
-    def conf(self):
-        title = "Couture Hadoop Configuration"
-        return self.render(
-            'airflow/hadoop_config.html', title=title)
 
 class UploadArtifactView(wwwutils.SuperUserMixin, BaseView):
     @expose('/')
     def conf(self):
         title = "Upload Artifact"
-        return self.render(
-            'airflow/upload_artifact.html', title=title)
-
-class AddDagView(wwwutils.SuperUserMixin, BaseView):
-    @expose('/', methods=['GET', 'POST'])
-    def add_dag(self):
-        title = "Add DAG"
-        add_to_dir = '/Users/anu/files'
+        from airflow.configuration import AIRFLOW_HOME
+        add_to_dir = AIRFLOW_HOME + '/setup'
 
         if request.method == 'POST':
             target = os.path.join(add_to_dir)
@@ -3210,14 +3198,49 @@ class AddDagView(wwwutils.SuperUserMixin, BaseView):
                 for file in f:
                     files.append(file)
 
-            return self.render(
+            return self.render_template(
+                'airflow/upload_artifact.html', title=title, Files=files)
+        else:
+            files = []
+            for r, d, f in os.walk(add_to_dir):
+                for file in f:
+                    files.append(file)
+            return self.render_template('airflow/upload_artifact.html',title=title, Files=files)
+
+class AddDagView(wwwutils.SuperUserMixin, BaseView):
+    @expose('/', methods=['GET', 'POST'])
+    def add_dag(self):
+        title = "Add DAG"
+        from airflow.configuration import AIRFLOW_HOME
+        add_to_dir = AIRFLOW_HOME + '/dags'
+
+        if request.method == 'POST':
+            target = os.path.join(add_to_dir)
+            if not os.path.isdir(target):
+                os.mkdir(target)
+
+            try:
+                for f in request.files.getlist("file"):
+                    filename = f.filename
+                    destination = "/".join([target, filename])
+                    f.save(destination)
+                    flash('File Uploaded!')
+            except:
+                flash('No file selected!')
+
+            files = []
+            for r, d, f in os.walk(add_to_dir):
+                for file in f:
+                    files.append(file)
+
+            return self.render_template(
                 'airflow/add_dag.html', title=title, Files=files)
         else:
             files = []
             for r, d, f in os.walk(add_to_dir):
                 for file in f:
                     files.append(file)
-            return self.render('airflow/add_dag.html',title=title, Files=files)
+            return self.render_template('airflow/add_dag.html',title=title, Files=files)
 
 class DagModelView(wwwutils.SuperUserMixin, ModelView):
     column_list = ('dag_id', 'owners')

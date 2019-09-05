@@ -105,8 +105,6 @@ def create_app(config=None, testing=False):
             name='Configuration', category="Admin"))
         av(vs.SparkConfView(
             name="Couture Spark Configuration", category="Admin"))
-        av(vs.HadoopConfView(
-            name="Couture Hadoop Configuration", category="Admin"))
         av(vs.AddDagView(
             name="Add DAG", category="Admin"))
         av(vs.UploadArtifactView(

@@ -4494,27 +4494,15 @@ class SparkConfView(AirflowBaseView):
         config = CP.ConfigParser()
         config.optionxform = str
         conf_path = AIRFLOW_HOME + '/couture-spark.conf'
-        setup_path = AIRFLOW_HOME + '/setup'
+
         config.read(filenames=conf_path)
         args = collections.OrderedDict(config.items('arguments'))  # orderedDictionary used so that the order displayed is same as in file
         configs = collections.OrderedDict(config.items('configurations'))  # dictionary created
         title = "Couture Spark Configuration"
 
-        files = []
-        for r, d, f in os.walk(setup_path):
-            for file in f:
-                if file.endswith(".jar"):
-                    files.append(file)
-                    print (file)
-
         if request.method == 'POST':
             for i in args:
-                if i != 'jars':
                     config.set('arguments', i, request.form[args[i]])
-                else:
-                    filenames=request.form.getlist('check')
-                    jarfiles=",".join(filenames)
-                    config.set('arguments', i, jarfiles)
 
             for j in configs:
                 config.set('configurations', j, request.form[configs[j]])
@@ -4555,10 +4543,10 @@ class SparkConfView(AirflowBaseView):
             new_args = collections.OrderedDict(config.items('arguments'))
             new_config = collections.OrderedDict(config.items('configurations'))
             return self.render_template(
-                'airflow/couture_config.html', title=title, Arguments=new_args, Configurations=new_config, Files=files)
+                'airflow/couture_config.html', title=title, Arguments=new_args, Configurations=new_config)
         else:
             return self.render_template(
-                'airflow/couture_config.html', title=title, len=len(args), Arguments=args, Configurations=configs, Files=files)
+                'airflow/couture_config.html', title=title, len=len(args), Arguments=args, Configurations=configs)
 
 class UploadArtifactView(AirflowBaseView):
     @expose('/upload_artifact', methods=['GET', 'POST'])
@@ -4588,13 +4576,13 @@ class UploadArtifactView(AirflowBaseView):
                     files.append(file)
 
             return self.render_template(
-                'airflow/add_dag.html', title=title, Files=files)
+                'airflow/upload_artifact.html', title=title, Files=files)
         else:
             files = []
             for r, d, f in os.walk(add_to_dir):
                 for file in f:
                     files.append(file)
-            return self.render_template('airflow/add_dag.html',title=title, Files=files)
+            return self.render_template('airflow/upload_artifact.html',title=title, Files=files)
 
 class AddDagView(AirflowBaseView):
     @expose('/add_dag', methods=['GET', 'POST'])
