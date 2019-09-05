@@ -3110,7 +3110,7 @@ class ConfigurationView(wwwutils.SuperUserMixin, BaseView):
                 table=table)
 
 
-class CoutureConfView(wwwutils.SuperUserMixin, BaseView):
+class SparkConfView(wwwutils.SuperUserMixin, BaseView):
     @expose('/', methods=['GET', 'POST'])
     def conf(self):
         import collections
@@ -3119,13 +3119,13 @@ class CoutureConfView(wwwutils.SuperUserMixin, BaseView):
         config.optionxform = str
         conf_path = AIRFLOW_HOME + '/couture-spark.conf'
         config.read(filenames=conf_path)
-        arguments = collections.OrderedDict(config.items('arguments'))  # orderedDictionary used so that the order displayed is same as in file
+        args = collections.OrderedDict(config.items('arguments'))  # orderedDictionary used so that the order displayed is same as in file
         configs = collections.OrderedDict(config.items('configurations'))  # dictionary created
-        title = "Couture Configuration"
+        title = "Couture Spark Configuration"
 
         if request.method == 'POST':
-            for i in arguments:
-                config.set('arguments', i, request.form[arguments[i]])
+            for i in args:
+                config.set('arguments', i, request.form[args[i]])
 
             for j in configs:
                 config.set('configurations', j, request.form[configs[j]])
@@ -3135,7 +3135,7 @@ class CoutureConfView(wwwutils.SuperUserMixin, BaseView):
                 opt_title = request.form['option_title']
                 opt_value = request.form['option_value']
                 if len(opt_title) != 0 and len(opt_value) != 0:  # for not adding empty fields in file
-                    config.set('arguments', request.form['option_title'], request.form['option_value'])  # adding the new name and value in file
+                    config.set('arguments', opt_title, opt_value)  # adding the new name and value in file
             except:
                 print("Sorry ! No field found ")
 
@@ -3143,9 +3143,21 @@ class CoutureConfView(wwwutils.SuperUserMixin, BaseView):
                 opt_title_config = request.form['option_title_config']
                 opt_value_config = request.form['option_value_config']
                 if len(opt_title_config) != 0 and len(opt_value_config) != 0:  # for not adding empty fields in file
-                    config.set('configurations', request.form['option_title_config'], request.form['option_value_config'])  # adding the new name and value in file
+                    config.set('configurations', opt_title_config, opt_value_config)  # adding the new name and value in file
             except:
                 print("Sorry ! No field found ")
+
+            try:
+                if config.has_option('arguments', request.form['option_title_args_delete']):  # if there is option in the file, then delete
+                    config.remove_option('arguments', request.form['option_title_args_delete'])  # deleting from the config file
+            except:
+                print("Sorry ! No field found in delete in args")
+
+            try:
+                if config.has_option('configurations', request.form['option_title_config_delete']):  # if there is option in the file, then delete
+                    config.remove_option('configurations', request.form['option_title_config_delete'])   # deleting from the config file
+            except:
+                print("Sorry ! No field found in delete in config")
 
             # writing all the changes to the file
             with open(conf_path, 'w') as configfile:
@@ -3157,8 +3169,55 @@ class CoutureConfView(wwwutils.SuperUserMixin, BaseView):
                 'airflow/couture_config.html', title=title, Arguments=new_args, Configurations=new_config)
         else:
             return self.render(
-                'airflow/couture_config.html', title=title, len=len(arguments), Arguments=arguments, Configurations=configs)
+                'airflow/couture_config.html', title=title, len=len(args), Arguments=args, Configurations=configs)
 
+class HadoopConfView(wwwutils.SuperUserMixin, BaseView):
+    @expose('/')
+    def conf(self):
+        title = "Couture Hadoop Configuration"
+        return self.render(
+            'airflow/hadoop_config.html', title=title)
+
+class UploadArtifactView(wwwutils.SuperUserMixin, BaseView):
+    @expose('/')
+    def conf(self):
+        title = "Upload Artifact"
+        return self.render(
+            'airflow/upload_artifact.html', title=title)
+
+class AddDagView(wwwutils.SuperUserMixin, BaseView):
+    @expose('/', methods=['GET', 'POST'])
+    def add_dag(self):
+        title = "Add DAG"
+        add_to_dir = '/Users/anu/files'
+
+        if request.method == 'POST':
+            target = os.path.join(add_to_dir)
+            if not os.path.isdir(target):
+                os.mkdir(target)
+
+            try:
+                for f in request.files.getlist("file"):
+                    filename = f.filename
+                    destination = "/".join([target, filename])
+                    f.save(destination)
+                    flash('File Uploaded!')
+            except:
+                flash('No file selected!')
+
+            files = []
+            for r, d, f in os.walk(add_to_dir):
+                for file in f:
+                    files.append(file)
+
+            return self.render(
+                'airflow/add_dag.html', title=title, Files=files)
+        else:
+            files = []
+            for r, d, f in os.walk(add_to_dir):
+                for file in f:
+                    files.append(file)
+            return self.render('airflow/add_dag.html',title=title, Files=files)
 
 class DagModelView(wwwutils.SuperUserMixin, ModelView):
     column_list = ('dag_id', 'owners')

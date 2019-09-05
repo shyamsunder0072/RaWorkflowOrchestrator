@@ -260,6 +260,7 @@ devel = [
     'rednose',
     'requests_mock',
     'flake8>=3.6.0',
+    'flake8-colors',
 ]
 devel_minreq = devel + kubernetes + mysql + doc + password + s3 + cgroups
 devel_hadoop = devel_minreq + hive + hdfs + webhdfs + kerberos
@@ -296,6 +297,7 @@ def do_setup():
             'alembic>=0.9, <1.0',
             'cached_property~=1.5',
             'configparser>=3.5.0, <3.6.0',
+            'colorlog==4.0.2',
             'croniter>=0.3.17, <0.4',
             'dill>=0.2.2, <0.3',
             'enum34~=1.1.6;python_version<"3.4"',
@@ -329,7 +331,7 @@ def do_setup():
             'text-unidecode==1.2',
             'typing;python_version<"3.5"',
             'thrift>=0.9.2',
-            'tzlocal>=1.4',
+            'tzlocal>=1.4,<2.0.0',
             'unicodecsv>=0.14.1',
             'zope.deprecation>=4.0, <5.0',
         ],

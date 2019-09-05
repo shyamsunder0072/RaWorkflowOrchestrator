@@ -81,7 +81,7 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
 
         from airflow.www_rbac.security import AirflowSecurityManager
         security_manager_class = app.config.get('SECURITY_MANAGER_CLASS') or \
-            AirflowSecurityManager
+                                 AirflowSecurityManager
 
         if not issubclass(security_manager_class, AirflowSecurityManager):
             raise Exception(
@@ -99,6 +99,9 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
             appbuilder.add_view_no_menu(views.Airflow())
             appbuilder.add_view_no_menu(views.DagModelView())
             appbuilder.add_view_no_menu(views.ConfigurationView())
+            appbuilder.add_view_no_menu(views.SparkConfView())
+            appbuilder.add_view_no_menu(views.AddDagView())
+            appbuilder.add_view_no_menu(views.UploadArtifactView())
             appbuilder.add_view_no_menu(views.VersionView())
             appbuilder.add_view(views.DagRunModelView,
                                 "DAG Runs",
@@ -120,6 +123,18 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
                                 href='/configuration',
                                 category="Admin",
                                 category_icon="fa-user")
+            appbuilder.add_link("Couture Spark Configuration",
+                                href='/couture_config',
+                                category="Admin",
+                                category_icon="fa-user")
+            appbuilder.add_link("Add DAG",
+                                href='/add_dag',
+                                category="Admin",
+                                category_icon="fa-user")
+            appbuilder.add_link("Upload Artifact",
+                                href='/upload_artifact',
+                                category="Admin",
+                                category_icon="fa-user")
             appbuilder.add_view(views.ConnectionModelView,
                                 "Connections",
                                 category="Admin")
@@ -132,17 +147,6 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
             appbuilder.add_view(views.XComModelView,
                                 "XComs",
                                 category="Admin")
-            appbuilder.add_link("Documentation",
-                                href='https://airflow.apache.org/',
-                                category="Docs",
-                                category_icon="fa-cube")
-            appbuilder.add_link("GitHub",
-                                href='https://github.com/apache/airflow',
-                                category="Docs")
-            appbuilder.add_link('Version',
-                                href='/version',
-                                category='About',
-                                category_icon='fa-th')
 
             def integrate_plugins():
                 """Integrate plugins to the context"""

@@ -310,9 +310,22 @@
     // when there is no valid task instance available
     function inject_node_ids(tasks) {
         $.each(tasks, function(task_id, task) {
-            $('tspan').filter(function(index) { return $(this).text() === task_id; })
+            if(task.description != null) {
+                $('tspan').filter(function(index) { return $(this).text() === task_id; })
                     .parent().parent().parent()
-                    .attr("id", task_id);
+                    .attr("id", task_id)
+                    .attr("data-toggle", "tooltip")
+                    .attr("data-original-title", function(d) {
+                        tt = "";
+                        tt += "Description:" + escapeHtml(task.description) + "<br>";
+                        return tt;
+                    });
+            }
+            else {
+                $('tspan').filter(function(index) { return $(this).text() === task_id; })
+                    .parent().parent().parent()
+                    .attr("id", task_id)
+            }
         });
     }
 

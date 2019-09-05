@@ -103,8 +103,14 @@ def create_app(config=None, testing=False):
             models.Pool, Session, name="Pools", category="Admin"))
         av(vs.ConfigurationView(
             name='Configuration', category="Admin"))
-        av(vs.CoutureConfView(
-            name="Couture Configuration", category="Admin"))
+        av(vs.SparkConfView(
+            name="Couture Spark Configuration", category="Admin"))
+        av(vs.HadoopConfView(
+            name="Couture Hadoop Configuration", category="Admin"))
+        av(vs.AddDagView(
+            name="Add DAG", category="Admin"))
+        av(vs.UploadArtifactView(
+            name="Upload Artifact", category="Admin"))
         av(vs.UserModelView(
             models.User, Session, name="Users", category="Admin"))
         av(vs.ConnectionModelView(
