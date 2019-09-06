@@ -46,9 +46,9 @@ def _run_dag(
     dags_to_trigger.append(dag)
 
     from airflow.jobs import BackfillJob
-    from airflow.executors import GetDefaultExecutor
+    from airflow.executors import get_default_executor
 
-    executor = GetDefaultExecutor()
+    executor = get_default_executor()
 
     while dags_to_trigger:
         dag = dags_to_trigger.pop()
