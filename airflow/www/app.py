@@ -96,7 +96,7 @@ def create_app(config=None, testing=False):
         av(vs.TaskInstanceModelView(models.TaskInstance,
             Session, name="Task Instances", category="Browse"))
         av(vs.LogModelView(
-            models.Log, Session, name="Logs", category="Browse"))
+            models.Log, Session, name="Audit Logs", category="Browse"))
         av(vs.JobModelView(
             jobs.BaseJob, Session, name="Jobs", category="Browse"))
         av(vs.PoolModelView(

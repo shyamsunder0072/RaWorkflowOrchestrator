@@ -111,7 +111,7 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
                                 "Jobs",
                                 category="Browse")
             appbuilder.add_view(views.LogModelView,
-                                "Logs",
+                                "Audit Logs",
                                 category="Browse")
             appbuilder.add_view(views.SlaMissModelView,
                                 "SLA Misses",
