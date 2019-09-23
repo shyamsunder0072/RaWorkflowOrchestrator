@@ -45,7 +45,8 @@ def action_logging(f):
                 owner=user,
                 extra=str(list(request.args.items())),
                 task_id=request.args.get('task_id'),
-                dag_id=request.args.get('dag_id'))
+                dag_id=request.args.get('dag_id'),
+                source_ip=request.environ['REMOTE_ADDR'])
 
             if 'execution_date' in request.args:
                 log.execution_date = pendulum.parse(
@@ -74,7 +75,7 @@ def gzipped(f):
             response.direct_passthrough = False
 
             if (response.status_code < 200 or response.status_code >= 300 or
-                    'Content-Encoding' in response.headers):
+                'Content-Encoding' in response.headers):
                 return response
             gzip_buffer = IO()
             gzip_file = gzip.GzipFile(mode='wb',

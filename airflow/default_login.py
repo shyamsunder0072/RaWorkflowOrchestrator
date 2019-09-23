@@ -32,6 +32,7 @@ from flask import url_for, redirect
 from airflow import settings  # noqa: F401
 from airflow import models
 from airflow.utils.db import provide_session
+from airflow.www_rbac.decorators import action_logging
 
 DEFAULT_USERNAME = 'airflow'
 
@@ -70,12 +71,14 @@ class DefaultUser(object):
 
 @login_manager.user_loader
 @provide_session
+@action_logging
 def load_user(userid, session=None):
     user = session.query(models.User).filter(models.User.id == userid).first()
     return DefaultUser(user)
 
 
 @provide_session
+@action_logging
 def login(self, request, session=None):
     user = session.query(models.User).filter(
         models.User.username == DEFAULT_USERNAME).first()

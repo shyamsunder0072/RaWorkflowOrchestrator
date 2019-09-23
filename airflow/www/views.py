@@ -730,10 +730,12 @@ class Airflow(BaseView):
         return wwwutils.json_response(d)
 
     @expose('/login', methods=['GET', 'POST'])
+    @wwwutils.action_logging
     def login(self):
         return airflow.login.login(self, request)
 
     @expose('/logout')
+    @wwwutils.action_logging
     def logout(self):
         logout_user()
         flash('You have been logged out.')

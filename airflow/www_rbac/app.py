@@ -41,7 +41,7 @@ csrf = CSRFProtect()
 
 log = logging.getLogger(__name__)
 
-def create_app(config=None, session=None, testing=False, app_name="Airflow"):
+def create_app(config=None, session=None, testing=False, app_name="Workflow"):
     global app, appbuilder
     app = Flask(__name__)
     if conf.getboolean('webserver', 'ENABLE_PROXY_FIX'):
@@ -100,6 +100,7 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
             appbuilder.add_view_no_menu(views.DagModelView())
             appbuilder.add_view_no_menu(views.ConfigurationView())
             appbuilder.add_view_no_menu(views.SparkConfView())
+            appbuilder.add_view_no_menu(views.HadoopConfView())
             appbuilder.add_view_no_menu(views.AddDagView())
             appbuilder.add_view_no_menu(views.UploadArtifactView())
             appbuilder.add_view_no_menu(views.VersionView())
@@ -127,6 +128,10 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
                                 href='/couture_config',
                                 category="Admin",
                                 category_icon="fa-user")
+            appbuilder.add_link("Couture Hadoop Configuration",
+                                href='/hadoop_conn_file_list',
+                                category="Admin",
+                                category_icon="fa-user")
             appbuilder.add_link("Add DAG",
                                 href='/add_dag',
                                 category="Admin",
@@ -147,6 +152,10 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
             appbuilder.add_view(views.XComModelView,
                                 "XComs",
                                 category="Admin")
+            appbuilder.add_link('Version',
+                                href='/version',
+                                category='About',
+                                category_icon='fa-th')
 
             def integrate_plugins():
                 """Integrate plugins to the context"""

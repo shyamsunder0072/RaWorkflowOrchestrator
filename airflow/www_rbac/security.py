@@ -163,6 +163,10 @@ EXISTING_ROLES = {
     'Public',
 }
 
+from flask_appbuilder.security.manager import BaseSecurityManager
+class CoutureSecurity(BaseSecurityManager):
+    from airflow.www_rbac.index import CoutureAuthView
+    BaseSecurityManager.authdbview = CoutureAuthView
 
 class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
@@ -308,7 +312,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         sesh = self.get_session
         pvms = (
             sesh.query(sqla_models.PermissionView)
-            .filter(or_(
+                .filter(or_(
                 sqla_models.PermissionView.permission == None,  # NOQA
                 sqla_models.PermissionView.view_menu == None,  # NOQA
             ))
@@ -372,8 +376,8 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
                 merge_pv(perm, dag)
 
         # Get all the active / paused dags and insert them into a set
-        all_dags_models = session.query(models.DagModel)\
-            .filter(or_(models.DagModel.is_active, models.DagModel.is_paused))\
+        all_dags_models = session.query(models.DagModel) \
+            .filter(or_(models.DagModel.is_active, models.DagModel.is_paused)) \
             .filter(~models.DagModel.is_subdag).all()
 
         # create can_dag_edit and can_dag_read permissions for every dag(vm)
@@ -395,17 +399,17 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         perm_view = self.permissionview_model
         view_menu = self.viewmenu_model
 
-        all_perm_view_by_user = session.query(ab_perm_view_role)\
+        all_perm_view_by_user = session.query(ab_perm_view_role) \
             .join(perm_view, perm_view.id == ab_perm_view_role
-                  .columns.permission_view_id)\
-            .filter(ab_perm_view_role.columns.role_id == user_role.id)\
-            .join(view_menu)\
+                  .columns.permission_view_id) \
+            .filter(ab_perm_view_role.columns.role_id == user_role.id) \
+            .join(view_menu) \
             .filter(perm_view.view_menu_id != dag_vm.id)
         all_perm_views = set([role.permission_view_id for role in all_perm_view_by_user])
 
         for role in dag_role:
             # Get all the perm-view of the role
-            existing_perm_view_by_user = self.get_session.query(ab_perm_view_role)\
+            existing_perm_view_by_user = self.get_session.query(ab_perm_view_role) \
                 .filter(ab_perm_view_role.columns.role_id == role.id)
 
             existing_perms_views = set([pv.permission_view_id

@@ -36,6 +36,7 @@ depends_on = None
 
 def upgrade():
     op.add_column('log', sa.Column('extra', sa.Text(), nullable=True))
+    op.add_column('log', sa.Column('source_ip', sa.Text(), nullable=True))
 
 
 def downgrade():

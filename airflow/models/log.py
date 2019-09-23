@@ -39,15 +39,17 @@ class Log(Base):
     execution_date = Column(UtcDateTime)
     owner = Column(String(500))
     extra = Column(Text)
+    source_ip = Column(String(30))
 
     __table_args__ = (
         Index('idx_log_dag', dag_id),
     )
 
-    def __init__(self, event, task_instance, owner=None, extra=None, **kwargs):
+    def __init__(self, event, task_instance, owner=None, extra=None, source_ip=None,  **kwargs):
         self.dttm = timezone.utcnow()
         self.event = event
         self.extra = extra
+        self.source_ip = source_ip
 
         task_owner = None
 

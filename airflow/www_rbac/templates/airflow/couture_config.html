@@ -3,6 +3,23 @@
 {{ title }}
 {% endblock %}
 
+{% block head_js %}
+{{ super() }}
+<script type="text/javascript">
+
+ window.onload = function(){
+
+getAllNames({{Files | safe}},'{{Arguments['jars']}}');
+showcouturecheckboxes(true);
+
+Py_getAllNames({{Py_Files | safe}},'{{Arguments['py-files']}}');
+ Py_showcouturecheckboxes(true);
+
+  }
+  </script>
+
+{% endblock %}
+
 {% block head_css %}
 {{ super() }}
 
@@ -17,6 +34,7 @@ input[type=text], select, textarea {
   border: 1px solid #ccc;
   border-radius: 4px;
   resize: vertical;
+  height: 30px;
 }
 
 .couturelabel {
@@ -106,14 +124,11 @@ input[type=submit]:hover {
     display : table;
   }
 }
-/* adding new stylesfor dropdown */
 
 .couture-multiselect {
-  height:7px;
 }
 
 .couture-selectBox {
-  height:7px;
   position: relative;
 }
 
@@ -124,7 +139,6 @@ input[type=submit]:hover {
 
 .couture-overSelect {
   width: 93%;
-  height:7px;
   position: absolute;
   left: 0;
   right: 0;
@@ -145,6 +159,18 @@ input[type=submit]:hover {
   background-color: #1e90ff;
 }
 
+#Py_couturecheckboxes {
+  display: none;
+  border: 1px #dadada solid;
+}
+
+#Py_couturecheckboxes label {
+  display: block;
+}
+
+#Py_couturecheckboxes label:hover {
+  background-color: #1e90ff;
+}
 
 </style>
 
@@ -155,7 +181,7 @@ input[type=submit]:hover {
 {{ super() }}
 
 
-
+<body>
 <div class="ccontainer">
   <form action="", method="post" >
     <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
@@ -167,10 +193,39 @@ input[type=submit]:hover {
           <label for={{i}} class="couturelabel">{{i}}</label>
         </div>
         <div class="couturecol-75">
-          <input id={{i}} name={{Arguments[i]}} type="text" value={{Arguments[i]}}>
+          {%if i == 'jars'%}
+          <div class="couturerow">
+            <div class="couture-multiselect">
+              <div class="couture-selectBox" onclick="javascript:getAllNames({{Files}},'{{Arguments[i]}}'); javascript:showcouturecheckboxes(); ">
+                <select >
+                  <option>Click to select jar files</option>
+                </select>
+                <button onclick="javascript:del_feed('{{i}}')" class="couturebutton-delete" title="Delete Argument"><i class="glyphicon glyphicon-remove-circle" style="color:red; float:right" aria-hidden="true"></i></button>
+                <div class="couture-overSelect"></div>
+              </div>
+              <div id="couturecheckboxes" ></div>
+            </div>
+          </div>
+          {% endif %}
+          {%if i == 'py-files'%}
+          <div class="couturerow">
+            <div class="couture-multiselect">
+              <div class="couture-selectBox" onclick="javascript:Py_getAllNames({{Py_Files}},'{{Arguments[i]}}'); javascript:Py_showcouturecheckboxes(); " >
+                <select >
+                  <option>Click to select python files</option>
+                </select>
+                <button onclick="javascript:del_feed('{{i}}')" class="couturebutton-delete" title="Delete Argument"><i class="glyphicon glyphicon-remove-circle" style="color:red" aria-hidden="true"></i></button>
+                <div class="couture-overSelect"></div>
+              </div>
+              <div id="Py_couturecheckboxes" ></div>
+            </div>
+          </div>
+          {%endif%}
+          {%if i!='jars' and i!='py-files'%}
+          <input id={{i}} name={{i}} type="text" value={{Arguments[i]}}>
           <button onclick="javascript:del_feed('{{i}}')" class="couturebutton-delete" title="Delete Argument"> <i class="glyphicon glyphicon-remove-circle" style="color:red" aria-hidden="true"></i></button>
+          {%endif%}
         </div>
-
       </div>
       {%endfor%}
     </div>
@@ -186,7 +241,7 @@ input[type=submit]:hover {
           <label for={{j}}  class="couturelabel">{{j}}</label>
         </div>
         <div class="couturecol-75">
-          <input id={{j}} name={{Configurations[j]}} type="text" value={{Configurations[j]}}>
+          <input id={{j}} name={{j}} type="text" value={{Configurations[j]}}>
           <button onclick="javascript:del_feed_config('{{j}}')" class="couturebutton-delete" title="Delete Configuration"> <i class="glyphicon glyphicon-remove-circle" style="color:red" aria-hidden="true"></i></button>
         </div>
       </div>
@@ -237,7 +292,7 @@ input[type=submit]:hover {
 </div>
 <!-- Template ends -->
 
-
+</body>
 {% endblock %}
 
 {% block tail_js %}
@@ -257,6 +312,7 @@ function add_feed_config()
 }
 function del_feed(option)
 {
+  alert("Are you sure you want to delete?");
   document.getElementById("for_delete").value = option;
   var div1 = document.createElement('div');
 	div1.innerHTML = document.getElementById('newfield_for_delete').innerHTML;
@@ -264,6 +320,7 @@ function del_feed(option)
 }
 function del_feed_config(option)
 {
+  alert("Are you sure you want to delete?");
   document.getElementById("for_delete_config").value = option;
   var div1 = document.createElement('div');
 	div1.innerHTML = document.getElementById('newfield_for_delete_config').innerHTML;
@@ -271,7 +328,7 @@ function del_feed_config(option)
 }
 var expanded = false;
 count_of_clicks=1
-function showcouturecheckboxes() {
+function showcouturecheckboxes(f_1) {
   count_of_clicks++;
   var couturecheckboxes = document.getElementById("couturecheckboxes");
 
@@ -282,23 +339,33 @@ function showcouturecheckboxes() {
     couturecheckboxes.style.display = "none";
     expanded = false;
   }
+  if(f_1){
+    couturecheckboxes.style.display = "none";
+    expanded = false;
+  }
+
 }
 
 function getAllNames(files,selected_jars) {
     var selected_jars = selected_jars.split(',');
+    selected=[]
+    for(var i=0; i<selected_jars.length; i++){
+        y=selected_jars[i];
+        file_name = y.split('\\').pop().split('/').pop();
+        selected[i]=file_name;
+        }
     var myDiv = document.getElementById("couturecheckboxes");
     if (count_of_clicks == 1)
     {
         var checkbox = "";
         for(var t=0; t<files.length; t++) {
             file_name=files[t];
-            console.log(file_name);
             var checkBox = document.createElement("input");
             var label = document.createElement("label");
             var in_selected = false;
-            for (var i=0;i<selected_jars.length;i++)
+            for (var i=0;i<selected.length;i++)
             {
-                if(file_name == selected_jars[i]) {
+                if(file_name == selected[i]) {
                     in_selected= true;
                 }
             }
@@ -316,10 +383,69 @@ function getAllNames(files,selected_jars) {
             checkBox.appendChild(document.createTextNode(file_name));
             label.appendChild(document.createTextNode(file_name));
         }
+    }
 }
 
+
+var Py_expanded = false;
+Py_count_of_clicks=1
+function Py_showcouturecheckboxes(f_2) {
+  Py_count_of_clicks++;
+  var Py_couturecheckboxes = document.getElementById("Py_couturecheckboxes");
+
+  if (!expanded) {
+    Py_couturecheckboxes.style.display = "block";
+    expanded = true;
+  } else {
+    Py_couturecheckboxes.style.display = "none";
+    expanded = false;
+  }
+  if(f_2){
+    Py_couturecheckboxes.style.display = "none";
+    expanded = false;
+  }
 }
 
+function Py_getAllNames(files,selected_py) {
+    var selected_py = selected_py.split(',');
+    selected=[]
+    for(var i=0; i<selected_py.length; i++){
+        y=selected_py[i];
+        file_name = y.split('\\').pop().split('/').pop();
+        selected[i]=file_name;
+        }
+    var myDiv = document.getElementById("Py_couturecheckboxes");
+    if (Py_count_of_clicks == 1)
+    {
+        var checkbox = "";
+        for(var t=0; t<files.length; t++) {
+            file_name=files[t];
+            var py_checkBox = document.createElement("input");
+            var label = document.createElement("label");
+            var in_selected = false;
+            for (var i=0;i<selected.length;i++)
+            {
+                if(file_name == selected[i]) {
+                    in_selected= true;
+                }
+            }
+            if (in_selected==true) {
+                py_checkBox.checked = "true";
+            }
+            py_checkBox.type = "checkbox";
+            py_checkBox.value = file_name;
+            py_checkBox.name = "py_check";
+            py_checkBox.id = "py_checkBox";
+            py_checkBox.onclick = "javascript:showValue()";
+            label.for = file_name;
+            myDiv.appendChild(label);
+            label.appendChild(py_checkBox);
+            py_checkBox.appendChild(document.createTextNode(file_name));
+            label.appendChild(document.createTextNode(file_name));
+        }
+  }
+
+}
 </script>
 
 {% endblock %}

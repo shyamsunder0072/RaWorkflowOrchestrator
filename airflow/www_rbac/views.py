@@ -36,7 +36,7 @@ import pendulum
 import sqlalchemy as sqla
 from flask import (
     redirect, request, Markup, Response, render_template,
-    make_response, flash, jsonify, send_file, url_for)
+    make_response, flash, jsonify, send_file, url_for, g)
 from flask._compat import PY2
 from flask_appbuilder import BaseView, ModelView, expose, has_access
 from flask_appbuilder.actions import action
@@ -148,9 +148,25 @@ def show_traceback(error):
         nukular=ascii_.nukular,
         info=traceback.format_exc()), 500
 
-
 class AirflowBaseView(BaseView):
     route_base = ''
+    @provide_session
+    def audit_logging(event_name, extra, source_ip, session=None):
+        if g.user.is_anonymous:
+            user = 'anonymous'
+        else:
+            user = g.user.username
+
+        log = Log(
+            event=event_name,
+            task_instance=None,
+            owner=user,
+            extra=extra,
+            task_id=None,
+            dag_id=None,
+            source_ip=source_ip)
+
+        session.add(log)
 
 
 class Airflow(AirflowBaseView):
@@ -1781,6 +1797,16 @@ class Airflow(AirflowBaseView):
             root=root,
         )
 
+    @expose('/_logout')
+    @action_logging
+    def logout(self, session=None):
+        return redirect(appbuilder.get_url_for_logout)
+
+    @expose('/_login')
+    @action_logging
+    def login(self, session=None):
+        return redirect(appbuilder.get_url_for_login)
+
     @expose('/object/task_instances')
     @has_dag_access(can_dag_read=True)
     @has_access
@@ -1871,25 +1897,69 @@ class ConfigurationView(AirflowBaseView):
 class SparkConfView(AirflowBaseView):
     @expose('/couture_config', methods=['GET', 'POST'])
     @has_access
-    def conf(self):
+    @action_logging
+    def update_spark_conf(self):
         import collections
         import configparser as CP
         from airflow.configuration import AIRFLOW_HOME
         config = CP.ConfigParser()
         config.optionxform = str
         conf_path = AIRFLOW_HOME + '/couture-spark.conf'
+        setup_path = AIRFLOW_HOME + '/../jars'
 
         config.read(filenames=conf_path)
         args = collections.OrderedDict(config.items('arguments'))  # orderedDictionary used so that the order displayed is same as in file
         configs = collections.OrderedDict(config.items('configurations'))  # dictionary created
         title = "Couture Spark Configuration"
 
+        files = []
+        py_files = []
+        for r, d, f in os.walk(setup_path):
+            for file in f:
+                if file.endswith(".jar"):
+                    files.append(file)
+                if file.endswith(".py") or file.endswith(".egg") or file.endswith(".zip"):
+                    py_files.append(file)
+
         if request.method == 'POST':
+            config.read(filenames=conf_path)
+            args = collections.OrderedDict(config.items('arguments'))  # orderedDictionary used so that the order displayed is same as in file
+            configs = collections.OrderedDict(config.items('configurations'))  # dictionary created
+
+            files = []
+            py_files = []
+            for r, d, f in os.walk(setup_path):
+                for file in f:
+                    if file.endswith(".jar"):
+                        files.append(file)
+                    if file.endswith(".py") or file.endswith(".egg") or file.endswith(".zip"):
+                        py_files.append(file)
+
             for i in args:
-                config.set('arguments', i, request.form[args[i]])
+                if i != 'jars' and i != 'py-files':
+                    config.set('arguments', i, request.form[i])
+                elif i == 'jars':
+                    list_file = []
+                    filenames = request.form.getlist('check')
+                    for f in filenames:
+                        fn = os.path.join(setup_path, f)
+                        list_file.append(fn)
+                    jarfiles=",".join(list_file)
+
+                    config.set('arguments', i, jarfiles)
+                else:
+                    py_list_file = []
+                    py_filenames = request.form.getlist('py_check')
+                    for f in py_filenames:
+                        fn = os.path.join(setup_path, f)
+                        # print(fn)
+                        py_list_file.append(fn)
+                    pythonfiles=",".join(py_list_file)
+
+                    config.set('arguments', i, pythonfiles)
 
             for j in configs:
-                config.set('configurations', j, request.form[configs[j]])
+                config.set('configurations', j, request.form[j])
 
             # to handle the scenario when the new field(for new option) has not been added in form
             try:
@@ -1927,20 +1997,188 @@ class SparkConfView(AirflowBaseView):
             new_args = collections.OrderedDict(config.items('arguments'))
             new_config = collections.OrderedDict(config.items('configurations'))
             return self.render_template(
-                'airflow/couture_config.html', title=title, Arguments=new_args, Configurations=new_config)
+                'airflow/couture_config.html', title=title, Arguments=new_args, Configurations=new_config, Files=files, Py_Files=py_files)
         else:
+            files = []
+            py_files = []
+            for r, d, f in os.walk(setup_path):
+                for file in f:
+                    if file.endswith(".jar"):
+                        files.append(file)
+                    if file.endswith(".py") or file.endswith(".egg") or file.endswith(".zip"):
+                        py_files.append(file)
+
             return self.render_template(
-                'airflow/couture_config.html', title=title, len=len(args), Arguments=args, Configurations=configs)
+                'airflow/couture_config.html', title=title, len=len(args), Arguments=args, Configurations=configs, Files=files, Py_Files=py_files)
+
+class HadoopConfView(AirflowBaseView):
+    @expose('/hadoop_conn_file_list', methods=['GET', 'POST'])
+    @has_access
+    @action_logging
+    def hadoop_conn_file_list(self):
+        import configparser as CP
+        from airflow.configuration import AIRFLOW_HOME
+        config = CP.ConfigParser()
+        config.optionxform = str
+        UPLOAD_FOLDER = AIRFLOW_HOME + '/../setup/hadoop_conn'
+
+        if request.method == 'POST':
+
+            try:    # for deleting the xml files from the folder
+                del_filename = request.form['option_title_delete']
+                files = []
+                for r, d, f in os.walk(UPLOAD_FOLDER):
+                    for file_name in f:
+                        if file_name.endswith(".xml"):  # to allow only xml files to be uploaded
+                            if file_name == del_filename:
+                                os.remove(os.path.join(UPLOAD_FOLDER, file_name))
+                                ip_address = request.access_route[0] or request.remote_addr
+                                AirflowBaseView.audit_logging("hadoop_file_deleted", file_name, ip_address)
+                                flash('File Deleted!')
+                            else:
+                                files.append(file_name)
+                return self.render_template('airflow/hadoop_conn_file_list.html', Files=files)
+
+            except:
+                print("Sorry ! No file in xml for delete")
+
+            target = os.path.join(UPLOAD_FOLDER)  # destination for uploading
+
+            list_files = request.files.getlist("file")
+            if len(list_files) > 0:
+                flag = False
+                for upload in request.files.getlist("file"):
+                    filename = upload.filename
+                    if filename.endswith('.xml'):  # for allowing only xml files to be uploaded
+                        flag = True
+                        destination = "/".join([target, filename])
+                        upload.save(destination)
+                        AirflowBaseView.audit_logging("hadoop_file_added", filename, request.environ.get('HTTP_X_REAL_IP', request.remote_addr))
+                    else:
+                        flash('Only XML files are supported!')
+                if flag:
+                    flash('File uploaded!!')
+
+                files = []
+                for r, d, f in os.walk(UPLOAD_FOLDER):
+                    for file in f:
+                        if file.endswith(".xml"):
+                            files.append(file)
+
+                return self.render_template('airflow/hadoop_conn_file_list.html', Files=files)
+
+        else:
+            files = []
+            for r, d, f in os.walk(UPLOAD_FOLDER):
+                for file in f:
+                    if file.endswith(".xml"):
+                        files.append(file)
+
+            return self.render_template('airflow/hadoop_conn_file_list.html', Files=files)
+
+
+    @expose("/hadoop_conn_file/<string:filename>", methods=['GET', 'POST'])
+    def hadoop_file_edit(self, filename):
+        from lxml import etree as ET
+        from airflow.configuration import AIRFLOW_HOME
+        UPLOAD_FOLDER = AIRFLOW_HOME + '/../setup/hadoop_conn'
+        if request.method == 'GET':
+            xml_file = os.path.join(UPLOAD_FOLDER, filename)
+            tree = ET.parse(xml_file)
+            root = tree.getroot()
+            rootname = root.tag
+
+            values_get = {}
+            for p in root.iter('property'):
+                name = p.find('name').text
+                value = p.find('value').text
+                values_get[name] = value
+            return self.render_template('airflow/hadoop_conn_file.html', Section=rootname, Configurations=values_get, Filename=filename)
+
+        if request.method == 'POST':
+            xml_file = os.path.join(UPLOAD_FOLDER, filename)
+            tree = ET.parse(xml_file)
+            root = tree.getroot()
+
+            values = {}
+            for p in root.iter('property'):
+                name = p.find('name').text
+                value = p.find('value').text
+                values[name] = value
+
+            for prop in root.iter('property'):
+                name = prop.find('name').text
+                value = prop.find('value').text
+                new_value = request.form[name]
+                prop.find('value').text = str(new_value)  # for saving edit changes in file
+
+            try:   # for adding new properties in config file
+                opttitleconfig = request.form['option_title_config']
+                optvalueconfig = request.form['option_value_config']
+                if len(opttitleconfig) != 0 and len(optvalueconfig) != 0:  # for not adding empty fields in file
+                    prop = ET.Element("property")
+                    root.append(prop)
+                    nm = ET.SubElement(prop, "name")
+                    nm.text = request.form['option_title_config']
+                    val = ET.SubElement(prop, "value")
+                    val.text = request.form['option_value_config']
+            except:
+                print("Sorry ! No field found ")
+
+            try:
+                del_name = request.form['option_title_config_delete']  # for deleting a property
+                for p in root.iter('property'):
+                    n = p.find('name').text
+                    if n == del_name:
+                        root.remove(p)
+                    else:
+                        print("no such field exists in config now.")
+            except:
+                print("Sorry ! No field found in delete in config")
+
+            tree.write(xml_file)
+
+            xml_newfile = os.path.join(UPLOAD_FOLDER, filename)
+            newtree = ET.parse(xml_newfile)
+            newroot = newtree.getroot()
+            newroot_name = newroot.tag
+
+            newvalues = {}
+
+            for pr in root.iter('property'):
+                name = pr.find('name').text
+                value = pr.find('value').text
+                newvalues[name] = value
+
+            return self.render_template('airflow/hadoop_conn_file.html', Section=newroot_name, Configurations=newvalues, Filename=filename)
 
 class UploadArtifactView(AirflowBaseView):
     @expose('/upload_artifact', methods=['GET', 'POST'])
     @has_access
-    def conf(self):
+    @action_logging
+    def update_artifact(self):
         title = "Upload Artifact"
         from airflow.configuration import AIRFLOW_HOME
-        add_to_dir = AIRFLOW_HOME + '/setup'
+        add_to_dir = AIRFLOW_HOME + '/../jars'
 
         if request.method == 'POST':
+
+            try:    # for deleting the py files from the folder
+                del_filename = request.form['option_title_delete_Artifact']
+                files = []
+                for r, d, f in os.walk(add_to_dir):
+                    for file_name in f:
+                        if file_name == del_filename:
+                            os.remove(os.path.join(add_to_dir, file_name))
+                            AirflowBaseView.audit_logging("artifact_deleted", file_name, request.environ.get('HTTP_X_REAL_IP', request.remote_addr))
+                            flash('File Deleted!')
+                        else:
+                            files.append(file_name)
+                return self.render_template("upload_artif.html", Files=files)
+
+            except:
+                print("Sorry ! No file in xml for delete")
+
             target = os.path.join(add_to_dir)
             if not os.path.isdir(target):
                 os.mkdir(target)
@@ -1950,10 +2188,10 @@ class UploadArtifactView(AirflowBaseView):
                     filename = f.filename
                     destination = "/".join([target, filename])
                     f.save(destination)
+                    AirflowBaseView.audit_logging("artifact_added", filename, request.environ.get('HTTP_X_REAL_IP', request.remote_addr))
                     flash('File Uploaded!')
             except:
-                flash('No file selected!')
-
+                print("No file selected!")
             files = []
             for r, d, f in os.walk(add_to_dir):
                 for file in f:
@@ -1971,37 +2209,63 @@ class UploadArtifactView(AirflowBaseView):
 class AddDagView(AirflowBaseView):
     @expose('/add_dag', methods=['GET', 'POST'])
     @has_access
+    @action_logging
     def add_dag(self):
         title = "Add DAG"
         from airflow.configuration import AIRFLOW_HOME
         add_to_dir = AIRFLOW_HOME + '/dags'
 
+        files = []
+        for r, d, f in os.walk(add_to_dir):
+            for file in f:
+                if file.endswith(".py"):
+                    files.append(file)
+
         if request.method == 'POST':
-            target = os.path.join(add_to_dir)
-            if not os.path.isdir(target):
-                os.mkdir(target)
+            try:    # for deleting the py files from the folder
+                del_filename = request.form['option_title_delete_DAG']
+                files = []
+                for r, d, f in os.walk(add_to_dir):
+                    for file_name in f:
+                        if file_name.endswith(".py"):
+                            if file_name == del_filename:
+                                os.remove(os.path.join(add_to_dir, file_name))
+                                AirflowBaseView.audit_logging("dag_deleted", file_name, request.environ['REMOTE_ADDR'])
+                                flash('File Deleted!')
+                            else:
+                                files.append(file_name)
+                return self.render_template(
+                    'airflow/add_dag.html', title=title, Files=files)
 
-            try:
-                for f in request.files.getlist("file"):
-                    filename = f.filename
-                    destination = "/".join([target, filename])
-                    f.save(destination)
-                    flash('File Uploaded!')
             except:
-                flash('No file selected!')
+                print("Sorry ! No file in xml for delete")
 
-            files = []
-            for r, d, f in os.walk(add_to_dir):
-                for file in f:
-                    files.append(file)
+            target = os.path.join(add_to_dir)
 
-            return self.render_template(
-                'airflow/add_dag.html', title=title, Files=files)
+            list_files = request.files.getlist("file")
+            if len(list_files) > 0:
+                flag = False
+                for upload in request.files.getlist("file"):
+                    filename = upload.filename
+                    if filename.endswith('.py'):  # for allowing only py files to be uploaded
+                        flag = True
+                        destination = "/".join([target, filename])
+                        AirflowBaseView.audit_logging("dag_added", filename, request.environ['REMOTE_ADDR'])
+                        upload.save(destination)
+                    elif filename:
+                        flash('Only python file allowed!!')
+                if flag:
+                    flash('File Uploaded!')
+
+                files = []
+                for r, d, f in os.walk(add_to_dir):
+                    for file in f:
+                        if file.endswith(".py"):  # to display only python files
+                            files.append(file)
+
+                return self.render_template(
+                    'airflow/add_dag.html', title=title, Files=files)
         else:
-            files = []
-            for r, d, f in os.walk(add_to_dir):
-                for file in f:
-                    files.append(file)
             return self.render_template('airflow/add_dag.html',title=title, Files=files)
 
 ######################################################################################
@@ -2427,7 +2691,7 @@ class LogModelView(AirflowModelView):
     base_permissions = ['can_list']
 
     list_columns = ['id', 'dttm', 'dag_id', 'task_id', 'event', 'execution_date',
-                    'owner', 'extra']
+                    'owner', 'extra', 'source_ip']
     search_columns = ['dag_id', 'task_id', 'execution_date', 'extra']
 
     base_order = ('dttm', 'desc')

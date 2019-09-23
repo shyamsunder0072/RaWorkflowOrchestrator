@@ -95,9 +95,12 @@ def default_action_log(log, **_):
     :param **_: other keyword arguments that is not being used by this function
     :return: None
     """
+    """
+    Disabled CLI logging as of now
+    
     with create_session() as session:
         session.add(log)
-
+    """
 
 __pre_exec_callbacks = []  # type: List[Callable]
 __post_exec_callbacks = []  # type: List[Callable]

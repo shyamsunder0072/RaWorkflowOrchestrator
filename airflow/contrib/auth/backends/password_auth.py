@@ -38,6 +38,7 @@ from sqlalchemy.ext.hybrid import hybrid_property
 from airflow import models
 from airflow.utils.db import provide_session, create_session
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.www_rbac.decorators import action_logging
 
 login_manager = flask_login.LoginManager()
 login_manager.login_view = 'airflow.login'  # Calls login() below
@@ -102,6 +103,7 @@ class PasswordUser(models.User):
 
 @login_manager.user_loader
 @provide_session
+@action_logging
 def load_user(userid, session=None):
     log.debug("Loading user %s", userid)
     if not userid or userid == 'None':
@@ -140,6 +142,7 @@ def authenticate(session, username, password):
 
 
 @provide_session
+@action_logging
 def login(self, request, session=None):
     if current_user.is_authenticated:
         flash("You are already logged in")
