@@ -312,19 +312,23 @@ function add_feed_config()
 }
 function del_feed(option)
 {
-  alert("Are you sure you want to delete?");
-  document.getElementById("for_delete").value = option;
-  var div1 = document.createElement('div');
-	div1.innerHTML = document.getElementById('newfield_for_delete').innerHTML;
-	document.getElementById('container1').appendChild(div1);
+  let del = confirm("Are you sure you want to delete?");
+  if(del) {
+    document.getElementById("for_delete").value = option;
+    var div1 = document.createElement('div');
+  	div1.innerHTML = document.getElementById('newfield_for_delete').innerHTML;
+  	document.getElementById('container1').appendChild(div1);
+  }
 }
 function del_feed_config(option)
 {
-  alert("Are you sure you want to delete?");
-  document.getElementById("for_delete_config").value = option;
-  var div1 = document.createElement('div');
-	div1.innerHTML = document.getElementById('newfield_for_delete_config').innerHTML;
-	document.getElementById('container2').appendChild(div1);
+  let del = confirm("Are you sure you want to delete?");
+  if(del) {
+    document.getElementById("for_delete_config").value = option;
+    var div1 = document.createElement('div');
+  	div1.innerHTML = document.getElementById('newfield_for_delete_config').innerHTML;
+  	document.getElementById('container2').appendChild(div1);
+  }
 }
 var expanded = false;
 count_of_clicks=1

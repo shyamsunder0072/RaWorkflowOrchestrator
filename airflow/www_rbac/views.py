@@ -2032,8 +2032,7 @@ class HadoopConfView(AirflowBaseView):
                         if file_name.endswith(".xml"):  # to allow only xml files to be uploaded
                             if file_name == del_filename:
                                 os.remove(os.path.join(UPLOAD_FOLDER, file_name))
-                                ip_address = request.access_route[0] or request.remote_addr
-                                AirflowBaseView.audit_logging("hadoop_file_deleted", file_name, ip_address)
+                                AirflowBaseView.audit_logging("hadoop_file_deleted", file_name, request.environ['REMOTE_ADDR'])
                                 flash('File Deleted!')
                             else:
                                 files.append(file_name)
@@ -2053,7 +2052,7 @@ class HadoopConfView(AirflowBaseView):
                         flag = True
                         destination = "/".join([target, filename])
                         upload.save(destination)
-                        AirflowBaseView.audit_logging("hadoop_file_added", filename, request.environ.get('HTTP_X_REAL_IP', request.remote_addr))
+                        AirflowBaseView.audit_logging("hadoop_file_added", filename, request.environ['REMOTE_ADDR'])
                     else:
                         flash('Only XML files are supported!')
                 if flag:
@@ -2170,7 +2169,7 @@ class UploadArtifactView(AirflowBaseView):
                     for file_name in f:
                         if file_name == del_filename:
                             os.remove(os.path.join(add_to_dir, file_name))
-                            AirflowBaseView.audit_logging("artifact_deleted", file_name, request.environ.get('HTTP_X_REAL_IP', request.remote_addr))
+                            AirflowBaseView.audit_logging("artifact_deleted", file_name, request.environ['REMOTE_ADDR'])
                             flash('File Deleted!')
                         else:
                             files.append(file_name)
@@ -2188,7 +2187,7 @@ class UploadArtifactView(AirflowBaseView):
                     filename = f.filename
                     destination = "/".join([target, filename])
                     f.save(destination)
-                    AirflowBaseView.audit_logging("artifact_added", filename, request.environ.get('HTTP_X_REAL_IP', request.remote_addr))
+                    AirflowBaseView.audit_logging("artifact_added", filename, request.environ['REMOTE_ADDR'])
                     flash('File Uploaded!')
             except:
                 print("No file selected!")

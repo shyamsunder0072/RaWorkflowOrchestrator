@@ -166,10 +166,13 @@ function add_feed_config()
 }
 function myFunction_config(option)
 {
+  let del = confirm("Are you sure you want to delete?");
+  if(del) {
     document.getElementById("for_delete_xml").value = option;
     var div1 = document.createElement('div');
     div1.innerHTML = document.getElementById('newfield_for_delete_xml').innerHTML;
     document.getElementById('container_xml').appendChild(div1);
+  }
 }
 </script>
 {% endblock %}

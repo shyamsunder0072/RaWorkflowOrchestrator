@@ -213,11 +213,13 @@ document.getElementById('upload-form').submit();
 
 function function_delete_Artifact(option)
 {
-  alert("Are you sure you want to delete?");
-  document.getElementById("for_delete_Artifact").value = option;
-  var div1 = document.createElement('div');
-  div1.innerHTML = document.getElementById('newfield_for_delete_Artifact').innerHTML;
-  document.getElementById('container-upload').appendChild(div1);
+  let del = confirm("Are you sure you want to delete?");
+  if(del) {
+    document.getElementById("for_delete_Artifact").value = option;
+    var div1 = document.createElement('div');
+    div1.innerHTML = document.getElementById('newfield_for_delete_Artifact').innerHTML;
+    document.getElementById('container-upload').appendChild(div1);
+  }
 }
 </script>
 {% endblock %}
