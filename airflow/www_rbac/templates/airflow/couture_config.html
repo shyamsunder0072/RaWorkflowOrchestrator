@@ -189,11 +189,11 @@ input[type=submit]:hover {
     <div id="container1">
       {%for i in Arguments%}
       <div class="couturerow">
+        {%if i == 'jars' and len_jar>0%}
         <div class="couturecol-25">
           <label for={{i}} class="couturelabel">{{i}}</label>
         </div>
         <div class="couturecol-75">
-          {%if i == 'jars'%}
           <div class="couturerow">
             <div class="couture-multiselect">
               <div class="couture-selectBox" onclick="javascript:getAllNames({{Files}},'{{Arguments[i]}}'); javascript:showcouturecheckboxes(); ">
@@ -206,8 +206,13 @@ input[type=submit]:hover {
               <div id="couturecheckboxes" ></div>
             </div>
           </div>
-          {% endif %}
-          {%if i == 'py-files'%}
+        </div>
+        {% endif %}
+        {%if i == 'py-files' and len_py>0%}
+        <div class="couturecol-25">
+          <label for={{i}} class="couturelabel">{{i}}</label>
+        </div>
+        <div class="couturecol-75">
           <div class="couturerow">
             <div class="couture-multiselect">
               <div class="couture-selectBox" onclick="javascript:Py_getAllNames({{Py_Files}},'{{Arguments[i]}}'); javascript:Py_showcouturecheckboxes(); " >
@@ -220,12 +225,17 @@ input[type=submit]:hover {
               <div id="Py_couturecheckboxes" ></div>
             </div>
           </div>
-          {%endif%}
-          {%if i!='jars' and i!='py-files'%}
+        </div>
+        {%endif%}
+        {%if i!='jars' and i!='py-files'%}
+        <div class="couturecol-25">
+          <label for={{i}} class="couturelabel">{{i}}</label>
+        </div>
+        <div class="couturecol-75">
           <input id={{i}} name={{i}} type="text" value={{Arguments[i]}}>
           <button onclick="javascript:del_feed('{{i}}')" class="couturebutton-delete" title="Delete Argument"> <i class="glyphicon glyphicon-remove-circle" style="color:red" aria-hidden="true"></i></button>
-          {%endif%}
         </div>
+        {%endif%}
       </div>
       {%endfor%}
     </div>
@@ -300,15 +310,15 @@ input[type=submit]:hover {
 <script type="text/javascript">
 function add_feed()
 {
-	var div1 = document.createElement('div');
-	div1.innerHTML = document.getElementById('newfield_for_contaner1').innerHTML;
-	document.getElementById('container1').appendChild(div1);
+  var div1 = document.createElement('div');
+  div1.innerHTML = document.getElementById('newfield_for_contaner1').innerHTML;
+  document.getElementById('container1').appendChild(div1);
 }
 function add_feed_config()
 {
-	var div1 = document.createElement('div');
-	div1.innerHTML = document.getElementById('newfield_for_contaner2').innerHTML;
-	document.getElementById('container2').appendChild(div1);
+  var div1 = document.createElement('div');
+  div1.innerHTML = document.getElementById('newfield_for_contaner2').innerHTML;
+  document.getElementById('container2').appendChild(div1);
 }
 function del_feed(option)
 {
@@ -316,8 +326,8 @@ function del_feed(option)
   if(del) {
     document.getElementById("for_delete").value = option;
     var div1 = document.createElement('div');
-  	div1.innerHTML = document.getElementById('newfield_for_delete').innerHTML;
-  	document.getElementById('container1').appendChild(div1);
+    div1.innerHTML = document.getElementById('newfield_for_delete').innerHTML;
+    document.getElementById('container1').appendChild(div1);
   }
 }
 function del_feed_config(option)
@@ -326,8 +336,8 @@ function del_feed_config(option)
   if(del) {
     document.getElementById("for_delete_config").value = option;
     var div1 = document.createElement('div');
-  	div1.innerHTML = document.getElementById('newfield_for_delete_config').innerHTML;
-  	document.getElementById('container2').appendChild(div1);
+    div1.innerHTML = document.getElementById('newfield_for_delete_config').innerHTML;
+    document.getElementById('container2').appendChild(div1);
   }
 }
 var expanded = false;

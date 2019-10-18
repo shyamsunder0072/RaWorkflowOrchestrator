@@ -1996,8 +1996,10 @@ class SparkConfView(AirflowBaseView):
 
             new_args = collections.OrderedDict(config.items('arguments'))
             new_config = collections.OrderedDict(config.items('configurations'))
+            len_jar = len(files)
+            len_py = len(py_files)
             return self.render_template(
-                'airflow/couture_config.html', title=title, Arguments=new_args, Configurations=new_config, Files=files, Py_Files=py_files)
+                'airflow/couture_config.html', title=title, Arguments=new_args, Configurations=new_config, Files=files, Py_Files=py_files, len_jar=len_jar, len_py=len_py)
         else:
             files = []
             py_files = []
@@ -2007,9 +2009,10 @@ class SparkConfView(AirflowBaseView):
                         files.append(file)
                     if file.endswith(".py") or file.endswith(".egg") or file.endswith(".zip"):
                         py_files.append(file)
-
+            len_jar = len(files)
+            len_py = len(py_files)
             return self.render_template(
-                'airflow/couture_config.html', title=title, len=len(args), Arguments=args, Configurations=configs, Files=files, Py_Files=py_files)
+                'airflow/couture_config.html', title=title, len=len(args), Arguments=args, Configurations=configs, Files=files, Py_Files=py_files, len_jar=len_jar, len_py=len_py)
 
 class HadoopConfView(AirflowBaseView):
     @expose('/hadoop_conn_file_list', methods=['GET', 'POST'])
@@ -2151,12 +2154,12 @@ class HadoopConfView(AirflowBaseView):
 
             return self.render_template('airflow/hadoop_conn_file.html', Section=newroot_name, Configurations=newvalues, Filename=filename)
 
-class UploadArtifactView(AirflowBaseView):
-    @expose('/upload_artifact', methods=['GET', 'POST'])
+class SparkDepView(AirflowBaseView):
+    @expose('/spark_dependencies', methods=['GET', 'POST'])
     @has_access
     @action_logging
     def update_artifact(self):
-        title = "Upload Artifact"
+        title = "Spark Dependencies"
         from airflow.configuration import AIRFLOW_HOME
         add_to_dir = AIRFLOW_HOME + '/../jars'
 
@@ -2169,11 +2172,19 @@ class UploadArtifactView(AirflowBaseView):
                     for file_name in f:
                         if file_name == del_filename:
                             os.remove(os.path.join(add_to_dir, file_name))
-                            AirflowBaseView.audit_logging("artifact_deleted", file_name, request.environ['REMOTE_ADDR'])
+                            AirflowBaseView.audit_logging("spark_dependency_deleted", file_name, request.environ['REMOTE_ADDR'])
                             flash('File Deleted!')
                         else:
                             files.append(file_name)
-                return self.render_template("upload_artif.html", Files=files)
+                len_py = 0
+                len_jar = 0
+                for file in files:
+                    if file.endswith(".py") or file.endswith(".egg") or file.endswith(".zip"):
+                        len_py = len_py + 1
+                    if file.endswith(".jar"):
+                        len_jar = len_jar + 1
+
+                return self.render_template('airflow/spark_dependencies.html', title=title, Files=files, len_jar=len_jar, len_py=len_py)
 
             except:
                 print("Sorry ! No file in xml for delete")
@@ -2187,7 +2198,7 @@ class UploadArtifactView(AirflowBaseView):
                     filename = f.filename
                     destination = "/".join([target, filename])
                     f.save(destination)
-                    AirflowBaseView.audit_logging("artifact_added", filename, request.environ['REMOTE_ADDR'])
+                    AirflowBaseView.audit_logging("spark_dependency_added", filename, request.environ['REMOTE_ADDR'])
                     flash('File Uploaded!')
             except:
                 print("No file selected!")
@@ -2195,15 +2206,124 @@ class UploadArtifactView(AirflowBaseView):
             for r, d, f in os.walk(add_to_dir):
                 for file in f:
                     files.append(file)
+            len_py = 0
+            len_jar = 0
+            for file in files:
+                if file.endswith(".py") or file.endswith(".egg") or file.endswith(".zip"):
+                    len_py = len_py + 1
+                if file.endswith(".jar"):
+                    len_jar = len_jar + 1
 
-            return self.render_template(
-                'airflow/upload_artifact.html', title=title, Files=files)
+            return self.render_template('airflow/spark_dependencies.html',title=title, Files=files, len_jar=len_jar, len_py=len_py)
+
         else:
             files = []
             for r, d, f in os.walk(add_to_dir):
                 for file in f:
                     files.append(file)
-            return self.render_template('airflow/upload_artifact.html',title=title, Files=files)
+            len_py = 0
+            len_jar = 0
+            for file in files:
+                if file.endswith(".py") or file.endswith(".egg") or file.endswith(".zip"):
+                    len_py = len_py + 1
+                if file.endswith(".jar"):
+                    len_jar = len_jar + 1
+
+            return self.render_template('airflow/spark_dependencies.html', title=title, Files=files, len_jar=len_jar, len_py=len_py)
+
+class HelpView(AirflowBaseView):
+    @expose('/help')
+    @has_access
+    def help(self):
+        try:
+            return send_file('templates/airflow/Couture_AI_Workflow_Orchestrator_v0.1.pdf', 'application/pdf', as_attachment=False)
+        except Exception as e:
+            return str(e)
+
+    # @expose('/load_help')
+    # @has_access
+    # def file_downloads(self):
+    #     try:
+    #         return self.render_template('airflow/help.html')
+    #     except Exception as e:
+    #         return str(e)
+
+class CodeArtifactView(AirflowBaseView):
+    @expose('/code_artifact', methods=['GET', 'POST'])
+    @has_access
+    @action_logging
+    def update_spark_file(self):
+        title = "Code Artifact"
+        from airflow.configuration import AIRFLOW_HOME
+        add_to_dir = AIRFLOW_HOME + '/../code'
+
+        if request.method == 'POST':
+
+            try:    # for deleting the py files from the folder
+                del_filename = request.form['option_title_delete_Spark']
+                files = []
+                for r, d, f in os.walk(add_to_dir):
+                    for file_name in f:
+                        if file_name == del_filename:
+                            os.remove(os.path.join(add_to_dir, file_name))
+                            AirflowBaseView.audit_logging("code_artifact_deleted", file_name, request.environ['REMOTE_ADDR'])
+                            flash('File Deleted!')
+                        else:
+                            files.append(file_name)
+                len_py = 0
+                len_jar = 0
+                for file in files:
+                    if file.endswith(".py") or file.endswith(".egg") or file.endswith(".zip"):
+                        len_py = len_py + 1
+                    if file.endswith(".jar"):
+                        len_jar = len_jar + 1
+
+                return self.render_template('airflow/code_artifact.html', title=title, Files=files, len_jar=len_jar, len_py=len_py)
+
+
+            except:
+                print("Sorry ! No file in spark for delete")
+
+            target = os.path.join(add_to_dir)
+            if not os.path.isdir(target):
+                os.mkdir(target)
+
+            try:
+                for f in request.files.getlist("file"):
+                    filename = f.filename
+                    destination = "/".join([target, filename])
+                    f.save(destination)
+                    AirflowBaseView.audit_logging("code_artifact_added", filename, request.environ['REMOTE_ADDR'])
+                    flash('File Uploaded!')
+            except:
+                print("No file selected!")
+            files = []
+            for r, d, f in os.walk(add_to_dir):
+                for file in f:
+                    files.append(file)
+            len_py = 0
+            len_jar = 0
+            for file in files:
+                if file.endswith(".py") or file.endswith(".egg") or file.endswith(".zip"):
+                    len_py = len_py + 1
+                if file.endswith(".jar"):
+                    len_jar = len_jar + 1
+
+            return self.render_template('airflow/code_artifact.html', title=title, Files=files, len_jar=len_jar, len_py=len_py)
+        else:
+            files = []
+            for r, d, f in os.walk(add_to_dir):
+                for file in f:
+                    files.append(file)
+            len_py = 0
+            len_jar = 0
+            for file in files:
+                if file.endswith(".py") or file.endswith(".egg") or file.endswith(".zip"):
+                    len_py = len_py + 1
+                if file.endswith(".jar"):
+                    len_jar = len_jar + 1
+
+            return self.render_template('airflow/code_artifact.html', title=title, Files=files, len_jar=len_jar, len_py=len_py)
 
 class AddDagView(AirflowBaseView):
     @expose('/add_dag', methods=['GET', 'POST'])
@@ -2345,7 +2465,7 @@ class ConnectionModelView(AirflowModelView):
                     'extra__google_cloud_platform__scope',
                     'extra__google_cloud_platform__num_retries',
                     'extra__grpc__auth_type',
-                    'extra__grpc__credentials_pem_file',
+                    'extra__grpc__credential_pem_file',
                     'extra__grpc__scopes']
     list_columns = ['conn_id', 'conn_type', 'host', 'port', 'is_encrypted',
                     'is_extra_encrypted']

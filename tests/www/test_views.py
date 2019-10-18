@@ -28,7 +28,7 @@ import unittest
 import sys
 import json
 
-from urllib.parse import quote_plus
+from six.moves.urllib.parse import quote_plus
 from werkzeug.test import Client
 from werkzeug.wrappers import BaseResponse
 
@@ -150,8 +150,8 @@ class TestVariableView(unittest.TestCase):
         (self.session.query(Var)
             .filter(Var.key == self.variable['key'])
             .update({
-                'val': 'failed_value_not_encrypted'
-            }, synchronize_session=False))
+            'val': 'failed_value_not_encrypted'
+        }, synchronize_session=False))
         self.session.commit()
 
         # retrieve Variables page, should not fail and contain the Invalid
@@ -938,6 +938,58 @@ class HelpersTest(unittest.TestCase):
         self.assertNotIn('<a&1>', html)
         self.assertNotIn('<b2>', html)
 
+class TestConnectionModelView(unittest.TestCase):
+
+    CREATE_ENDPOINT = '/admin/connection/new/?url=/admin/connection/'
+    CONN_ID = "new_conn"
+
+    CONN = {
+        "conn_id": CONN_ID,
+        "conn_type": "http",
+        "host": "https://example.com",
+    }
+
+    @classmethod
+    def setUpClass(cls):
+        super(TestConnectionModelView, cls).setUpClass()
+        app = application.create_app(testing=True)
+        app.config['WTF_CSRF_METHODS'] = []
+        cls.app = app.test_client()
+
+    def setUp(self):
+        self.session = Session()
+
+    def tearDown(self):
+        self.session.query(models.Connection) \
+            .filter(models.Connection.conn_id == self.CONN_ID).delete()
+        self.session.commit()
+        self.session.close()
+        super(TestConnectionModelView, self).tearDown()
+
+    def test_create(self):
+        response = self.app.post(
+            self.CREATE_ENDPOINT,
+            data=self.CONN,
+            follow_redirects=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            self.session.query(models.Connection).filter(models.Connection.conn_id == self.CONN_ID).count(),
+            1
+        )
+
+    def test_create_error(self):
+        response = self.app.post(
+            self.CREATE_ENDPOINT,
+            data={"conn_type": "http"},
+            follow_redirects=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b'has-error', response.data)
+        self.assertEqual(
+            self.session.query(models.Connection).filter(models.Connection.conn_id == self.CONN_ID).count(),
+            0
+        )
 
 if __name__ == '__main__':
     unittest.main()

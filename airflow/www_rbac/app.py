@@ -102,8 +102,11 @@ def create_app(config=None, session=None, testing=False, app_name="Workflow"):
             appbuilder.add_view_no_menu(views.SparkConfView())
             appbuilder.add_view_no_menu(views.HadoopConfView())
             appbuilder.add_view_no_menu(views.AddDagView())
-            appbuilder.add_view_no_menu(views.UploadArtifactView())
+            appbuilder.add_view_no_menu(views.SparkDepView())
+            appbuilder.add_view_no_menu(views.CodeArtifactView())
             appbuilder.add_view_no_menu(views.VersionView())
+            appbuilder.add_view_no_menu(views.HelpView())
+
             appbuilder.add_view(views.DagRunModelView,
                                 "DAG Runs",
                                 category="Browse",
@@ -124,11 +127,11 @@ def create_app(config=None, session=None, testing=False, app_name="Workflow"):
                                 href='/configuration',
                                 category="Admin",
                                 category_icon="fa-user")
-            appbuilder.add_link("Couture Spark Configuration",
+            appbuilder.add_link("Spark Configuration",
                                 href='/couture_config',
                                 category="Admin",
                                 category_icon="fa-user")
-            appbuilder.add_link("Couture Hadoop Configuration",
+            appbuilder.add_link("Hadoop Configuration",
                                 href='/hadoop_conn_file_list',
                                 category="Admin",
                                 category_icon="fa-user")
@@ -136,8 +139,12 @@ def create_app(config=None, session=None, testing=False, app_name="Workflow"):
                                 href='/add_dag',
                                 category="Admin",
                                 category_icon="fa-user")
-            appbuilder.add_link("Upload Artifact",
-                                href='/upload_artifact',
+            appbuilder.add_link("Spark Dependencies",
+                                href='/spark_dependencies',
+                                category="Admin",
+                                category_icon="fa-user")
+            appbuilder.add_link("Code Artifacts",
+                                href='/code_artifact',
                                 category="Admin",
                                 category_icon="fa-user")
             appbuilder.add_view(views.ConnectionModelView,
@@ -154,6 +161,10 @@ def create_app(config=None, session=None, testing=False, app_name="Workflow"):
                                 category="Admin")
             appbuilder.add_link('Version',
                                 href='/version',
+                                category='About',
+                                category_icon='fa-th')
+            appbuilder.add_link('Help',
+                                href='/help',
                                 category='About',
                                 category_icon='fa-th')
 

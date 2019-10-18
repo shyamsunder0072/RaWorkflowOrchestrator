@@ -90,6 +90,7 @@ class DagRunForm(DynamicForm):
 class ConnectionForm(DynamicForm):
     conn_id = StringField(
         lazy_gettext('Conn Id'),
+        validators=[validators.DataRequired()],
         widget=BS3TextFieldWidget())
     conn_type = SelectField(
         lazy_gettext('Conn Type'),

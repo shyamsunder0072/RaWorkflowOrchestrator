@@ -446,7 +446,7 @@ function updateQueryStringParameter(uri, key, value) {
     });
 
     $("#btn_rundag").click(function(){
-      url = "{{ url_for( 'airflow.' + dag.get_default_view() ) }}" +
+      url = "{{ url_for( 'airflow.graph') }}" +
         "?dag_id=" + encodeURIComponent(rundag_id) +
         "&execution_date=" + encodeURIComponent(execution_date);
       window.location = url;
