@@ -1,0 +1,32 @@
+{% extends "airflow/master.html" %}
+
+{% block head_css %}
+{{ super() }}
+
+{% endblock %}
+
+{% block head_js %}
+{{ super() }}
+<script type="text/javascript">
+
+	var loc = "http://" + window.location.hostname + ":8888";
+	console.log(loc);
+	window.onload = function(){
+	    if(!document.getElementById("contentarea"))
+	        return false;
+	    document.getElementById("contentarea").setAttribute('data', loc);
+	}
+
+</script>
+
+{% endblock %}
+
+{% block body %}
+{{ super() }}
+<div>
+  <object id ="contentarea" type="text/html" data="http://localhost:8888" width="100%" height="1200px" style="overflow:auto;border:none">
+  </object>
+</div>
+
+{% endblock %}
+

@@ -2248,6 +2248,13 @@ class HelpView(AirflowBaseView):
     #     except Exception as e:
     #         return str(e)
 
+class JupyterNotebookView(AirflowBaseView):
+    @expose('/jupyter_notebook')
+    @has_access
+    def jupyter_notebook(self):
+        title = "Jupyter Notebook"
+        return self.render_template('airflow/jupyter_notebook.html', title=title)
+
 class CodeArtifactView(AirflowBaseView):
     @expose('/code_artifact', methods=['GET', 'POST'])
     @has_access

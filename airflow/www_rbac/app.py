@@ -106,6 +106,7 @@ def create_app(config=None, session=None, testing=False, app_name="Workflow"):
             appbuilder.add_view_no_menu(views.CodeArtifactView())
             appbuilder.add_view_no_menu(views.VersionView())
             appbuilder.add_view_no_menu(views.HelpView())
+            appbuilder.add_view_no_menu(views.JupyterNotebookView())
 
             appbuilder.add_view(views.DagRunModelView,
                                 "DAG Runs",
@@ -167,7 +168,11 @@ def create_app(config=None, session=None, testing=False, app_name="Workflow"):
                                 href='/help',
                                 category='About',
                                 category_icon='fa-th')
-
+            appbuilder.add_link('Jupyter Notebook',
+                                #href='http://0.0.0.0:8888/',
+                                href='/jupyter_notebook',
+                                category='About',
+                                category_icon='fa-th')
             def integrate_plugins():
                 """Integrate plugins to the context"""
                 from airflow.plugins_manager import (
