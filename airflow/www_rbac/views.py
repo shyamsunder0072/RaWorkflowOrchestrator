@@ -69,6 +69,9 @@ from airflow.www_rbac.forms import (DateTimeForm, DateTimeWithNumRunsForm,
                                     DagRunForm, ConnectionForm)
 from airflow.www_rbac.widgets import AirflowModelListWidget
 
+import difflib
+import shutil
+import tempfile
 
 PAGE_SIZE = conf.getint('webserver', 'page_size')
 if os.environ.get('SKIP_DAGS_PARSING') != 'True':
@@ -2036,7 +2039,7 @@ class HadoopConfView(AirflowBaseView):
                             if file_name == del_filename:
                                 os.remove(os.path.join(UPLOAD_FOLDER, file_name))
                                 AirflowBaseView.audit_logging("hadoop_file_deleted", file_name, request.environ['REMOTE_ADDR'])
-                                flash('File Deleted!')
+                                flash('File Deleted!!', "warning")
                             else:
                                 files.append(file_name)
                 return self.render_template('airflow/hadoop_conn_file_list.html', Files=files)
@@ -2057,9 +2060,9 @@ class HadoopConfView(AirflowBaseView):
                         upload.save(destination)
                         AirflowBaseView.audit_logging("hadoop_file_added", filename, request.environ['REMOTE_ADDR'])
                     else:
-                        flash('Only XML files are supported!')
+                        flash('Only XML files are supported!!', "error")
                 if flag:
-                    flash('File uploaded!!')
+                    flash('File uploaded!!',"success")
 
                 files = []
                 for r, d, f in os.walk(UPLOAD_FOLDER):
@@ -2173,7 +2176,7 @@ class SparkDepView(AirflowBaseView):
                         if file_name == del_filename:
                             os.remove(os.path.join(add_to_dir, file_name))
                             AirflowBaseView.audit_logging("spark_dependency_deleted", file_name, request.environ['REMOTE_ADDR'])
-                            flash('File Deleted!')
+                            flash('File Deleted!!', "warning")
                         else:
                             files.append(file_name)
                 len_py = 0
@@ -2196,10 +2199,13 @@ class SparkDepView(AirflowBaseView):
             try:
                 for f in request.files.getlist("file"):
                     filename = f.filename
-                    destination = "/".join([target, filename])
-                    f.save(destination)
-                    AirflowBaseView.audit_logging("spark_dependency_added", filename, request.environ['REMOTE_ADDR'])
-                    flash('File Uploaded!')
+                    if filename.endswith(".py") or filename.endswith(".egg") or filename.endswith(".zip") or filename.endswith(".jar"):
+                        destination = "/".join([target, filename])
+                        f.save(destination)
+                        AirflowBaseView.audit_logging("spark_dependency_added", filename, request.environ['REMOTE_ADDR'])
+                        flash('File Uploaded!!', "success")
+                    else:
+                        flash('Supported format for spark dependencies are .jar, .zip, .egg, or .py!!', "error")
             except:
                 print("No file selected!")
             files = []
@@ -2257,7 +2263,6 @@ class JupyterNotebookView(AirflowBaseView):
 
 class CodeArtifactView(AirflowBaseView):
     @expose('/code_artifact', methods=['GET', 'POST'])
-    @has_access
     @action_logging
     def update_spark_file(self):
         title = "Code Artifact"
@@ -2274,7 +2279,7 @@ class CodeArtifactView(AirflowBaseView):
                         if file_name == del_filename:
                             os.remove(os.path.join(add_to_dir, file_name))
                             AirflowBaseView.audit_logging("code_artifact_deleted", file_name, request.environ['REMOTE_ADDR'])
-                            flash('File Deleted!')
+                            flash('File Deleted!!', "warning")
                         else:
                             files.append(file_name)
                 len_py = 0
@@ -2298,10 +2303,13 @@ class CodeArtifactView(AirflowBaseView):
             try:
                 for f in request.files.getlist("file"):
                     filename = f.filename
-                    destination = "/".join([target, filename])
-                    f.save(destination)
-                    AirflowBaseView.audit_logging("code_artifact_added", filename, request.environ['REMOTE_ADDR'])
-                    flash('File Uploaded!')
+                    if filename.endswith(".py") or filename.endswith(".egg") or filename.endswith(".zip") or filename.endswith(".jar"):
+                        destination = "/".join([target, filename])
+                        f.save(destination)
+                        AirflowBaseView.audit_logging("code_artifact_added", filename, request.environ['REMOTE_ADDR'])
+                        flash('File Uploaded!!', "success")
+                    else:
+                        flash('Supported format for code artifacts are .jar, .py or .r!!', "error")
             except:
                 print("No file selected!")
             files = []
@@ -2333,8 +2341,52 @@ class CodeArtifactView(AirflowBaseView):
             return self.render_template('airflow/code_artifact.html', title=title, Files=files, len_jar=len_jar, len_py=len_py)
 
 class AddDagView(AirflowBaseView):
+
+    def make_tree(self, path):
+        tree = dict(name=os.path.basename(path), children=[])
+        try:
+            lst = os.listdir(path)
+        except OSError:
+            pass  # ignore errors
+        else:
+            for name in lst:
+                fn = os.path.join(path, name)
+                if os.path.isdir(fn):
+                    tree['children'].append(self.make_tree(fn))
+                else:
+                    with open(fn) as f:
+                        contents = f.read()
+                    tree['children'].append(dict(name=name, contents=contents))
+        return tree
+
+    def get_values(self):
+        from airflow.configuration import AIRFLOW_HOME
+        TASK_FOLDER = AIRFLOW_HOME + '/repo'
+        path = TASK_FOLDER
+        tree = self.make_tree(path)
+        values = {}
+        for key, value in tree.items():
+            if key == 'children':
+                for n in value:
+                    cont = n['contents'].split('\n')
+                    desc_temp = []
+                    code_temp = []
+                    i=0
+                    if cont[i].startswith("description:"):
+                        i = i + 1
+                        while not cont[i].startswith("code:") and i < len(cont):
+                            desc_temp.append(cont[i])
+                            i = i + 1
+                    if cont[i].startswith("code:"):
+                        i = i + 1
+                        while i < len(cont):
+                            code_temp.append(cont[i])
+                            i = i + 1
+                    temp_dict = {'desc': "\n".join(desc_temp), 'code': "\n".join(code_temp)}
+                    values[(n["name"])] = temp_dict
+        return values
+
     @expose('/add_dag', methods=['GET', 'POST'])
-    @has_access
     @action_logging
     def add_dag(self):
         title = "Add DAG"
@@ -2357,7 +2409,7 @@ class AddDagView(AirflowBaseView):
                             if file_name == del_filename:
                                 os.remove(os.path.join(add_to_dir, file_name))
                                 AirflowBaseView.audit_logging("dag_deleted", file_name, request.environ['REMOTE_ADDR'])
-                                flash('File Deleted!')
+                                flash('File Deleted!!', "warning")
                             else:
                                 files.append(file_name)
                 return self.render_template(
@@ -2379,9 +2431,9 @@ class AddDagView(AirflowBaseView):
                         AirflowBaseView.audit_logging("dag_added", filename, request.environ['REMOTE_ADDR'])
                         upload.save(destination)
                     elif filename:
-                        flash('Only python file allowed!!')
+                        flash('Only python file allowed!!', "error")
                 if flag:
-                    flash('File Uploaded!')
+                    flash('File Uploaded!!',"success")
 
                 files = []
                 for r, d, f in os.walk(add_to_dir):
@@ -2393,6 +2445,107 @@ class AddDagView(AirflowBaseView):
                     'airflow/add_dag.html', title=title, Files=files)
         else:
             return self.render_template('airflow/add_dag.html',title=title, Files=files)
+
+    @expose("/editdag/<string:filename>", methods=['GET', 'POST'])
+    @action_logging
+    def editdag(self, filename):
+        from airflow.configuration import AIRFLOW_HOME
+        add_to_dir = AIRFLOW_HOME + '/dags'
+
+        fullpath = os.path.join(add_to_dir, filename)
+        with open(fullpath, 'r') as f1:
+            f_old = f1.readlines()
+
+        from airflow.configuration import AIRFLOW_HOME
+        TASK_FOLDER = AIRFLOW_HOME + '/repo'
+        path = TASK_FOLDER
+
+        if request.method == 'POST':
+
+            code = request.form['code']
+            temp_dir = tempfile.gettempdir()
+            temp_path = os.path.join(temp_dir, 'temp_file_name')
+            shutil.copy2(fullpath, temp_path)
+
+            path2 = temp_path
+
+
+            with open(path2, 'w') as f_temp:  # writing code to temp file
+                f_temp.write(code)
+
+            fo = open(path2, "r")
+            f_temp = fo.readlines()
+            diff = difflib.HtmlDiff().make_table(f_old, f_temp, fromdesc='', todesc='')
+
+            try:
+                with open(fullpath, 'r') as f1:
+                    f_old = f1.readlines()
+
+                code_changed = request.form['option_reviewdag']
+
+                temp_dir = tempfile.gettempdir()
+                temp_path = os.path.join(temp_dir, 'temp_file_name')
+                shutil.copy2(fullpath, temp_path)
+
+                path2 = temp_path
+
+                with open(path2, 'w') as f_temp:  # writing code to temp file
+                    f_temp.write(code_changed)
+
+                fo = open(path2, "r")
+                f_temp = fo.readlines()
+                diff = difflib.HtmlDiff().make_table(f_old, f_temp, fromdesc='', todesc='')
+                return self.render_template("airflow/editdag.html", code=code, Filename=filename, Diff=diff, values=self.get_values())
+            except:
+                print("code not changed yet")
+
+            try:
+                with open(fullpath, 'r') as f1:
+                    f_old = f1.readlines()
+                save_name = request.form['option_editdag']
+                if save_name != '':
+                    with open(fullpath, 'w') as f:  # writing code to original file
+                        f.write(code)
+                flash("File Saved!!", "success")
+
+                with open(fullpath, 'r') as f1:
+                    f_new = f1.readlines()
+
+                diff = difflib.HtmlDiff().make_table(f_old, f_new, fromdesc='', todesc='')
+                return self.render_template("airflow/editdag.html", code=code, Filename=filename, Diff=diff, values=self.get_values())
+            except:
+                print("file not to be saved yet")
+
+            return self.render_template("airflow/editdag.html", code=code, Filename=filename, Diff=diff, values=self.get_values())
+
+        else:
+            fullpath = os.path.join(add_to_dir, filename)
+            with open(fullpath, 'r') as f:
+                code = f.read()
+            diff = None
+            return self.render_template("airflow/editdag.html", code=code, Filename=filename, Diff=diff, values=self.get_values())
+
+    @expose("/save_task/<string:filename>", methods=['POST'])
+    def save_task(self, filename):
+        from airflow.configuration import AIRFLOW_HOME
+        TASK_FOLDER = AIRFLOW_HOME + '/repo'
+
+        if request.method == 'POST':
+            new_heading = request.form['new_heading']
+            description = request.form['description']
+            new_code = request.form['new_code']
+            file_name = new_heading + ".py"
+            path_to_save = os.path.join(TASK_FOLDER, file_name)
+            with open(path_to_save, 'w+') as f:  # creating and saving file
+                f.write("description:")
+                f.write("\n")
+                f.write(description)
+                f.write("\n")
+                f.write("code:")
+                f.write("\n")
+                f.write(new_code)
+            return redirect(url_for('AddDagView.editdag', filename=filename))
+
 
 ######################################################################################
 #                                    ModelViews

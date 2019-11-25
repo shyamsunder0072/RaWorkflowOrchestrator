@@ -1905,7 +1905,7 @@ class CLIFactory(object):
         'role': Arg(
             ('-r', '--role',),
             help='Role of the user. Existing roles include Admin, '
-                 'User, Op, Viewer, and Public',
+                 'User, Op, Viewer, Developer, and Public',
             type=str),
         'firstname': Arg(
             ('-f', '--firstname',),

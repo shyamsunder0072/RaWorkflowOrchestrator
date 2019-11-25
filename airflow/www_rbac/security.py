@@ -69,6 +69,16 @@ OP_VMS = {
     'XComModelView',
 }
 
+DEV_VMS = {
+    'Developer',
+    'Manage DAG',
+    'AddDagView',
+    'Code Artifacts',
+    'CodeArtifactView',
+    'Jupyter Notebook',
+    'JupyterNotebookView',
+}
+
 ###########################################################################
 #                               PERMISSIONS
 ###########################################################################
@@ -123,6 +133,11 @@ OP_PERMS = {
     'can_varimport',
 }
 
+DEV_PERMS = {
+    'menu_access',
+    'can_jupyter_notebook',
+}
+
 # global view-menu for dag-level access
 DAG_VMS = {
     'all_dags'
@@ -153,6 +168,11 @@ ROLE_CONFIGS = [
         'perms': VIEWER_PERMS | USER_PERMS | OP_PERMS | DAG_PERMS,
         'vms': VIEWER_VMS | DAG_VMS | USER_VMS | OP_VMS,
     },
+    {
+        'role': 'Developer',
+        'perms': VIEWER_PERMS | USER_PERMS | OP_PERMS | DAG_PERMS | DEV_PERMS,
+        'vms': VIEWER_VMS | DAG_VMS | USER_VMS | OP_VMS | DEV_VMS,
+    },
 ]
 
 EXISTING_ROLES = {
@@ -161,6 +181,7 @@ EXISTING_ROLES = {
     'User',
     'Op',
     'Public',
+    'Developer',
 }
 
 from flask_appbuilder.security.manager import BaseSecurityManager
@@ -240,7 +261,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
             return set()
 
         roles = {role.name for role in username.roles}
-        if {'Admin', 'Viewer', 'User', 'Op'} & roles:
+        if {'Admin', 'Viewer', 'User', 'Op', 'Developer'} & roles:
             return DAG_VMS
 
         user_perms_views = self.get_all_permissions_views()
@@ -296,12 +317,12 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
     def has_all_dags_access(self):
         """
         Has all the dag access in any of the 3 cases:
-        1. Role needs to be in (Admin, Viewer, User, Op).
+        1. Role needs to be in (Admin, Viewer, User, Op, Developer).
         2. Has can_dag_read permission on all_dags view.
         3. Has can_dag_edit permission on all_dags view.
         """
         return (
-            self._has_role(['Admin', 'Viewer', 'Op', 'User']) or
+            self._has_role(['Admin', 'Viewer', 'Op', 'User', 'Developer']) or
             self._has_perm('can_dag_read', 'all_dags') or
             self._has_perm('can_dag_edit', 'all_dags'))
 
@@ -351,7 +372,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         1. Fetch all the existing (permissions, view-menu) from Airflow DB.
         2. Fetch all the existing dag models that are either active or paused. Exclude the subdags.
         3. Create both read and write permission view-menus relation for every dags from step 2
-        4. Find out all the dag specific roles(excluded pubic, admin, viewer, op, user)
+        4. Find out all the dag specific roles(excluded pubic, admin, viewer, op, user, developer)
         5. Get all the permission-vm owned by the user role.
         6. Grant all the user role's permission-vm except the all-dag view-menus to the dag roles.
         7. Commit the updated permission-vm-role into db
@@ -442,7 +463,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
     def sync_roles(self):
         """
-        1. Init the default role(Admin, Viewer, User, Op, public)
+        1. Init the default role(Admin, Viewer, User, Op, Developer, public)
            with related permissions.
         2. Init the custom role(dag-user) with related permissions.
 

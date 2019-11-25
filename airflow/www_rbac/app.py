@@ -124,6 +124,19 @@ def create_app(config=None, session=None, testing=False, app_name="Workflow"):
             appbuilder.add_view(views.TaskInstanceModelView,
                                 "Task Instances",
                                 category="Browse")
+            appbuilder.add_link("Manage DAG",
+                                href='/add_dag',
+                                category="Developer",
+                                category_icon="fa-wrench")
+            appbuilder.add_link("Code Artifacts",
+                                href='/code_artifact',
+                                category="Developer",
+                                category_icon="fa-wrench")
+            appbuilder.add_link("Jupyter Notebook",
+                                #href='http://0.0.0.0:8888/',
+                                href='/jupyter_notebook',
+                                category="Developer",
+                                category_icon="fa-wrench")
             appbuilder.add_link("Configurations",
                                 href='/configuration',
                                 category="Admin",
@@ -136,16 +149,8 @@ def create_app(config=None, session=None, testing=False, app_name="Workflow"):
                                 href='/hadoop_conn_file_list',
                                 category="Admin",
                                 category_icon="fa-user")
-            appbuilder.add_link("Add DAG",
-                                href='/add_dag',
-                                category="Admin",
-                                category_icon="fa-user")
             appbuilder.add_link("Spark Dependencies",
                                 href='/spark_dependencies',
-                                category="Admin",
-                                category_icon="fa-user")
-            appbuilder.add_link("Code Artifacts",
-                                href='/code_artifact',
                                 category="Admin",
                                 category_icon="fa-user")
             appbuilder.add_view(views.ConnectionModelView,
@@ -168,11 +173,7 @@ def create_app(config=None, session=None, testing=False, app_name="Workflow"):
                                 href='/help',
                                 category='About',
                                 category_icon='fa-th')
-            appbuilder.add_link('Jupyter Notebook',
-                                #href='http://0.0.0.0:8888/',
-                                href='/jupyter_notebook',
-                                category='About',
-                                category_icon='fa-th')
+
             def integrate_plugins():
                 """Integrate plugins to the context"""
                 from airflow.plugins_manager import (

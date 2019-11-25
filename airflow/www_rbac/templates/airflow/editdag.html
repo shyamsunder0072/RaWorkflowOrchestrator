@@ -1,0 +1,523 @@
+{% extends "airflow/master.html" %}
+{% block title %}
+{{ title }}
+{% endblock %}
+
+{% block head_css %}
+{{ super() }}
+
+<style>
+   * {
+  box-sizing: border-box;
+    }
+
+input[type=text], select, textarea {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  resize: vertical;
+}
+
+input[type=submit] {
+  background-color: #4CAF50;
+  color: white;
+  padding: 12px 20px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-left: 50%;
+  margin-top: 0px;
+<!--  margin-bottom : 10px;-->
+  text-align: center;
+  text-decoration: none;
+  display: inline-block;
+}
+
+.couturebutton {
+  background-color: #4CAF50;
+  border: none;
+  border-radius: 4px;
+  color: white;
+  padding: 12px 20px;
+  cursor: pointer;
+  float: right;
+  text-align: center;
+  text-decoration: none;
+  display: inline-block;
+  margin-left: 5px;
+  margin-top: -50px;
+}
+.couturebutton_insert {
+  background-color: #4CAF50;
+  border: none;
+  border-radius: 4px;
+  color: white;
+  padding: 3px 11px;
+  cursor: pointer;
+  float: right;
+  text-align: center;
+  text-decoration: none;
+  display: inline-block;
+  margin-right: 5px;
+  margin-top: -20px;
+}
+#rev_button {
+visibility:visible;
+margin-left: 50%;
+ background-color: #4CAF50;
+  border: none;
+  border-radius: 4px;
+  color: white;
+  padding: 12px 20px;
+  cursor: pointer;
+  text-align: center;
+  text-decoration: none;
+<!--  display: inline-block;-->
+
+}
+input[type=submit]:hover {
+  background-color: #45a049;
+}
+
+.couturecontainer {
+  border-radius: 5px;
+  padding: 10px;
+<!--  background-color: #f2f2f2;-->
+}
+
+textarea {
+  overflow: auto;
+  white-space: pre-wrap;
+}
+.table-responsive {
+    width: 100%;
+    margin-bottom: 15px;
+    overflow-y: hidden;
+    overflow-x: auto;
+    -ms-overflow-style: -ms-autohiding-scrollbar;
+    border: 5px solid #dddddd;
+    -webkit-overflow-scrolling: touch;
+  }
+
+   .couturecol-lg-1-1 {
+        width: 8.33333333%;
+  }
+
+/* Responsive layout - when the screen is less than 600px wide, make the two columns stack on top of each other instead of next to each other */
+@media screen and (max-width: 600px) {
+  .couture-col-25, .couture-col-75, input[type=submit] {
+    width: 100%;
+    margin-top: 0;
+    display : table;
+  }
+}
+table.diff {
+table-layout: fixed;
+width: 100%;
+border:medium;
+ word-wrap:break-word;
+<!--font-family:Courier;-->
+
+}
+.diff_header {background-color:#e0e0e0}
+td.diff_header {
+     text-align: center;
+    /* padding-right: 4px; */
+    /* padding-left: 2px; */
+     width: 40px;
+    }
+td, th {
+    padding: 0;
+    word-break: break-word;
+     white-space: normal;
+}
+.diff_next {background-color:#c0c0c0;  width: 10px;}
+.diff_add {background-color:#aaffaa}
+.diff_chg {background-color:#ffff77}
+.diff_sub {background-color:#ffaaaa}
+
+   /* Style the couturetab */
+.couturetab {
+  overflow: hidden;
+  border: 1px solid #ccc;
+  background-color: #f1f1f1;
+}
+/* Style the buttons inside the couturetab */
+.couturetab button {
+  background-color: inherit;
+  float: left;
+  border: none;
+  outline: none;
+  cursor: pointer;
+  padding: 14px 16px;
+  transition: 0.3s;
+  font-size: 17px;
+}
+
+/* Change background color of buttons on hover */
+.couturetab button:hover {
+  background-color: #ddd;
+}
+
+/* Create an active/current couturetablink class */
+.couturetab button.active {
+  background-color: #ccc;
+}
+
+/* Style the tab content */
+.couturetabcontent {
+  display: none;
+<!--  padding: 0px 0px 0px;-->
+  padding: 6px 12px;
+<!--  border: 1px solid #ccc;-->
+<!--  border-bottom: none ;-->
+<!--  border-top: none;-->
+}
+.couturedropdown-submenu {
+  position: relative;
+}
+.couturedropdown {
+    position: relative;
+}
+.couturedropdown-menu-right {
+<!--    right: 0;-->
+    left: auto;
+}
+:after, :before {
+    -webkit-box-sizing: border-box;
+    -moz-box-sizing: border-box;
+    box-sizing: border-box;
+}
+html {
+    font-size: 10px;
+    -webkit-tap-highlight-color: rgba(0,0,0,0);
+}
+.couturedropdown-menu>li>a {
+    display: block;
+    padding: 3px 20px;
+    clear: both;
+    font-weight: 400;
+    line-height: 1.42857143;
+    color: #333;
+    white-space: nowrap;
+}
+a {
+    color: #337ab7;
+    text-decoration: none;
+}
+a {
+    background-color: transparent;
+}
+body {
+    font-family: "Helvetica Neue",Helvetica,Arial,sans-serif;
+    font-size: 14px;
+    line-height: 1.42857143;
+    color: #333;
+    background-color: #fff;
+}
+html {
+    font-size: 10px;
+    -webkit-tap-highlight-color: rgba(0,0,0,0);
+}
+button, input, select, textarea {
+    font-family: inherit;
+    font-size: inherit;
+    line-height: inherit;
+}
+button, html input[type=button], input[type=reset], input[type=submit] {
+    -webkit-appearance: button;
+    cursor: pointer;
+}
+button, select {
+    text-transform: none;
+}
+button {
+    overflow: visible;
+}
+button, input, optgroup, select, textarea {
+    margin: 0;
+    font: inherit;
+    color: inherit;
+}
+.caret {
+    display: inline-block;
+    width: 0;
+    height: 0;
+    margin-left: 2px;
+    vertical-align: middle;
+    border-top: 4px dashed;
+    border-top: 4px solid\9;
+    border-right: 4px solid transparent;
+    border-left: 4px solid transparent;
+}
+.couturedropdown-submenu .couturedropdown-menu {
+    top: 0;
+     right: 100%;
+    left: auto;
+  min-width: 300px;
+  min-height: 200px;
+  margin-top: -1px;
+  max-width : 300px;
+  max-height : 400px;
+  overflow-x : auto;
+  overflow-y : auto;
+}
+.open>.couturedropdown-menu {
+    display: block;
+    right: 0;
+}
+.couturedropdown-menu {
+    position: absolute;
+    top: 100%;
+    right : 0;
+    /* left: 0; */
+    z-index: 1000;
+    display: none;
+    float: left;
+    min-width: 250px;
+    padding: 5px 0;
+    margin: 2px 0 0;
+    font-size: 14px;
+    text-align: left;
+    list-style: none;
+    background-color: #fff;
+    background-clip: padding-box;
+    border: 1px solid #ccc;
+    border: 1px solid rgba(0,0,0,.15);
+    border-radius: 4px;
+    }
+    pre {
+    display: block;
+    padding: 7px;
+    margin: 10px 5px 10px;
+    font-size: 13px;
+    line-height: 1.42857143;
+    color: #333;
+    word-break: break-all;
+    word-wrap: break-word;
+    background-color: #f5f5f5;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    white-space: pre;
+    font-family: Menlo,Monaco,Consolas,"Courier New",monospace;
+    overflow: auto;
+    min-height: 150px;
+    }
+   .dropdown-divider {
+    height: 0;
+    margin: .5rem 0;
+    overflow: hidden;
+    border-top: 1px solid #e9ecef;
+    }
+</style>
+
+{% endblock %}
+
+{% block head_js %}
+{{ super() }}
+
+
+
+<script type="text/javascript">
+
+    function openTab(evt, tabName) {
+      var i, couturetabcontent, tablinks;
+      couturetabcontent = document.getElementsByClassName("couturetabcontent");
+      for (i = 0; i < couturetabcontent.length; i++) {
+        couturetabcontent[i].style.display = "none";
+      }
+      tablinks = document.getElementsByClassName("tablinks");
+      for (i = 0; i < tablinks.length; i++) {
+        tablinks[i].className = tablinks[i].className.replace(" active", "");
+      }
+      document.getElementById(tabName).style.display = "block";
+      evt.currentTarget.className += " active";
+    }
+
+</script>
+
+{% endblock %}
+
+{% block body %}
+{{ super() }}
+<div class="couturecontainer" id="main_container">
+  <h3>DAGs Code Editor - {{Filename}}</h3>
+  <div class="couturedropdown">
+    <button class="couturebutton dropdown-toggle" type="button" data-toggle="dropdown">Code Samples
+      <span class="caret"></span></button>
+    <ul class="couturedropdown-menu couturedropdown-menu-right" >
+      {% for file in values %}
+      <li class="couturedropdown-submenu">
+        <a class="test" tabindex="-1" href="#"> {{ file }}</a>
+        <ul class="couturedropdown-menu couturedropdown-menu-right">
+          <li><div style="margin-left:5px;" id="desc">{{ values[file]['desc'] }}</div>
+            <button class="couturebutton_insert" value={{ file }}  onclick="javascript:insert_code()">Insert</button>
+            <div id={{ file }}>
+              <pre id="contents">{{ values[file]['code'] }}</pre>
+            </div>
+          </li>
+        </ul>
+      </li>
+      {% endfor %}
+
+      <div class="dropdown-divider"></div>
+      <li class="couturedropdown-submenu">
+        <a class="test" tabindex="-1" href="#">ADD ITEM </a>
+        <ul class="couturedropdown-menu couturedropdown-menu-right" >
+          <form action="{{ url_for('AddDagView.save_task', filename = Filename) }}" method="post">
+            <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
+            <input name="new_heading" type="text" value="" placeholder="Enter heading">
+            <input name="description" type="text" value="" placeholder="Enter description">
+            <pre name="new_code" placeholder="enter code"></pre>
+            <textarea id="new_code" name="new_code" placeholder="enter code" rows="10" cols="5"></textarea>
+            <button type="submit" value="Add" onclick="javascript:new_task({{Filename}})">Add</button>
+          </form>
+        </ul>
+      </li>
+    </ul>
+  </div>
+
+
+  <div class="couturetab">
+    <button class="tablinks" onclick="javascript:openTab(event, 'Edit Code'); javascript:get_button();" id="defaultOpen">Edit Code</button>
+    <button class="tablinks" onclick="javascript:openTab(event, 'Review Code'); javascript:get_button();" id="review_code">Review Code</button>
+  </div>
+  <form action="{{ url_for('AddDagView.editdag', filename = Filename) }}" method="post" enctype="multipart/form-data" id="editdag">
+    <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
+    <div class="couturecontainer" id="container_editdag">
+      <div id="Edit Code" class="couturetabcontent">
+        <table class="table table-bordered">
+          <tbody>
+          <tr>
+            <td class="couturecol-lg-1-1">
+              <textarea rows="40" cols="80" id="code" name="code" wrap="hard" value={{code}}>{{code}}</textarea>
+            </td>
+          </tr>
+          </tbody>
+        </table>
+      </div>
+      <div id="Review Code" class="couturetabcontent">
+        {%if Diff!=None %}
+        <div id="container1" class="couturecontainer">{{Diff | safe}}</div>
+        <input type="submit" value="Save Changes" onclick="javascript:function_save()">
+        {% else %}
+        <div id="container2" class="couturecontainer">No changes made yet</div>
+        {% endif %}
+      </div>
+    </div>
+  </form>
+  <button class="tablinks" onclick="javascript:openTab(event, 'Review Code'); javascript:get_button();" id="rev_button" style="visibility:visible; margin-left: 50%;">Review Changes</button>
+  <script>
+  function get_button() {
+  if (document.getElementById('Review Code').style.display != "block") {
+  document.getElementById('rev_button').style.visibility="visible";
+  }
+  else {
+  document.getElementById('rev_button').style.visibility="hidden";
+  }
+    }
+    </script>
+</div>
+
+
+<!-- Template begins-->
+<div class="couturecontainer" id="newfield_for_editdag" style="display:none">
+  <input name="option_editdag" id="for_editdag" type="hidden" placeholder="Enter name">
+</div>
+<!-- Template ends -->
+
+<!-- Template begins-->
+<div class="couturecontainer" id="newfield_for_reviewdag" style="display:none">
+  <input name="option_reviewdag" id="for_reviewdag" type="hidden" placeholder="Enter name">
+</div>
+<!-- Template ends -->
+{% endblock %}
+
+{% block tail_js %}
+{{ super() }}
+<script src="{{ url_for('static', filename='js/jquery-3.4.1.min.js') }}"></script>
+<script type="text/javascript">
+     var delay = (function(){
+     var timer = 0;
+     return function(callback, ms){
+     clearTimeout (timer);
+     timer = setTimeout(callback, ms);
+     };
+    })();
+
+    $('#code').keyup(function() {
+      delay(function(){
+       code = document.getElementById("code").value;
+        document.getElementById("for_reviewdag").value = code;
+        var div1 = document.createElement('div');
+        div1.innerHTML = document.getElementById('newfield_for_reviewdag').innerHTML;
+        document.getElementById('container_editdag').appendChild(div1);
+        document.getElementById('editdag').submit();
+      }, 1000 );
+    });
+
+    function function_save(option)
+    {
+        let save = confirm("Are you sure you want to save?");
+            if(save) {
+                document.getElementById("for_editdag").value = 'save_now';
+                var div1 = document.createElement('div');
+                div1.innerHTML = document.getElementById('newfield_for_editdag').innerHTML;
+                document.getElementById('container_editdag').appendChild(div1);
+                    }
+    }
+
+    function typeInTextarea(el, newText) {
+
+      var start = el.prop("selectionStart")
+      var end = el.prop("selectionEnd")
+      var text = el.val()
+      var before = text.substring(0, start)
+      var after  = text.substring(end, text.length)
+      el.val(before + newText + after)
+      el[0].selectionStart = el[0].selectionEnd = start + newText.length
+      el.focus()
+
+    }
+
+    function insert_code() {
+         var task_number = window.event.target.value
+        var code_task = document.getElementById(task_number).innerText;
+        typeInTextarea($("textarea#code"), code_task);
+    }
+
+    $(document).ready(function(){
+      document.getElementById('defaultOpen').click();
+
+      $('.couturedropdown-submenu a.test').on("click", function(e){
+        $('.couturedropdown-submenu>ul').hide();
+        $(this).next('ul').toggle();
+        e.stopPropagation();
+        e.preventDefault();
+      });
+
+
+      $('.couturecontainer>form').on("click", function(e){
+        $('.couturedropdown-submenu>ul.couturedropdown-menu').hide();
+      });
+
+    });
+
+    function new_task(filename) {
+       var form_data = new FormData();
+           $.ajax({
+            type: 'POST',
+            url: url_for('save_task', filename=filename),
+            data: form_data,
+            contentType: false,
+            cache: false,
+            processData: false,
+            success: function(data) {
+            console.log('Success!');
+            },
+        });
+    }
+
+</script>
+{% endblock %}

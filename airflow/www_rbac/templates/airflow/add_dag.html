@@ -148,8 +148,8 @@ input[type=submit]:hover {
         <tr>
           <!-- Column: Name -->
           <td class="couture_table_text">
-            <a href="{{ url_for('Airflow.'+ 'tree', dag_id=(i.split('.'))) }}">
-              {{ i }}
+            <a href="{{ url_for('AddDagView.editdag', filename = i ) }}">
+              <label class="couture-label" name="{{i}}">{{i}}</label>
             </a>
             <button onclick="javascript:function_delete_DAG('{{i}}')" class="couture-button-delete">
               <i class="glyphicon glyphicon-remove-circle" style="color:red" aria-hidden="true"></i></button>

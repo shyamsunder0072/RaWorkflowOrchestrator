@@ -452,7 +452,7 @@ regarding its security model.
 
 Default Roles
 '''''''''''''
-Airflow ships with a set of roles by default: Admin, User, Op, Viewer, and Public.
+Airflow ships with a set of roles by default: Admin, User, Op, Viewer, Dev, and Public.
 Only ``Admin`` users could configure/alter the permissions for other roles. But it is not recommended
 that ``Admin`` users alter these default roles in any way by removing
 or adding permissions to these roles.
@@ -581,6 +581,31 @@ on ``User`` web views plus these additional op web views
         'XComModelView',
     }
 
+Dev
+^^
+``Dev`` users have ``Op`` permissions plus additional dev permissions
+
+.. code:: python
+
+    DEV_PERMS = {
+        'menu_access',
+        'can_jupyter_notebook',
+    }
+
+on ``Op`` web views plus these additional dev web views
+
+.. code:: python
+
+    DEV_VMS = {
+        'Developer',
+        'Manage DAG',
+        'AddDagView',
+        'Code Artifacts',
+        'CodeArtifactView',
+        'Jupyter Notebook',
+        'JupyterNotebookView',
+    }
+
 Custom Roles
 '''''''''''''
 
@@ -588,5 +613,5 @@ DAG Level Role
 ^^^^^^^^^^^^^^
 ``Admin`` can create a set of roles which are only allowed to view a certain set of dags. This is called DAG level access. Each dag defined in the dag model table
 is treated as a ``View`` which has two permissions associated with it (``can_dag_read`` and ``can_dag_edit``). There is a special view called ``all_dags`` which
-allows the role to access all the dags. The default ``Admin``, ``Viewer``, ``User``, ``Op`` roles can all access ``all_dags`` view.
+allows the role to access all the dags. The default ``Admin``, ``Viewer``, ``User``, ``Op``, ``Dev`` roles can all access ``all_dags`` view.
 
