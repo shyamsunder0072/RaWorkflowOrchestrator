@@ -72,6 +72,8 @@ from airflow.www_rbac.widgets import AirflowModelListWidget
 import difflib
 import shutil
 import tempfile
+import time
+import stat
 
 PAGE_SIZE = conf.getint('webserver', 'page_size')
 if os.environ.get('SKIP_DAGS_PARSING') != 'True':
@@ -2289,8 +2291,18 @@ class CodeArtifactView(AirflowBaseView):
                         len_py = len_py + 1
                     if file.endswith(".jar"):
                         len_jar = len_jar + 1
-
-                return self.render_template('airflow/code_artifact.html', title=title, Files=files, len_jar=len_jar, len_py=len_py)
+                file_data = {}
+                for r, d, f in os.walk(add_to_dir):
+                    for file_name in f:
+                        filePath = os.path.join(add_to_dir, file_name)
+                        if os.path.exists(filePath):
+                            fileStatsObj = os.stat(filePath)
+                            modificationTime = time.ctime(fileStatsObj[stat.ST_MTIME])
+                            size = os.stat(filePath).st_size
+                            size = str(size) + "bytes"
+                            temp_dict = {'time': modificationTime.split(' ', 1)[1], 'size': size}
+                            file_data[file_name] = temp_dict
+                return self.render_template('airflow/code_artifact.html', title=title, Files=files, len_jar=len_jar, len_py=len_py,file_data=file_data)
 
 
             except:
@@ -2323,8 +2335,18 @@ class CodeArtifactView(AirflowBaseView):
                     len_py = len_py + 1
                 if file.endswith(".jar"):
                     len_jar = len_jar + 1
-
-            return self.render_template('airflow/code_artifact.html', title=title, Files=files, len_jar=len_jar, len_py=len_py)
+            file_data = {}
+            for r, d, f in os.walk(add_to_dir):
+                for file_name in f:
+                    filePath = os.path.join(add_to_dir, file_name)
+                    if os.path.exists(filePath):
+                        fileStatsObj = os.stat(filePath)
+                        modificationTime = time.ctime(fileStatsObj[stat.ST_MTIME])
+                        size = os.stat(filePath).st_size
+                        size = str(size) + "bytes"
+                        temp_dict = {'time': modificationTime.split(' ', 1)[1], 'size': size}
+                        file_data[file_name] = temp_dict
+            return self.render_template('airflow/code_artifact.html', title=title, Files=files, len_jar=len_jar, len_py=len_py,file_data=file_data)
         else:
             files = []
             for r, d, f in os.walk(add_to_dir):
@@ -2337,8 +2359,25 @@ class CodeArtifactView(AirflowBaseView):
                     len_py = len_py + 1
                 if file.endswith(".jar"):
                     len_jar = len_jar + 1
+            file_data = {}
+            for r, d, f in os.walk(add_to_dir):
+                for file_name in f:
+                    filePath = os.path.join(add_to_dir, file_name)
+                    if os.path.exists(filePath):
+                        fileStatsObj = os.stat(filePath)
+                        modificationTime = time.ctime(fileStatsObj[stat.ST_MTIME])
+                        size = os.stat(filePath).st_size
+                        size = str(size) + "bytes"
+                        temp_dict = {'time': modificationTime.split(' ', 1)[1], 'size': size}
+                        file_data[file_name] = temp_dict
+            return self.render_template('airflow/code_artifact.html', title=title, Files=files, len_jar=len_jar, len_py=len_py, file_data=file_data)
 
-            return self.render_template('airflow/code_artifact.html', title=title, Files=files, len_jar=len_jar, len_py=len_py)
+    @expose("/download/<string:filename>", methods=['GET', 'POST'])
+    def download(self, filename):
+        from airflow.configuration import AIRFLOW_HOME
+        add_to_dir = AIRFLOW_HOME + '/../code'
+        path_file = os.path.join(add_to_dir,filename)
+        return send_file(path_file, as_attachment=True)
 
 class AddDagView(AirflowBaseView):
 
@@ -2371,7 +2410,7 @@ class AddDagView(AirflowBaseView):
                     cont = n['contents'].split('\n')
                     desc_temp = []
                     code_temp = []
-                    i=0
+                    i = 0
                     if cont[i].startswith("description:"):
                         i = i + 1
                         while not cont[i].startswith("code:") and i < len(cont):
@@ -2382,6 +2421,11 @@ class AddDagView(AirflowBaseView):
                         while i < len(cont):
                             code_temp.append(cont[i])
                             i = i + 1
+                    if i == 0:
+                        while i < len(cont):
+                            code_temp.append(cont[i])
+                            i = i + 1
+                        desc_temp.append("No description available")
                     temp_dict = {'desc': "\n".join(desc_temp), 'code': "\n".join(code_temp)}
                     values[(n["name"])] = temp_dict
         return values

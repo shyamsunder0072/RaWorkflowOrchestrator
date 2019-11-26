@@ -161,15 +161,15 @@ couture-input[type=submit]:hover {
       </div>
       <table class="table table-striped table-bordered">
         <tbody>
-        {% for i in Files %}
-        {% if i.endswith('.jar') == true %}
+        {% for i in file_data %}
+        {% if i.endswith('.jar') or i.endswith('.r') %}
         <tr>
-          <!-- Column: Name -->
-          <td class="couture_table_text">
-            {{i}}
-            <button onclick="javascript:function_delete_spark_file('{{i}}')" class="couture-button-delete">
-              <i class="glyphicon glyphicon-remove-circle" style="color:red" aria-hidden="true"></i></button>
-          </td>
+          <td class="couture_table_text">{{i}}</td>
+          <td width="20%" id="modified_time_jar">{{file_data[i]['time']}}</td>
+          <td width="15%" id="size_jar">{{file_data[i]['size']}}</td>
+          <td width="10%"><a href="{{ url_for('CodeArtifactView.download', filename= i) }}">download</a></td>
+          <td width="2%"> <button onclick="javascript:function_delete_spark_file('{{i}}')" class="couture-button-delete">
+            <i class="glyphicon glyphicon-remove-circle" style="color:red" aria-hidden="true"></i></button> </td>
         </tr>
         {% endif %}
         {% endfor %}
@@ -180,15 +180,15 @@ couture-input[type=submit]:hover {
       {% endif %}
       <table class="table table-striped table-bordered">
         <tbody>
-        {% for i in Files %}
+        {% for i in file_data %}
         {% if i.endswith('.py') or i.endswith('.egg') or i.endswith('.zip') %}
         <tr>
-          <!-- Column: Name -->
-          <td class="couture_table_text">
-            {{i}}
-            <button onclick="javascript:function_delete_spark_file('{{i}}')" class="couture-button-delete">
-              <i class="glyphicon glyphicon-remove-circle" style="color:red" aria-hidden="true"></i></button>
-          </td>
+          <td class="couture_table_text">{{i}}</td>
+          <td width="20%" id="modified_time_py">{{file_data[i]['time']}}</td>
+          <td width="15%" id="size_py">{{file_data[i]['size']}}</td>
+          <td width="10%" ><a href="{{ url_for('CodeArtifactView.download', filename= i) }}">download</a></td>
+          <td width="2%"> <button onclick="javascript:function_delete_spark_file('{{i}}')" class="couture-button-delete">
+            <i class="glyphicon glyphicon-remove-circle" style="color:red" aria-hidden="true"></i></button> </td>
         </tr>
         {% endif %}
         {% endfor %}

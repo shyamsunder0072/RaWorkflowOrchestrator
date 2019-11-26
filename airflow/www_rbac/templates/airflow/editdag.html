@@ -369,7 +369,6 @@ button, input, optgroup, select, textarea {
             <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
             <input name="new_heading" type="text" value="" placeholder="Enter heading">
             <input name="description" type="text" value="" placeholder="Enter description">
-            <pre name="new_code" placeholder="enter code"></pre>
             <textarea id="new_code" name="new_code" placeholder="enter code" rows="10" cols="5"></textarea>
             <button type="submit" value="Add" onclick="javascript:new_task({{Filename}})">Add</button>
           </form>
