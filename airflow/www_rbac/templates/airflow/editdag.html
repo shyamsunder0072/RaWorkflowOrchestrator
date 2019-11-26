@@ -351,7 +351,7 @@ button, input, optgroup, select, textarea {
       <li class="couturedropdown-submenu">
         <a class="test" tabindex="-1" href="#"> {{ file }}</a>
         <ul class="couturedropdown-menu couturedropdown-menu-right">
-          <li><div style="margin-left:5px;" id="desc">{{ values[file]['desc'] }}</div>
+          <li><div style="margin-left:5px; white-space:pre-wrap;" id="desc">{{ values[file]['desc'] }}</div>
             <button class="couturebutton_insert" value={{ file }}  onclick="javascript:insert_code()">Insert</button>
             <div id={{ file }}>
               <pre id="contents">{{ values[file]['code'] }}</pre>
