@@ -8,13 +8,14 @@
 <script type="text/javascript">
 
  window.onload = function(){
-
 getAllNames({{Files | safe}},'{{Arguments['jars']}}');
 showcouturecheckboxes(true);
 
 Py_getAllNames({{Py_Files | safe}},'{{Arguments['py-files']}}');
  Py_showcouturecheckboxes(true);
 
+kt_getAllNames({{kt_Files | safe}},'{{Arguments['keytab']}}');
+kt_showcouturecheckboxes(true);
   }
   </script>
 
@@ -171,7 +172,19 @@ input[type=submit]:hover {
 #Py_couturecheckboxes label:hover {
   background-color: #1e90ff;
 }
+#kt_couturecheckboxes {
+  display: none;
+  border: 1px #dadada solid;
+  width: 93%;
+}
 
+#kt_couturecheckboxes label {
+  display: block;
+}
+
+#kt_couturecheckboxes label:hover {
+  background-color: #1e90ff;
+}
 </style>
 
 {% endblock %}
@@ -227,7 +240,26 @@ input[type=submit]:hover {
           </div>
         </div>
         {%endif%}
-        {%if i!='jars' and i!='py-files'%}
+        {%if i == 'keytab' and kt_len>0%}
+        <div class="couturecol-25">
+          <label for={{i}} class="couturelabel">{{i}}</label>
+        </div>
+        <div class="couturecol-75">
+          <div class="couturerow">
+            <div class="couture-multiselect">
+              <div class="couture-selectBox" onclick="javascript:kt_getAllNames({{kt_Files}},'{{Arguments[i]}}'); javascript:kt_showcouturecheckboxes(); " >
+                <select >
+                  <option>Click to select keytab files</option>
+                </select>
+                <button onclick="javascript:del_feed('{{i}}')" class="couturebutton-delete" title="Delete Argument"><i class="glyphicon glyphicon-remove-circle" style="color:red" aria-hidden="true"></i></button>
+                <div class="couture-overSelect"></div>
+              </div>
+              <div id="kt_couturecheckboxes" ></div>
+            </div>
+          </div>
+        </div>
+        {%endif%}
+        {%if i!='jars' and i!='py-files' and i!='keytab'%}
         <div class="couturecol-25">
           <label for={{i}} class="couturelabel">{{i}}</label>
         </div>
@@ -460,6 +492,66 @@ function Py_getAllNames(files,selected_py) {
   }
 
 }
+var kt_expanded = false;
+kt_count_of_clicks=1
+function kt_showcouturecheckboxes(f_3) {
+  kt_count_of_clicks++;
+  var kt_couturecheckboxes = document.getElementById("kt_couturecheckboxes");
+  if (!expanded) {
+    kt_couturecheckboxes.style.display = "block";
+    expanded = true;
+  } else {
+    kt_couturecheckboxes.style.display = "none";
+    expanded = false;
+  }
+  if(f_3) {
+    kt_couturecheckboxes.style.display = "none";
+    expanded = false;
+  }
+}
+
+function kt_getAllNames(files,selected_kt) {
+    var selected_kt = selected_kt.split(',');
+    selected=[]
+    for(var i=0; i<selected_kt.length; i++){
+        y=selected_kt[i];
+        file_name = y.split('\\').pop().split('/').pop();
+        selected[i]=file_name;
+
+        }
+    var myDiv = document.getElementById("kt_couturecheckboxes");
+    if (kt_count_of_clicks == 1)
+    {
+        var checkbox = "";
+        for(var t=0; t<files.length; t++) {
+            file_name=files[t];
+            var kt_checkBox = document.createElement("input");
+            var label = document.createElement("label");
+            var in_selected = false;
+            for (var i=0;i<selected.length;i++)
+            {
+                if(file_name == selected[i]) {
+                    in_selected= true;
+                }
+            }
+            if (in_selected==true) {
+                kt_checkBox.checked = "true";
+            }
+            kt_checkBox.type = "checkbox";
+            kt_checkBox.value = file_name;
+            kt_checkBox.name = "kt_check";
+            kt_checkBox.id = "kt_checkBox";
+            kt_checkBox.onclick = "javascript:showValue()";
+            label.for = file_name;
+            myDiv.appendChild(label);
+            label.appendChild(kt_checkBox);
+            kt_checkBox.appendChild(document.createTextNode(file_name));
+            label.appendChild(document.createTextNode(file_name));
+        }
+}
+
+}
+
 </script>
 
 {% endblock %}

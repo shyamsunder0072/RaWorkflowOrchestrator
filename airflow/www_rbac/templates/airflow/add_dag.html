@@ -124,6 +124,22 @@ input[type=submit]:hover {
   font-size: 14px;
 }
 
+.table-bordered>tbody>tr>td {
+    border-collapse: collapse;
+    border: none;
+}
+
+.table>tbody>tr>td {
+    padding: 8px;
+    line-height: 1.42857143;
+    vertical-align: middle;
+    border-top: 1px solid #ddd;
+    }
+
+.text-center {
+    text-align: right;
+}
+
 </style>
 {% endblock %}
 
@@ -132,33 +148,44 @@ input[type=submit]:hover {
 <div class="couture-container">
   <form id="upload-form" action="" method="post" enctype="multipart/form-data">
     <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
-    <div class = "couture-row">
-      <div class="couture-col-25">
-        <h3 style="margin-top:-2%">DAGs</h3>
+    <div id ="container-upload">
+      <div class = "couture-row">
+        <div class="couture-col-25">
+          <h3 style="margin-top:-2%">DAGs</h3>
+        </div>
+        <div>
+          <input type="file" name="file" id="cout-file-picker" class="inputfile" multiple/>
+          <label for="cout-file-picker" class="file_pick_label">Choose a file</label>
+        </div>
       </div>
-      <div>
-        <input type="file" name="file" id="cout-file-picker" class="inputfile" multiple/>
-        <label for="cout-file-picker" class="file_pick_label">Choose a file</label>
-      </div>
+      <table class="table table-striped table-bordered">
+        <tbody>
+        <div id ="container-upload">
+          {%for i in file_data%}
+          <tr>
+            <td class="couture_table_text" class="text-center">
+              <a href="{{ url_for('AddDagView.editdag', filename = i ) }}">
+                <label class="couture-label" name="{{i}}">{{i}}</label>
+              </a>
+            </td>
+            <td width="15%" id="modified_time" class="text-center">{{file_data[i]['time']}}</td>
+            <td width="10%" id="size" class="text-center">{{file_data[i]['size']}}</td>
+            <td width="5%"> <div class="text-center">
+              <a href="{{ url_for('AddDagView.download', filename= i) }}">
+                <i class="fa fa-download" style="font-size:20px;color:blue;line-height: inherit;"></i>
+              </a>
+            </div>
+            </td>
+            <td width="2%" class="button-in-table">
+              <button onclick="javascript:function_delete_DAG('{{i}}')" class="couture-button-delete">
+                <i class="glyphicon glyphicon-remove-circle" style="color:red" aria-hidden="true"></i></button>
+            </td>
+          </tr>
+          {% endfor %}
+        </div>
+        </tbody>
+      </table>
     </div>
-    <table class="table table-striped table-bordered">
-      <tbody>
-      <div id ="container-upload">
-        {%for i in Files%}
-        <tr>
-          <!-- Column: Name -->
-          <td class="couture_table_text">
-            <a href="{{ url_for('AddDagView.editdag', filename = i ) }}">
-              <label class="couture-label" name="{{i}}">{{i}}</label>
-            </a>
-            <button onclick="javascript:function_delete_DAG('{{i}}')" class="couture-button-delete">
-              <i class="glyphicon glyphicon-remove-circle" style="color:red" aria-hidden="true"></i></button>
-          </td>
-        </tr>
-        {% endfor %}
-      </div>
-      </tbody>
-    </table>
   </form>
 </div>
 <!-- Template begins-->

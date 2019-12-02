@@ -107,6 +107,7 @@ def create_app(config=None, session=None, testing=False, app_name="Workflow"):
             appbuilder.add_view_no_menu(views.VersionView())
             appbuilder.add_view_no_menu(views.HelpView())
             appbuilder.add_view_no_menu(views.JupyterNotebookView())
+            appbuilder.add_view_no_menu(views.KeyTabView())
 
             appbuilder.add_view(views.DagRunModelView,
                                 "DAG Runs",
@@ -151,6 +152,10 @@ def create_app(config=None, session=None, testing=False, app_name="Workflow"):
                                 category_icon="fa-user")
             appbuilder.add_link("Spark Dependencies",
                                 href='/spark_dependencies',
+                                category="Admin",
+                                category_icon="fa-user")
+            appbuilder.add_link("Kerberos Configuration",
+                                href='/keytab',
                                 category="Admin",
                                 category_icon="fa-user")
             appbuilder.add_view(views.ConnectionModelView,

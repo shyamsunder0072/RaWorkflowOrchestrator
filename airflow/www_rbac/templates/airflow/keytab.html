@@ -5,8 +5,9 @@
 
 {% block head_css %}
 {{ super() }}
+
 <style>
-    * {
+ * {
   box-sizing: border-box;
 }
 
@@ -25,26 +26,25 @@ couture-input[type=text], select, textarea {
   cursor: pointer; /* "hand" cursor */
 }
 
-.file_pick_label {
-  padding: 10px 10px 10px 10px;
-  color: white;
-  margin-left: 100px;
-}
 couture-input[type=submit] {
-<!--  background-color: #4CAF50;-->
+  /*background-color: #4CAF50;*/
   color: white;
-<!--  padding: 12px 20px;-->
+  /*padding: 12px 20px;*/
   border: none;
   border-radius: 4px;
   cursor: pointer;
-  margin-left: 50%;
+  margin-left: 10px;
   margin-top: 10px;
   text-align: center;
   text-decoration: none;
   display: inline-block;
+  font-size: small;
 
 }
 
+couture-input[type=submit]:hover {
+  background-color: #45a049;
+}
 .couture-button {
   border: none;
   border-radius: 4px;
@@ -64,10 +64,6 @@ couture-input[type=submit] {
   margin-left: 2px;
   float: right;
   background: none;
-}
-
-couture-input[type=submit]:hover {
-  background-color: #45a049;
 }
 
 .couture-container {
@@ -103,7 +99,6 @@ couture-input[type=submit]:hover {
     display : table;
   }
 }
-
 .couture-inputfile {
   width: 0.1px;
   height: 0.1px;
@@ -118,7 +113,14 @@ couture-input[type=submit]:hover {
     background-color: #4CAF50;
     display: inline-block;
     border-radius: 4px;
-    float: right;
+   float:right;
+}
+
+
+.file_pick_label {
+  padding: 10px 10px 10px 10px;
+  color: black;
+  margin-left: 100px;
 }
 
 .couture_table_text{
@@ -143,19 +145,22 @@ couture-input[type=submit]:hover {
     text-align: right;
 }
 
+
 </style>
 {% endblock %}
 
-
 {% block body %}
 {{ super() }}
+
 <div class="couture-container">
-  <form id="display-form" action="" method="post" enctype="multipart/form-data">
+  <form id="upload-form" action="" method="post" enctype="multipart/form-data">
     <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
     <div id ="container-upload">
       <div class="couture-row">
         <div class="couture-col-25">
-          <h3 style="margin-top:-2%">Hadoop Configuration Files:</h3>
+          {% if len_jar>0 %}
+          <h3 style="margin-top:-2%">KeyTab:</h3>
+          {% endif %}
         </div>
         <div>
           <input type="file" name="file" id="file-picker" class="couture-inputfile" multiple/>
@@ -167,24 +172,22 @@ couture-input[type=submit]:hover {
         {%for i in file_data%}
         <tr>
           <td class="couture_table_text" class="text-center">
-            <a href="{{ url_for('HadoopConfView.hadoop_file_edit', filename = i ) }}">
-              <label name="{{i}}">{{i}}</label>
-            </a>
+            <label name="{{i}}">{{i}}</label>
           </td>
           <td width="15%" id="modified_time" class="text-center">{{file_data[i]['time']}}</td>
           <td width="10%" id="size" class="text-center">{{file_data[i]['size']}}</td>
           <td width="5%"> <div class="text-center">
-            <a href="{{ url_for('HadoopConfView.download', filename= i) }}">
+            <a href="{{ url_for('KeyTabView.download', filename= i) }}">
               <i class="fa fa-download" style="font-size:20px;color:blue;line-height: inherit;"></i>
             </a>
           </div>
           </td>
           <td width="2%" >
-            <button onclick="javascript:function_delete('{{i}}')" class="couture-button-delete">
+            <button onclick="javascript:function_delete_Artifact('{{i}}')" class="couture-button-delete">
               <i class="glyphicon glyphicon-remove-circle" style="color:red" aria-hidden="true"></i></button>
           </td>
         </tr>
-        {%endfor%}
+        {% endfor %}
         </tbody>
       </table>
     </div>
@@ -192,33 +195,29 @@ couture-input[type=submit]:hover {
 </div>
 
 <!-- Template begins-->
-<div class="couture-container" id="newfield_for_delete" style="display:none">
-  <input name="option_title_delete" id="for_delete" type="hidden" placeholder="Enter name">
+<div class="couture-container" id="newfield_for_delete_Artifact" style="display:none">
+  <input name="option_title_delete_Artifact" id="for_delete_Artifact" type="hidden" placeholder="Enter name">
 </div>
 <!-- Template ends -->
 
 {% endblock %}
-
 {% block tail_js %}
 {{ super() }}
 
-
 <script type="text/javascript">
-
 document.getElementById('file-picker').onchange = function() {
-document.getElementById('display-form').submit();
+document.getElementById('upload-form').submit();
 }
 
-function function_delete(option)
+function function_delete_Artifact(option)
 {
   let del = confirm("Are you sure you want to delete?");
   if(del) {
-    document.getElementById("for_delete").value = option;
+    document.getElementById("for_delete_Artifact").value = option;
     var div1 = document.createElement('div');
-    div1.innerHTML = document.getElementById('newfield_for_delete').innerHTML;
+    div1.innerHTML = document.getElementById('newfield_for_delete_Artifact').innerHTML;
     document.getElementById('container-upload').appendChild(div1);
   }
 }
-
 </script>
 {% endblock %}

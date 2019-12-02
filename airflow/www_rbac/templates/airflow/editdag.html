@@ -48,6 +48,19 @@ input[type=submit] {
   margin-left: 5px;
   margin-top: -50px;
 }
+.add_button {
+    background-color: #4CAF50;
+    border: none;
+    border-radius: 4px;
+    color: white;
+    padding: 8px 20px;
+    cursor: pointer;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    margin-bottom: 5px;
+    margin-left: 40%;
+}
 .couturebutton_insert {
   background-color: #4CAF50;
   border: none;
@@ -255,12 +268,11 @@ button, input, optgroup, select, textarea {
     top: 0;
      right: 100%;
     left: auto;
-  min-width: 300px;
+  min-width: 350px;
   min-height: 200px;
-  margin-top: -1px;
-  max-width : 300px;
+  margin-top: -5px;
+  max-width : 400px;
   max-height : 400px;
-  overflow-x : auto;
   overflow-y : auto;
 }
 .open>.couturedropdown-menu {
@@ -276,7 +288,7 @@ button, input, optgroup, select, textarea {
     display: none;
     float: left;
     min-width: 250px;
-    padding: 5px 0;
+    padding: 0px 0;
     margin: 2px 0 0;
     font-size: 14px;
     text-align: left;
@@ -309,6 +321,11 @@ button, input, optgroup, select, textarea {
     margin: .5rem 0;
     overflow: hidden;
     border-top: 1px solid #e9ecef;
+    }
+    #desc {
+    margin-left: 5px;
+    margin-top: 5px;
+    white-space: pre-wrap;
     }
 </style>
 
@@ -351,7 +368,7 @@ button, input, optgroup, select, textarea {
       <li class="couturedropdown-submenu">
         <a class="test" tabindex="-1" href="#"> {{ file }}</a>
         <ul class="couturedropdown-menu couturedropdown-menu-right">
-          <li><div style="margin-left:5px; white-space:pre-wrap;" id="desc">{{ values[file]['desc'] }}</div>
+          <li><div id="desc">{{ values[file]['desc'] }}</div><br />
             <button class="couturebutton_insert" value={{ file }}  onclick="javascript:insert_code()">Insert</button>
             <div id={{ file }}>
               <pre id="contents">{{ values[file]['code'] }}</pre>
@@ -370,7 +387,7 @@ button, input, optgroup, select, textarea {
             <input name="new_heading" type="text" value="" placeholder="Enter heading">
             <input name="description" type="text" value="" placeholder="Enter description">
             <textarea id="new_code" name="new_code" placeholder="enter code" rows="10" cols="5"></textarea>
-            <button type="submit" value="Add" onclick="javascript:new_task({{Filename}})">Add</button>
+            <button type="submit" class="add_button" value="Add" onclick="javascript:new_task({{Filename}})">Add</button>
           </form>
         </ul>
       </li>
@@ -496,11 +513,9 @@ button, input, optgroup, select, textarea {
         e.preventDefault();
       });
 
-
       $('.couturecontainer>form').on("click", function(e){
         $('.couturedropdown-submenu>ul.couturedropdown-menu').hide();
       });
-
     });
 
     function new_task(filename) {
