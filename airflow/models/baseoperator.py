@@ -597,6 +597,7 @@ class BaseOperator(LoggingMixin):
         gets killed. Any use of the threading, subprocess or multiprocessing
         module within an operator needs to be cleaned up or it will leave
         ghost processes behind.
+        TODO: Check for this on our Couture's custom Operators.
         """
         pass
 

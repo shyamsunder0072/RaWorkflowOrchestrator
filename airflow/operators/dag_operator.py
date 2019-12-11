@@ -12,7 +12,7 @@ class DagRunOrder(object):
         self.payload = payload
 
 
-class DagOperator(BaseOperator):
+class SkippableDagOperator(BaseOperator):
     """
     Runs DAG of specified ``dag_id``
 
@@ -29,34 +29,52 @@ class DagOperator(BaseOperator):
         should look like ``def foo(context, dag_run_obj):``
     :type python_callable: python callable
     """
-    template_fields = ('run_dag_id',)
-    ui_color = '#ab6cc6'
+    template_fields = ('run_dag_id', 'skip_dag')
+    ui_color = '#dda0dd'
 
     @apply_defaults
     def __init__(
         self,
         python_callable=None,
+        skip_dag=False,
         *args, **kwargs):
-        super(DagOperator, self).__init__(*args, **kwargs)
+        super(SkippableDagOperator, self).__init__(*args, **kwargs)
         self.python_callable = python_callable
+        self.skip_dag = skip_dag
+
 
     def execute(self, context):
-        run_id = 'run__' + timezone.utcnow().isoformat()
-        dro = DagRunOrder(run_id=run_id)
-        if self.python_callable is not None:
-            dro = self.python_callable(context, dro)
-
-        if dro:
-            t = run_dag(dag_id=self.run_dag_id,
-                        run_id=dro.run_id,
-                        conf=json.dumps(dro.payload),
-                        replace_microseconds=False)
+        if self.skip_dag:
+            self.log.info("Skipped this, moving on")
+            #self.__setstate__(State.SUCCESS)
         else:
-            self.log.info("Criteria not met, moving on")
+            run_id = 'run__' + timezone.utcnow().isoformat()
+            dro = DagRunOrder(run_id=run_id)
+            if self.python_callable is not None:
+                dro = self.python_callable(context, dro)
 
-        t.refresh_from_db
+            if dro:
+                t = run_dag(dag_id=self.run_dag_id,
+                            run_id=dro.run_id,
+                            conf=json.dumps(dro.payload),
+                            replace_microseconds=False)
+            else:
+                self.log.info("Criteria not met, moving on")
 
-        self.log.info(
-            'Is wait over?? ... %s',
-            t.get_state
-        )
+            t.refresh_from_db
+
+            self.log.info(
+                'Is wait over?? ... %s',
+                t.get_state
+            )
+
+
+
+class DagOperator(SkippableDagOperator):
+
+    ui_color = '#ab6cc6'
+    @apply_defaults
+    def __init__(
+        self,
+        *args, **kwargs):
+        super(DagOperator, self).__init__(*args, **kwargs)

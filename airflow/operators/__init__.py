@@ -92,7 +92,8 @@ _operators = {
     'slack_operator': ['SlackAPIOperator', 'SlackAPIPostOperator'],
     'generic_transfer': ['GenericTransfer'],
     'oracle_operator': ['OracleOperator'],
-    'dag_operator': ['DagOperator']
+    'dag_operator': ['DagOperator'],
+    'skippable_dag_operator': ['SkippableDagOperator'],
 }
 
 if not os.environ.get('AIRFLOW_USE_NEW_IMPORTS', False):

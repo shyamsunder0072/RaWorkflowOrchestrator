@@ -174,7 +174,7 @@
 
         if (task.task_type == "SubDagOperator")
             call_modal(d, execution_date, try_number, true);
-        else if (task.task_type == "DagOperator") {
+        else if (task.task_type == "DagOperator" || task.task_type == "SkippableDagOperator") {
             call_modal(d, execution_date, try_number, false, task.run_dag_id,  true);
         }
         else
