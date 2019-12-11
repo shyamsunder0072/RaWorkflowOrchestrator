@@ -3,6 +3,19 @@
 {{ title }}
 {% endblock %}
 
+{% block head_tail %}
+{{super()}}
+<script type="text/javascript">
+
+ window.onload = function(){
+
+getAllNames({{Files | safe}},'{{Arguments['keytab']}}');
+showcouturecheckboxes(true);
+  }
+
+</script>
+{% endblock %}
+
 {% block head_css %}
 {{ super() }}
 
@@ -11,13 +24,15 @@
   box-sizing: border-box;
 }
 
-couture-input[type=text], select, textarea {
+input[type=text], select, textarea {
   width: 93%;
   padding: 12px;
   border: 1px solid #ccc;
   border-radius: 4px;
   resize: vertical;
 }
+
+
 .couture-inputfile:focus + label,
 .couture-inputfile + label:hover {
     background-color: #006400;
@@ -26,79 +41,12 @@ couture-input[type=text], select, textarea {
   cursor: pointer; /* "hand" cursor */
 }
 
-couture-input[type=submit] {
-  /*background-color: #4CAF50;*/
+.file_pick_label {
+  padding: 10px 10px 10px 10px;
   color: white;
-  /*padding: 12px 20px;*/
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  margin-left: 10px;
-  margin-top: 10px;
-  text-align: center;
-  text-decoration: none;
-  display: inline-block;
-  font-size: small;
-
+  margin-left: 100px;
 }
 
-couture-input[type=submit]:hover {
-  background-color: #45a049;
-}
-.couture-button {
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  float: right;
-  text-align: center;
-  text-decoration: none;
-  display: inline-block;
-  margin-left: 5px;
-  margin-top: 10px;
-}
-
-.couture-button-delete {
-  border: none;
-  padding: inherit;
-  cursor: pointer;
-  margin-left: 2px;
-  float: right;
-  background: none;
-}
-
-.couture-container {
-  border-radius: 5px;
-  padding: 20px;
-}
-
-.couture-col-25 {
-  float: left;
-  width: 25%;
-  margin-top: 6px;
-}
-
-.couture-col-75 {
-  float: right;
-  width: 75%;
-  margin-top: 6px;
-  display : table;
-}
-
-/* Clear floats after the columns */
-.couture-row:after {
-  content: "";
-  display: table;
-  clear: both;
-}
-
-/* Responsive layout - when the screen is less than 600px wide, make the two columns stack on top of each other instead of next to each other */
-@media screen and (max-width: 600px) {
-  .couture-col-25, .couture-col-75, couture-input[type=submit] {
-    width: 100%;
-    margin-top: 0;
-    display : table;
-  }
-}
 .couture-inputfile {
   width: 0.1px;
   height: 0.1px;
@@ -113,14 +61,102 @@ couture-input[type=submit]:hover {
     background-color: #4CAF50;
     display: inline-block;
     border-radius: 4px;
-   float:right;
+    float: right;
 }
 
+input[type=submit] {
+  background-color: #4CAF50;
+  color: white;
+  padding: 12px 20px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-left: 50%;
+  margin-top: 10px;
+  text-align: center;
+  text-decoration: none;
+  display: inline-block;
+}
 
-.file_pick_label {
-  padding: 10px 10px 10px 10px;
-  color: black;
-  margin-left: 100px;
+.couturebutton {
+  background-color: #4CAF50;
+  border: none;
+  border-radius: 4px;
+  color: white;
+  padding: 12px 20px;
+  cursor: pointer;
+  float: right;
+  text-align: center;
+  text-decoration: none;
+  display: inline-block;
+  margin-left: 5px;
+  margin-top: 10px;
+}
+
+.couturebutton-delete {
+  border: none;
+  padding: inherit;
+  cursor: pointer;
+  margin-left: 2px;
+}
+
+input[type=submit]:hover {
+  background-color: #45a049;
+}
+
+.couture-container {
+  border-radius: 5px;
+  padding: 20px;
+}
+
+.couturecol-25 {
+  float: left;
+  width: 25%;
+  margin-top: 6px;
+}
+
+.couturecol-75 {
+  float: right;
+  width: 75%;
+  margin-top: 6px;
+  display : table;
+}
+
+/* Clear floats after the columns */
+.couturerow:after {
+  content: "";
+  display: table;
+  clear: both;
+}
+
+/* Responsive layout - when the screen is less than 600px wide, make the two columns stack on top of each other instead of next to each other */
+@media screen and (max-width: 600px) {
+  .couture-col-25, .couture-col-75, input[type=submit] {
+    width: 100%;
+    margin-top: 0;
+    display : table;
+  }
+}
+
+.couture-multiselect {
+}
+
+.couture-selectBox {
+  position: relative;
+}
+
+.couture-selectBox select {
+  width: 93%;
+  font-weight: bold;
+}
+
+.couture-overSelect {
+  width: 93%;
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
 }
 
 .couture_table_text{
@@ -145,6 +181,18 @@ couture-input[type=submit]:hover {
     text-align: right;
 }
 
+#couturecheckboxes {
+  display: none;
+  border: 1px #dadada solid;
+}
+
+#couturecheckboxes label {
+  display: block;
+}
+
+#couturecheckboxes label:hover {
+  background-color: #1e90ff;
+}
 
 </style>
 {% endblock %}
@@ -153,12 +201,12 @@ couture-input[type=submit]:hover {
 {{ super() }}
 
 <div class="couture-container">
-  <form id="upload-form" action="" method="post" enctype="multipart/form-data">
+  <form id="display-form" action="" method="post" enctype="multipart/form-data">
     <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
     <div id ="container-upload">
       <div class="couture-row">
         <div class="couture-col-25">
-          {% if len_jar>0 %}
+          {% if len_keytab>0 %}
           <h3 style="margin-top:-2%">KeyTab:</h3>
           {% endif %}
         </div>
@@ -191,12 +239,59 @@ couture-input[type=submit]:hover {
         </tbody>
       </table>
     </div>
-  </form>
+
+
+    <div id="container1" >
+      {%for i in Arguments%}
+      <div class="couturerow">
+        {%if  i== 'keytab' and len_keytab>0 %}
+        <div class="couturecol-25">
+          <label for={{i}} class="couturelabel">{{i}}</label>
+        </div>
+        <div class="couturecol-75">
+          <div class="couturerow">
+            <div class="couture-multiselect">
+              <div class="couture-selectBox" onclick="javascript:getAllNames({{Files}},'{{Arguments[i]}}'); javascript:showcouturecheckboxes(); " >
+                <select >
+                  <option>Click to select keytab files</option>
+                </select>
+                <button onclick="javascript:del_feed('{{i}}')" class="couturebutton-delete" title="Delete Argument"><i class="glyphicon glyphicon-remove-circle" style="color:red; float:right" aria-hidden="true"></i></button>
+                <div class="couture-overSelect"></div>
+              </div>
+              <div id="couturecheckboxes" ></div>
+            </div>
+          </div>
+        </div>
+        {%endif%}
+
+        {%if i!='keytab'%}
+        <div class="couturecol-25">
+          <label for={{i}} class="couturelabel">{{i}}</label>
+        </div>
+        <div class="couturecol-75">
+          <input id={{i}} name={{i}} type="text" value={{Arguments[i]}}>
+          <button onclick="javascript:del_feed('{{i}}')" class="couture-button-delete" title="Delete Argument"><i class="glyphicon glyphicon-remove-circle" style="color:red" aria-hidden="true"></i></button>
+        </div>
+        {%endif%}
+      </div>
+    </div>
+    {%endfor%}
+</div>
+<div class="couturerow">
+  <input align="middle" type="submit" value="Submit">
+</div>
+</form>
 </div>
 
 <!-- Template begins-->
 <div class="couture-container" id="newfield_for_delete_Artifact" style="display:none">
   <input name="option_title_delete_Artifact" id="for_delete_Artifact" type="hidden" placeholder="Enter name">
+</div>
+<!-- Template ends -->
+
+<!-- Template begins-->
+<div class="couture-container" id="newfield_for_delete" style="display:none">
+  <input name="option_title_args_delete" id="for_delete" type="hidden" placeholder="Enter name">
 </div>
 <!-- Template ends -->
 
@@ -206,7 +301,7 @@ couture-input[type=submit]:hover {
 
 <script type="text/javascript">
 document.getElementById('file-picker').onchange = function() {
-document.getElementById('upload-form').submit();
+document.getElementById('display-form').submit();
 }
 
 function function_delete_Artifact(option)
@@ -219,5 +314,76 @@ function function_delete_Artifact(option)
     document.getElementById('container-upload').appendChild(div1);
   }
 }
+
+var expanded = false;
+count_of_clicks=1
+function showcouturecheckboxes(f_1) {
+  count_of_clicks++;
+  var couturecheckboxes = document.getElementById("couturecheckboxes");
+
+  if (!expanded) {
+    couturecheckboxes.style.display = "block";
+    expanded = true;
+  } else {
+    couturecheckboxes.style.display = "none";
+    expanded = false;
+  }
+  if(f_1){
+    couturecheckboxes.style.display = "none";
+    expanded = false;
+  }
+
+}
+
+function getAllNames(files,selected_jars) {
+
+    var selected_jars = selected_jars.split(',');
+    selected=[]
+    for(var i=0; i<selected_jars.length; i++){
+        y=selected_jars[i];
+        file_name = y.split('\\').pop().split('/').pop();
+        selected[i]=file_name;
+        }
+    var myDiv = document.getElementById("couturecheckboxes");
+    if (count_of_clicks == 1)
+    {
+        var checkbox = "";
+        for(var t=0; t<files.length; t++) {
+            file_name=files[t];
+            var checkBox = document.createElement("input");
+            var label = document.createElement("label");
+            var in_selected = false;
+            for (var i=0;i<selected.length;i++)
+            {
+                if(file_name == selected[i]) {
+                    in_selected= true;
+                }
+            }
+            if (in_selected==true) {
+                checkBox.checked = "true";
+            }
+            checkBox.type = "checkbox";
+            checkBox.value = file_name;
+            checkBox.name = "check";
+            checkBox.id = "checkBox";
+            checkBox.onclick = "javascript:showValue()";
+            label.for = file_name;
+            myDiv.appendChild(label);
+            label.appendChild(checkBox);
+            checkBox.appendChild(document.createTextNode(file_name));
+            label.appendChild(document.createTextNode(file_name));
+        }
+    }
+
+}
+
+function del_feed(option)
+{
+    document.getElementById("for_delete").value = option;
+    var div1 = document.createElement('div');
+  div1.innerHTML = document.getElementById('newfield_for_delete').innerHTML;
+  document.getElementById('container1').appendChild(div1);
+}
+
 </script>
 {% endblock %}

@@ -171,20 +171,20 @@ couture-input[type=submit]:hover {
         {% for i in file_data %}
         {% if i.endswith('.jar') == true %}
         <tr>
-          <td class="couture_table_text" class="text-center">
-            <label name="{{i}}">{{i}}</label>
+           <td class="couture_table_text" class="text-center">
+                  <label name="{{i}}">{{i}}</label>
           </td>
           </td>
-          <td width="15%" id="modified_time" class="text-center">{{file_data[i]['time']}}</td>
+            <td width="15%" id="modified_time" class="text-center">{{file_data[i]['time']}}</td>
           <td width="10%" id="size" class="text-center">{{file_data[i]['size']}}</td>
           <td width="5%"> <div class="text-center">
-            <a href="{{ url_for('SparkDepView.download', filename= i) }}">
-              <i class="fa fa-download" style="font-size:20px;color:blue;line-height: inherit;"></i>
-            </a>
-          </div>
+              <a href="{{ url_for('SparkDepView.download', filename= i) }}">
+                  <i class="fa fa-download" style="font-size:20px;color:blue;line-height: inherit;"></i>
+              </a>
+              </div>
           </td>
-          <td width="2%" >
-            <button onclick="javascript:function_delete_Artifact('{{i}}')" class="couture-button-delete">
+            <td width="2%" >
+          <button onclick="javascript:function_delete_Artifact('{{i}}')" class="couture-button-delete">
               <i class="glyphicon glyphicon-remove-circle" style="color:red" aria-hidden="true"></i></button>
           </td>
         </tr>
@@ -200,21 +200,21 @@ couture-input[type=submit]:hover {
         <tbody>
         {% for i in file_data %}
         {% if i.endswith('.py') or i.endswith('.egg') or i.endswith('.zip') %}
-        <tr>
-          <td class="couture_table_text" class="text-center">
-            <label name="{{i}}">{{i}}</label>
+         <tr>
+           <td class="couture_table_text" class="text-center">
+                  <label name="{{i}}">{{i}}</label>
           </td>
           </td>
-          <td width="15%" id="modified_time_py" class="text-center">{{file_data[i]['time']}}</td>
+            <td width="15%" id="modified_time_py" class="text-center">{{file_data[i]['time']}}</td>
           <td width="10%" id="size_py" class="text-center">{{file_data[i]['size']}}</td>
           <td width="5%"> <div class="text-center">
-            <a href="{{ url_for('SparkDepView.download', filename= i) }}">
-              <i class="fa fa-download" style="font-size:20px;color:blue;line-height: inherit;"></i>
-            </a>
-          </div>
+              <a href="{{ url_for('SparkDepView.download', filename= i) }}">
+                  <i class="fa fa-download" style="font-size:20px;color:blue;line-height: inherit;"></i>
+              </a>
+              </div>
           </td>
-          <td width="2%" >
-            <button onclick="javascript:function_delete_Artifact('{{i}}')" class="couture-button-delete">
+            <td width="2%" >
+          <button onclick="javascript:function_delete_Artifact('{{i}}')" class="couture-button-delete">
               <i class="glyphicon glyphicon-remove-circle" style="color:red" aria-hidden="true"></i></button>
           </td>
         </tr>

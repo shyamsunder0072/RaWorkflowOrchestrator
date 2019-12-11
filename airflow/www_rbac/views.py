@@ -173,19 +173,56 @@ class AirflowBaseView(BaseView):
 
         session.add(log)
 
-    def get_details(dir_path, file_extension):
+
+    def convert_size(size_bytes):
+        # to get size of file
+        if size_bytes == 0:
+            return "0B"
+        size_name = ("B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB")
+        i = int(math.floor(math.log(size_bytes, 1024)))
+        p = math.pow(1024, i)
+        s = round(size_bytes / p, 2)
+        return "%s %s" % (s, size_name[i])
+
+
+    def get_details(dir_path, file_extension):  # takes the path and file extension as input and returns size and last modified time of files inside the path
         file_data = {}
         for r, d, f in os.walk(dir_path):
             for file_name in f:
-                if file_name.endswith(file_extension):
+                if file_name.endswith(file_extension):  # to check if filename ends with a particular extension
                     filePath = os.path.join(dir_path, file_name)
-                    fileStatsObj = os.stat(filePath)
-                    modificationTime = time.ctime(fileStatsObj[stat.ST_MTIME])
-                    size = os.stat(filePath).st_size
-                    size = str(size) + "bytes"
-                    temp_dict = {'time': modificationTime.split(' ', 1)[1], 'size': size}
-                    file_data[file_name] = temp_dict
+                    if(os.path.exists(filePath)):
+                        fileStatsObj = os.stat(filePath)
+                        modificationTime = time.ctime(fileStatsObj[stat.ST_MTIME])  # to get last modified time
+                        size_bytes = os.stat(filePath).st_size
+                        if size_bytes == 0:
+                            size = "0B"
+                        else:
+                            size_name = ("B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB")
+                            i = int(math.floor(math.log(size_bytes, 1024)))
+                            p = math.pow(1024, i)
+                            s = round(size_bytes / p, 2)
+                            size = "%s %s" % (s, size_name[i])
+                        temp_dict = {'time': modificationTime.split(' ', 1)[1], 'size': size}  # stores the file details in a temporary dictionary
+                        file_data[file_name] = temp_dict   # storing the file details at the name of the file
         return file_data
+
+
+    def get_len_jar(file_data):  # to get the number of jar files
+        len_jar = 0
+        for file in file_data:
+            if file.endswith(".jar"):
+                len_jar = len_jar + 1
+        return len_jar
+
+
+    def get_len_py(file_data):  # to get the number of py files
+        len_py = 0
+        for file in file_data:
+            if file.endswith(".py") or file.endswith(".egg") or file.endswith(".zip"):
+                len_py = len_py + 1
+        return len_py
+
 
 class Airflow(AirflowBaseView):
     @expose('/health')
@@ -1964,37 +2001,36 @@ class SparkConfView(AirflowBaseView):
             for i in args:
                 if i != 'jars' and i != 'py-files' and i != 'keytab':
                     config.set('arguments', i, request.form[i])
-                elif i == 'jars':
+                elif i == 'jars':  # if the field is jars
                     list_file = []
                     filenames = request.form.getlist('check')
                     for f in filenames:
-                        fn = os.path.join(setup_path, f)
+                        fn = os.path.join(setup_path, f)  # joining the filenames with their path
                         list_file.append(fn)
-                    jarfiles=",".join(list_file)
+                    jarfiles=",".join(list_file)  # joining all the filenames in a string
 
-                    config.set('arguments', i, jarfiles)
-                elif i == 'keytab':
+                    config.set('arguments', i, jarfiles)  # saving the new updated list of files
+                elif i == 'keytab':  # if the field is keytab
                     kt_file = []
                     filenames = request.form.getlist('kt_check')
                     for f in filenames:
-                        fn = os.path.join(keytab_path, f)
+                        fn = os.path.join(keytab_path, f)  # joining the filenames with their path
                         kt_file.append(fn)
-                    ktfiles = ",".join(kt_file)
+                    ktfiles = ",".join(kt_file)  # joining all the filenames in a string
 
-                    config.set('arguments', i, ktfiles)
+                    config.set('arguments', i, ktfiles)  # saving the new updated list of files
                 else:
                     py_list_file = []
                     py_filenames = request.form.getlist('py_check')
                     for f in py_filenames:
-                        fn = os.path.join(setup_path, f)
-                        # print(fn)
+                        fn = os.path.join(setup_path, f)  # joining the filenames with their path
                         py_list_file.append(fn)
-                    pythonfiles=",".join(py_list_file)
+                    pythonfiles=",".join(py_list_file)  # joining all the filenames in a string
 
-                    config.set('arguments', i, pythonfiles)
+                    config.set('arguments', i, pythonfiles)  # saving the new updated list of files
 
             for j in configs:
-                config.set('configurations', j, request.form[j])
+                config.set('configurations', j, request.form[j])  # saving the new updated fields
 
             # to handle the scenario when the new field(for new option) has not been added in form
             try:
@@ -2034,6 +2070,8 @@ class SparkConfView(AirflowBaseView):
             len_jar = len(files)
             len_py = len(py_files)
             kt_len = len(kt_files)
+            # kt_files = []
+            # kt_len = 0
             return self.render_template(
                 'airflow/couture_config.html', title=title, Arguments=new_args, Configurations=new_config, Files=files, Py_Files=py_files, len_jar=len_jar, len_py=len_py, kt_len=kt_len, kt_Files=kt_files)
         else:
@@ -2052,6 +2090,8 @@ class SparkConfView(AirflowBaseView):
             len_jar = len(files)
             len_py = len(py_files)
             kt_len = len(kt_files)
+            # kt_files = []
+            # kt_len = 0
             return self.render_template(
                 'airflow/couture_config.html', title=title, len=len(args), Arguments=args, Configurations=configs, Files=files, Py_Files=py_files
                 , len_jar=len_jar, len_py=len_py, kt_len=kt_len, kt_Files=kt_files)
@@ -2068,7 +2108,7 @@ class HadoopConfView(AirflowBaseView):
         UPLOAD_FOLDER = AIRFLOW_HOME + '/../setup/hadoop_conn'
 
         file_data = {}
-        file_data = AirflowBaseView.get_details(UPLOAD_FOLDER, ".xml")
+        file_data = AirflowBaseView.get_details(UPLOAD_FOLDER, ".xml")  # calling get_details with the extension as .xml
 
         if request.method == 'POST':
             try:    # for deleting the xml files from the folder
@@ -2078,18 +2118,19 @@ class HadoopConfView(AirflowBaseView):
                     for file_name in f:
                         if file_name.endswith(".xml"):
                             if file_name == del_filename:
-                                os.remove(os.path.join(UPLOAD_FOLDER, file_name))
+                                os.remove(os.path.join(UPLOAD_FOLDER, file_name))  # removing  the file from the folder
                                 AirflowBaseView.audit_logging("hadoop_file_deleted", file_name,
                                                               request.environ['REMOTE_ADDR'])
                                 flash('File Deleted!!', "warning")
                             else:
                                 filePath = os.path.join(UPLOAD_FOLDER, file_name)
-                                fileStatsObj = os.stat(filePath)
-                                modificationTime = time.ctime(fileStatsObj[stat.ST_MTIME])
-                                size = os.stat(filePath).st_size
-                                size = str(size) + "bytes"
-                                temp_dict = {'time': modificationTime.split(' ', 1)[1], 'size': size}
-                                file_data[file_name] = temp_dict
+                                if(os.path.exists(filePath)):
+                                    fileStatsObj = os.stat(filePath)
+                                    modificationTime = time.ctime(fileStatsObj[stat.ST_MTIME])
+                                    size = os.stat(filePath).st_size
+                                    size = AirflowBaseView.convert_size(size)
+                                    temp_dict = {'time': modificationTime.split(' ', 1)[1], 'size': size}
+                                    file_data[file_name] = temp_dict
                 return self.render_template('airflow/hadoop_conn_file_list.html', file_data=file_data)
             except:
                 print("Sorry ! No file in xml for delete")
@@ -2134,7 +2175,7 @@ class HadoopConfView(AirflowBaseView):
             for p in root.iter('property'):
                 name = p.find('name').text
                 value = p.find('value').text
-                values_get[name] = value
+                values_get[name] = value  # storing all the name and value pairs in values_get dictionary
             return self.render_template('airflow/hadoop_conn_file.html', Section=rootname, Configurations=values_get, Filename=filename)
 
         if request.method == 'POST':
@@ -2146,12 +2187,12 @@ class HadoopConfView(AirflowBaseView):
             for p in root.iter('property'):
                 name = p.find('name').text
                 value = p.find('value').text
-                values[name] = value
+                values[name] = value  # storing all the name and value pairs in values_get dictionary
 
             for prop in root.iter('property'):
                 name = prop.find('name').text
                 value = prop.find('value').text
-                new_value = request.form[name]
+                new_value = request.form[name]  # extracting updated values from the form
                 prop.find('value').text = str(new_value)  # for saving edit changes in file
 
             try:   # for adding new properties in config file
@@ -2168,7 +2209,7 @@ class HadoopConfView(AirflowBaseView):
                 print("Sorry ! No field found ")
 
             try:
-                del_name = request.form['option_title_config_delete']  # for deleting a property
+                del_name = request.form['option_title_config_delete']  # for deleting a property from file
                 for p in root.iter('property'):
                     n = p.find('name').text
                     if n == del_name:
@@ -2178,7 +2219,7 @@ class HadoopConfView(AirflowBaseView):
             except:
                 print("Sorry ! No field found in delete in config")
 
-            tree.write(xml_file)
+            tree.write(xml_file)  # writing all the updated changes to the fields
 
             xml_newfile = os.path.join(UPLOAD_FOLDER, filename)
             newtree = ET.parse(xml_newfile)
@@ -2196,7 +2237,7 @@ class HadoopConfView(AirflowBaseView):
 
 
     @expose("/hadoop_file_download/<string:filename>", methods=['GET', 'POST'])
-    def download(self, filename):
+    def download(self, filename):     # for downloading the file passed in the filename
         from airflow.configuration import AIRFLOW_HOME
         UPLOAD_FOLDER = AIRFLOW_HOME + '/../setup/hadoop_conn'
 
@@ -2213,7 +2254,7 @@ class SparkDepView(AirflowBaseView):
         add_to_dir = AIRFLOW_HOME + '/../jars'
 
         if request.method == 'POST':
-            try:    # for deleting the py files from the folder
+            try:    # for deleting the files from the folder
                 del_filename = request.form['option_title_delete_Artifact']
                 file_data = {}
                 for r, d, f in os.walk(add_to_dir):
@@ -2224,31 +2265,28 @@ class SparkDepView(AirflowBaseView):
                             flash('File Deleted!!', "warning")
                         else:
                             filePath = os.path.join(add_to_dir, file_name)
-                            fileStatsObj = os.stat(filePath)
-                            modificationTime = time.ctime(fileStatsObj[stat.ST_MTIME])
-                            size = os.stat(filePath).st_size
-                            size = str(size) + "bytes"
-                            temp_dict = {'time': modificationTime.split(' ', 1)[1], 'size': size}
-                            file_data[file_name] = temp_dict
-                len_py = 0
-                len_jar = 0
-                for file in file_data:
-                    if file.endswith(".py") or file.endswith(".egg") or file.endswith(".zip"):
-                        len_py = len_py + 1
-                    if file.endswith(".jar"):
-                        len_jar = len_jar + 1
+                            if(os.path.exists(filePath)):
+                                fileStatsObj = os.stat(filePath)
+                                modificationTime = time.ctime(fileStatsObj[stat.ST_MTIME])
+                                size = os.stat(filePath).st_size
+                                size = AirflowBaseView.convert_size(size)
+                                temp_dict = {'time': modificationTime.split(' ', 1)[1], 'size': size}
+                                file_data[file_name] = temp_dict
+
+                len_py = AirflowBaseView.get_len_py(file_data)
+                len_jar = AirflowBaseView.get_len_jar(file_data)
 
                 return self.render_template('airflow/spark_dependencies.html', title=title, file_data=file_data, len_jar=len_jar, len_py=len_py)
 
             except:
                 print("Sorry ! No file in xml for delete")
 
-            target = os.path.join(add_to_dir)
+            target = os.path.join(add_to_dir)  # destination to save files
             if not os.path.isdir(target):
                 os.mkdir(target)
 
             try:
-                for f in request.files.getlist("file"):
+                for f in request.files.getlist("file"):   # for saving a file
                     filename = f.filename
                     if filename.endswith(".py") or filename.endswith(".egg") or filename.endswith(".zip") or filename.endswith(".jar"):
                         destination = "/".join([target, filename])
@@ -2260,32 +2298,22 @@ class SparkDepView(AirflowBaseView):
             except:
                 print("No file selected!")
 
-            file_data = AirflowBaseView.get_details(add_to_dir, "")
-            len_py = 0
-            len_jar = 0
-            for file in file_data:
-                if file.endswith(".py") or file.endswith(".egg") or file.endswith(".zip"):
-                    len_py = len_py + 1
-                if file.endswith(".jar"):
-                    len_jar = len_jar + 1
+            file_data = AirflowBaseView.get_details(add_to_dir, "")  # calling get_details without any extension
+            len_py = AirflowBaseView.get_len_py(file_data)
+            len_jar = AirflowBaseView.get_len_jar(file_data)
 
             return self.render_template('airflow/spark_dependencies.html',title=title,file_data=file_data, len_jar=len_jar, len_py=len_py)
 
         else:
-            file_data = AirflowBaseView.get_details(add_to_dir, "")
-            len_py = 0
-            len_jar = 0
-            for file in file_data:
-                if file.endswith(".py") or file.endswith(".egg") or file.endswith(".zip"):
-                    len_py = len_py + 1
-                if file.endswith(".jar"):
-                    len_jar = len_jar + 1
+            file_data = AirflowBaseView.get_details(add_to_dir, "")  # calling get_details without any extension
+            len_py = AirflowBaseView.get_len_py(file_data)
+            len_jar = AirflowBaseView.get_len_jar(file_data)
 
             return self.render_template('airflow/spark_dependencies.html', title=title,file_data=file_data, len_jar=len_jar, len_py=len_py)
 
 
     @expose("/spark_dep_download/<string:filename>", methods=['GET', 'POST'])
-    def download(self, filename):
+    def download(self, filename):  # for downloading the file passed in the filename
         from airflow.configuration import AIRFLOW_HOME
         add_to_dir = AIRFLOW_HOME + '/../jars'
 
@@ -2317,9 +2345,55 @@ class KeyTabView(AirflowBaseView):
         title = "KeyTab"
         from airflow.configuration import AIRFLOW_HOME
         add_to_dir = AIRFLOW_HOME + '/keytab'
+        file_name = AIRFLOW_HOME + '/keytab/keytab.conf'
+        principal = ''
+        keytab_files = ''
+
+        import configparser as CP
+        import collections
+        config = CP.ConfigParser()
+        config.optionxform = str
+        config.read(filenames=file_name)
+        arguments = collections.OrderedDict(config.items('arguments'))
+        args=arguments
 
         if request.method == 'POST':
-            try:    # for deleting the py files from the folder
+            config.read(filenames=file_name)
+            arguments = collections.OrderedDict(config.items('arguments'))
+            all_files = []
+            for r, d, f in os.walk(add_to_dir):
+                for file in f:
+                    if file.endswith(".keytab"):
+                        all_files.append(file)
+
+            for i in arguments:
+                if i == 'principal':
+                    config.set('arguments', i, request.form[i])
+                    principal = request.form[i]
+                elif i != 'keytab':
+                    config.set('arguments', i, request.form[i])
+                elif i == 'keytab':
+                    list_file = []
+                    filenames = request.form.getlist('check')
+                    for f in filenames:
+                        fn = os.path.join(add_to_dir, f)
+                        list_file.append(fn)
+                    keytab_files = ",".join(list_file)
+                    config.set('arguments', i, keytab_files)
+
+            try:
+                opttitleargsdel = request.form['option_title_args_delete']  # for arguments section
+                if config.has_option('arguments', request.form[
+                    'option_title_args_delete']):  # if there is option in the file, then delete
+                    config.remove_option('arguments',
+                                         request.form['option_title_args_delete'])  # deleting from the config file
+                else:
+                    print("no such field exists in args now.")
+            except:
+                print("Sorry ! No field found in delete in args")
+
+
+            try:  # for deleting the keytab files from the folder
                 del_filename = request.form['option_title_delete_Artifact']
                 file_data = {}
                 for r, d, f in os.walk(add_to_dir):
@@ -2330,16 +2404,16 @@ class KeyTabView(AirflowBaseView):
                             flash('File Deleted!!', "warning")
                         else:
                             filePath = os.path.join(add_to_dir, file_name)
-                            fileStatsObj = os.stat(filePath)
-                            modificationTime = time.ctime(fileStatsObj[stat.ST_MTIME])
-                            size = os.stat(filePath).st_size
-                            size = str(size) + "bytes"
-                            temp_dict = {'time': modificationTime.split(' ', 1)[1], 'size': size}
-                            file_data[file_name] = temp_dict
-                len_jar = 0
-                for file in file_data:
-                    len_jar = len_jar + 1
-                return self.render_template('airflow/keytab.html', title=title,file_data = file_data, len_jar=len_jar)
+                            if os.path.exists(filePath) and filePath.endswith(".keytab"):
+                                fileStatsObj = os.stat(filePath)
+                                modificationTime = time.ctime(fileStatsObj[stat.ST_MTIME])
+                                size = os.stat(filePath).st_size
+                                size = AirflowBaseView.convert_size(size)
+                                temp_dict = {'time': modificationTime.split(' ', 1)[1], 'size': size}
+                                file_data[file_name] = temp_dict
+                len_keytab = len(file_data)
+
+                return self.render_template('airflow/keytab.html', file_data=file_data, len_keytab=len_keytab,Files=all_files)
             except:
                 print("Sorry ! No file to delete")
 
@@ -2348,32 +2422,49 @@ class KeyTabView(AirflowBaseView):
                 os.mkdir(target)
 
             try:
-                for f in request.files.getlist("file"):
+                for f in request.files.getlist("file"):   # for saving a file
                     filename = f.filename
+                    #if filename.endswith(".keytab"):
                     destination = "/".join([target, filename])
                     f.save(destination)
                     AirflowBaseView.audit_logging("keytab_added", filename, request.environ['REMOTE_ADDR'])
-                    flash('File Uploaded!! To include this file for spark job, select it from spark configuration.', "success")
+                    flash('File Uploaded!!',
+                          "success")
             except:
                 print("No file selected!")
 
-            file_data = AirflowBaseView.get_details(add_to_dir, "")
-            len_jar = 0
-            for file in file_data:
-                len_jar = len_jar + 1
+            file_data = AirflowBaseView.get_details(add_to_dir, ".keytab")  # calling get_details without any extension
+            len_keytab = len(file_data)
 
-            return self.render_template('airflow/keytab.html',title=title, file_data = file_data, len_jar=len_jar)
+            file_name = AIRFLOW_HOME + '/keytab/keytab.conf'
+            with open(file_name, 'w') as configfile:
+                config.write(configfile)
+            newargs = collections.OrderedDict(config.items('arguments'))
+
+            conf_path = AIRFLOW_HOME + '/couture-spark.conf'
+            config.read(filenames=conf_path)
+            config.set('arguments', 'principal', principal)
+            config.set('arguments', 'keytab', keytab_files)
+            with open(conf_path, 'w') as configfile:
+                config.write(configfile)
+
+            return self.render_template('airflow/keytab.html', file_data=file_data,len_keytab=len_keytab,Arguments=newargs,
+                                        Files=all_files)
 
         else:
-            file_data = AirflowBaseView.get_details(add_to_dir, "")
-            len_jar = 0
-            for file in file_data:
-                len_jar = len_jar + 1
+            file_data = AirflowBaseView.get_details(add_to_dir, ".keytab")  # calling get_details without any extension
+            len_keytab = len(file_data)
+            all_files = []
+            for r, d, f in os.walk(add_to_dir):
+                for file in f:
+                    if file.endswith(".keytab"):
+                        all_files.append(file)
+            return self.render_template('airflow/keytab.html', file_data=file_data, Arguments=args,len_keytab=len_keytab,
+                                        Files=all_files )
 
-            return self.render_template('airflow/keytab.html', title=title,file_data = file_data, len_jar=len_jar)
 
     @expose("/keytab_download/<string:filename>", methods=['GET', 'POST'])
-    def download(self, filename):
+    def download(self, filename):  # for downloading the file passed in the filename
         from airflow.configuration import AIRFLOW_HOME
         add_to_dir = AIRFLOW_HOME + '/keytab'
         path_file = os.path.join(add_to_dir,filename)
@@ -2396,9 +2487,9 @@ class CodeArtifactView(AirflowBaseView):
 
         if request.method == 'POST':
 
-            try:    # for deleting the py files from the folder
+            try:    # for deleting the files from the folder
                 del_filename = request.form['option_title_delete_Spark']
-                files = []
+                file_data = {}
                 for r, d, f in os.walk(add_to_dir):
                     for file_name in f:
                         if file_name == del_filename:
@@ -2406,28 +2497,17 @@ class CodeArtifactView(AirflowBaseView):
                             AirflowBaseView.audit_logging("code_artifact_deleted", file_name, request.environ['REMOTE_ADDR'])
                             flash('File Deleted!!', "warning")
                         else:
-                            files.append(file_name)
-                len_py = 0
-                len_jar = 0
-                for file in files:
-                    if file.endswith(".py") or file.endswith(".egg") or file.endswith(".zip"):
-                        len_py = len_py + 1
-                    if file.endswith(".jar"):
-                        len_jar = len_jar + 1
-                file_data = {}
-                for r, d, f in os.walk(add_to_dir):
-                    for file_name in f:
-                        filePath = os.path.join(add_to_dir, file_name)
-                        if os.path.exists(filePath):
-                            fileStatsObj = os.stat(filePath)
-                            modificationTime = time.ctime(fileStatsObj[stat.ST_MTIME])
-                            size = os.stat(filePath).st_size
-                            size = str(size) + "bytes"
-                            temp_dict = {'time': modificationTime.split(' ', 1)[1], 'size': size}
-                            file_data[file_name] = temp_dict
-                return self.render_template('airflow/code_artifact.html', title=title, Files=files, len_jar=len_jar, len_py=len_py,file_data=file_data)
-
-
+                            filePath = os.path.join(add_to_dir, file_name)
+                            if(os.path.exists(filePath)):
+                                fileStatsObj = os.stat(filePath)
+                                modificationTime = time.ctime(fileStatsObj[stat.ST_MTIME])
+                                size = os.stat(filePath).st_size
+                                size = AirflowBaseView.convert_size(size)
+                                temp_dict = {'time': modificationTime.split(' ', 1)[1], 'size': size}
+                                file_data[file_name] = temp_dict
+                len_jar = AirflowBaseView.get_len_jar(file_data)
+                len_py =AirflowBaseView.get_len_py(file_data)
+                return self.render_template('airflow/code_artifact.html', title=title, len_jar=len_jar, len_py=len_py,file_data=file_data)
             except:
                 print("Sorry ! No file in spark for delete")
 
@@ -2436,7 +2516,7 @@ class CodeArtifactView(AirflowBaseView):
                 os.mkdir(target)
 
             try:
-                for f in request.files.getlist("file"):
+                for f in request.files.getlist("file"):   # for saving a file
                     filename = f.filename
                     if filename.endswith(".py") or filename.endswith(".egg") or filename.endswith(".zip") or filename.endswith(".jar"):
                         destination = "/".join([target, filename])
@@ -2447,56 +2527,23 @@ class CodeArtifactView(AirflowBaseView):
                         flash('Supported format for code artifacts are .jar, .py or .r!!', "error")
             except:
                 print("No file selected!")
-            files = []
-            for r, d, f in os.walk(add_to_dir):
-                for file in f:
-                    files.append(file)
-            len_py = 0
-            len_jar = 0
-            for file in files:
-                if file.endswith(".py") or file.endswith(".egg") or file.endswith(".zip"):
-                    len_py = len_py + 1
-                if file.endswith(".jar"):
-                    len_jar = len_jar + 1
+
             file_data = {}
-            for r, d, f in os.walk(add_to_dir):
-                for file_name in f:
-                    filePath = os.path.join(add_to_dir, file_name)
-                    if os.path.exists(filePath):
-                        fileStatsObj = os.stat(filePath)
-                        modificationTime = time.ctime(fileStatsObj[stat.ST_MTIME])
-                        size = os.stat(filePath).st_size
-                        size = str(size) + "bytes"
-                        temp_dict = {'time': modificationTime.split(' ', 1)[1], 'size': size}
-                        file_data[file_name] = temp_dict
-            return self.render_template('airflow/code_artifact.html', title=title, Files=files, len_jar=len_jar, len_py=len_py,file_data=file_data)
+            file_data = AirflowBaseView.get_details(add_to_dir, "")  # calling get_details without any extension
+            len_jar = AirflowBaseView.get_len_jar(file_data)
+            len_py = AirflowBaseView.get_len_py(file_data)
+
+            return self.render_template('airflow/code_artifact.html', title=title, len_jar=len_jar, len_py=len_py,file_data=file_data)
         else:
-            files = []
-            for r, d, f in os.walk(add_to_dir):
-                for file in f:
-                    files.append(file)
-            len_py = 0
-            len_jar = 0
-            for file in files:
-                if file.endswith(".py") or file.endswith(".egg") or file.endswith(".zip"):
-                    len_py = len_py + 1
-                if file.endswith(".jar"):
-                    len_jar = len_jar + 1
             file_data = {}
-            for r, d, f in os.walk(add_to_dir):
-                for file_name in f:
-                    filePath = os.path.join(add_to_dir, file_name)
-                    if os.path.exists(filePath):
-                        fileStatsObj = os.stat(filePath)
-                        modificationTime = time.ctime(fileStatsObj[stat.ST_MTIME])
-                        size = os.stat(filePath).st_size
-                        size = str(size) + "bytes"
-                        temp_dict = {'time': modificationTime.split(' ', 1)[1], 'size': size}
-                        file_data[file_name] = temp_dict
-            return self.render_template('airflow/code_artifact.html', title=title, Files=files, len_jar=len_jar, len_py=len_py, file_data=file_data)
+            file_data = AirflowBaseView.get_details(add_to_dir, "")  # calling get_details without any extension
+            len_jar = AirflowBaseView.get_len_jar(file_data)
+            len_py = AirflowBaseView.get_len_py(file_data)
+
+            return self.render_template('airflow/code_artifact.html', title=title, len_jar=len_jar, len_py=len_py, file_data=file_data)
 
     @expose("/artifact_download/<string:filename>", methods=['GET', 'POST'])
-    def download(self, filename):
+    def download(self, filename):        # for downloading the file passed in the filename
         from airflow.configuration import AIRFLOW_HOME
         add_to_dir = AIRFLOW_HOME + '/../code'
         path_file = os.path.join(add_to_dir,filename)
@@ -2504,7 +2551,7 @@ class CodeArtifactView(AirflowBaseView):
 
 class AddDagView(AirflowBaseView):
 
-    def make_tree(self, path):
+    def make_tree(self, path):    # to get all the files inside the directory passed in the function
         tree = dict(name=os.path.basename(path), children=[])
         try:
             lst = os.listdir(path)
@@ -2521,7 +2568,7 @@ class AddDagView(AirflowBaseView):
                     tree['children'].append(dict(name=name, contents=contents))
         return tree
 
-    def get_values(self):
+    def get_values(self):   # to preprocess the files and get code and description separately
         from airflow.configuration import AIRFLOW_HOME
         TASK_FOLDER = AIRFLOW_HOME + '/repo'
         path = TASK_FOLDER
@@ -2531,25 +2578,25 @@ class AddDagView(AirflowBaseView):
             if key == 'children':
                 for n in value:
                     cont = n['contents'].split('\n')
-                    task_name = n["name"].split(".py")[0]
+                    task_name = n["name"].split(".py")[0]  # to remove .py extension from the file(task) names
                     desc_temp = []
                     code_temp = []
                     i = 0
                     if cont[i].startswith("description:"):
-                        i = i + 1
+                        i = i + 1   # to get the next line after the heading "description"
                         while not cont[i].startswith("code:") and i < len(cont):
-                            desc_temp.append(cont[i])
+                            desc_temp.append(cont[i])  # storing the description lines
                             i = i + 1
                     if cont[i].startswith("code:"):
-                        i = i + 1
+                        i = i + 1   # to get the next line after the heading "description"
+                        while i < len(cont):
+                            code_temp.append(cont[i])  # storing the code
+                            i = i + 1
+                    if i == 0:     # if there is no description inside the file, directly code is stored
                         while i < len(cont):
                             code_temp.append(cont[i])
                             i = i + 1
-                    if i == 0:
-                        while i < len(cont):
-                            code_temp.append(cont[i])
-                            i = i + 1
-                        desc_temp.append("No description available")
+                        desc_temp.append("No description available")   # if there is no description inside the file, this message is stored
                     temp_dict = {'desc': "\n".join(desc_temp), 'code': "\n".join(code_temp)}
                     values[task_name] = temp_dict
         return values
@@ -2574,12 +2621,13 @@ class AddDagView(AirflowBaseView):
                                 flash('File Deleted!!', "warning")
                             else:
                                 filePath = os.path.join(add_to_dir, file_name)
-                                fileStatsObj = os.stat(filePath)
-                                modificationTime = time.ctime(fileStatsObj[stat.ST_MTIME])
-                                size = os.stat(filePath).st_size
-                                size = str(size) + "bytes"
-                                temp_dict = {'time': modificationTime.split(' ', 1)[1], 'size': size}
-                                file_data[file_name] = temp_dict
+                                if(os.path.exists(filePath)):
+                                    fileStatsObj = os.stat(filePath)
+                                    modificationTime = time.ctime(fileStatsObj[stat.ST_MTIME])
+                                    size = os.stat(filePath).st_size
+                                    size = AirflowBaseView.convert_size(size)
+                                    temp_dict = {'time': modificationTime.split(' ', 1)[1], 'size': size}
+                                    file_data[file_name] = temp_dict
 
                 return self.render_template(
                     'airflow/add_dag.html', title=title,file_data=file_data)
@@ -2603,32 +2651,12 @@ class AddDagView(AirflowBaseView):
                 if flag:
                     flash('File Uploaded!!',"success")
 
-                file_data = {}
-                for r, d, f in os.walk(add_to_dir):
-                    for file_name in f:
-                        if file_name.endswith(".py"):
-                            filePath = os.path.join(add_to_dir, file_name)
-                            fileStatsObj = os.stat(filePath)
-                            modificationTime = time.ctime(fileStatsObj[stat.ST_MTIME])
-                            size = os.stat(filePath).st_size
-                            size = str(size) + "bytes"
-                            temp_dict = {'time': modificationTime.split(' ', 1)[1], 'size': size}
-                            file_data[file_name] = temp_dict
+                file_data = AirflowBaseView.get_details(add_to_dir, ".py")  # calling get_details with extension ".py"
 
                 return self.render_template(
                     'airflow/add_dag.html', title=title,file_data=file_data)
         else:
-            file_data = {}
-            for r, d, f in os.walk(add_to_dir):
-                for file_name in f:
-                    if file_name.endswith(".py"):
-                        filePath = os.path.join(add_to_dir, file_name)
-                        fileStatsObj = os.stat(filePath)
-                        modificationTime = time.ctime(fileStatsObj[stat.ST_MTIME])
-                        size = os.stat(filePath).st_size
-                        size = str(size) + "bytes"
-                        temp_dict = {'time': modificationTime.split(' ', 1)[1], 'size': size}
-                        file_data[file_name] = temp_dict
+            file_data = AirflowBaseView.get_details(add_to_dir, ".py")  # calling get_details with extension ".py"
 
             return self.render_template('airflow/add_dag.html',title=title,  file_data=file_data)
 
@@ -2648,7 +2676,7 @@ class AddDagView(AirflowBaseView):
 
         if request.method == 'POST':
 
-            code = request.form['code']
+            code = request.form['code']   # extracting code from from and storing it in "code" variable
             temp_dir = tempfile.gettempdir()
             temp_path = os.path.join(temp_dir, 'temp_file_name')
             shutil.copy2(fullpath, temp_path)
@@ -2659,6 +2687,8 @@ class AddDagView(AirflowBaseView):
 
             fo = open(path2, "r")
             f_temp = fo.readlines()
+            # using DiffLib to create an HTML table showing a side by side, line by line comparison of text with inter-line and intra-line change highlights
+            # here comparsion is done between two versions of code stored in f_old and f_new
             diff = difflib.HtmlDiff().make_table(f_old, f_temp, fromdesc='', todesc='')
 
             try:
@@ -2678,23 +2708,26 @@ class AddDagView(AirflowBaseView):
 
                 fo = open(path2, "r")
                 f_temp = fo.readlines()
+                # using DiffLib to create an HTML table showing a side by side, line by line comparison of text with inter-line and intra-line change highlights
+                # here comparsion is done between two versions of code stored in f_old and f_new
                 diff = difflib.HtmlDiff().make_table(f_old, f_temp, fromdesc='', todesc='')
                 return self.render_template("airflow/editdag.html", code=code, Filename=filename, Diff=diff, values=self.get_values())
             except:
                 print("code not changed yet")
 
-            try:
+            try:  # only when "save changes" button is clicked
                 with open(fullpath, 'r') as f1:
                     f_old = f1.readlines()
                 save_name = request.form['option_editdag']
                 if save_name != '':
-                    with open(fullpath, 'w') as f:  # writing code to original file
+                    with open(fullpath, 'w') as f:  # writing code to original file, saving all changes
                         f.write(code)
                 flash("File Saved!!", "success")
 
                 with open(fullpath, 'r') as f1:
                     f_new = f1.readlines()
-
+                # using DiffLib to create an HTML table showing a side by side, line by line comparison of text with inter-line and intra-line change highlights
+                # here comparsion is done between two versions of code stored in f_old and f_new
                 diff = difflib.HtmlDiff().make_table(f_old, f_new, fromdesc='', todesc='')
                 return self.render_template("airflow/editdag.html", code=code, Filename=filename, Diff=diff, values=self.get_values())
             except:
@@ -2709,7 +2742,7 @@ class AddDagView(AirflowBaseView):
             diff = None
             return self.render_template("airflow/editdag.html", code=code, Filename=filename, Diff=diff, values=self.get_values())
 
-    @expose("/save_task/<string:filename>", methods=['POST'])
+    @expose("/save_task/<string:filename>", methods=['POST'])   # for saving a new task
     def save_task(self, filename):
         from airflow.configuration import AIRFLOW_HOME
         TASK_FOLDER = AIRFLOW_HOME + '/repo'
@@ -2720,7 +2753,7 @@ class AddDagView(AirflowBaseView):
             new_code = request.form['new_code']
             file_name = new_heading + ".py"
             path_to_save = os.path.join(TASK_FOLDER, file_name)
-            with open(path_to_save, 'w+') as f:  # creating and saving file
+            with open(path_to_save, 'w+') as f:  # creating and saving file inside TASK_FOLDER
                 f.write("description:")
                 f.write("\n")
                 f.write(description)
@@ -2732,7 +2765,7 @@ class AddDagView(AirflowBaseView):
 
 
     @expose("/dag_download/<string:filename>", methods=['GET', 'POST'])
-    def download(self, filename):
+    def download(self, filename):    # for downloading the file passed in the filename
         from airflow.configuration import AIRFLOW_HOME
         add_to_dir = AIRFLOW_HOME + '/dags'
 

@@ -181,10 +181,10 @@ couture-input[type=submit]:hover {
           <td width="15%" id="modified_time_jar" class="text-center">{{file_data[i]['time']}}</td>
           <td width="10%" id="size_jar" class="text-center">{{file_data[i]['size']}}</td>
           <td width="5%"> <div class="text-center">
-            <a href="{{ url_for('CodeArtifactView.download', filename= i) }}">
-              <i class="fa fa-download" style="font-size:20px;color:blue;line-height: inherit;"></i>
-            </a>
-          </div>
+              <a href="{{ url_for('CodeArtifactView.download', filename= i) }}">
+                  <i class="fa fa-download" style="font-size:20px;color:blue;line-height: inherit;"></i>
+              </a>
+              </div>
           </td>
           <td width="2%"> <button onclick="javascript:function_delete_spark_file('{{i}}')" class="couture-button-delete">
             <i class="glyphicon glyphicon-remove-circle" style="color:red" aria-hidden="true"></i></button></td>
@@ -205,11 +205,11 @@ couture-input[type=submit]:hover {
           <td width="15%" id="modified_time_py" class="text-center">{{file_data[i]['time']}}</td>
           <td width="10%" id="size_py" class="text-center">{{file_data[i]['size']}}</td>
           <td width="5%" >
-            <div class="text-center">
+              <div class="text-center">
               <a href="{{ url_for('CodeArtifactView.download', filename= i) }}">
-                <i class="fa fa-download" style="font-size:20px;color:blue;line-height: inherit;"></i>
+                  <i class="fa fa-download" style="font-size:20px;color:blue;line-height: inherit;"></i>
               </a>
-            </div>
+              </div>
           </td>
           <td width="2%"> <button onclick="javascript:function_delete_spark_file('{{i}}')" class="couture-button-delete">
             <i class="glyphicon glyphicon-remove-circle" style="color:red" aria-hidden="true"></i></button> </td>
