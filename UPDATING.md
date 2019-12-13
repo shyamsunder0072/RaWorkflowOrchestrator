@@ -25,6 +25,8 @@ assists users migrating to a new version.
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of contents**
 
+- [Airflow 1.10.6](#airflow-1106)
+- [Airflow 1.10.5](#airflow-1105)
 - [Airflow 1.10.4](#airflow-1104)
 - [Airflow 1.10.3](#airflow-1103)
 - [Airflow 1.10.2](#airflow-1102)
@@ -36,6 +38,31 @@ assists users migrating to a new version.
 - [Airflow 1.7.1.2](#airflow-1712)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+## Airflow 1.10.6
+
+### Changes to `aws_default` Connection's default region
+
+The region of Airflow's default connection to AWS (`aws_default`) was previously
+set to `us-east-1` during installation.
+
+The region now needs to be set manually, either in the connection screens in
+Airflow, via the `~/.aws` config files, or via the `AWS_DEFAULT_REGION` environment
+variable.
+
+### Some DAG Processing metrics have been renamed
+
+The following metrics are deprecated and won't be emitted in Airflow 2.0:
+
+- `scheduler.dagbag.errors` and `dagbag_import_errors` -- use `dag_processing.import_errors` instead
+- `dag_file_processor_timeouts` -- use `dag_processing.processor_timeouts` instead
+- `collect_dags` -- use `dag_processing.total_parse_time` instead
+- `dag.loading-duration.<basename>` -- use `dag_processing.last_duration.<basename>` instead
+- `dag_processing.last_runtime.<basename>` -- use `dag_processing.last_duration.<basename>` instead
+
+## Airflow 1.10.5
+
+No breaking changes.
 
 ## Airflow 1.10.4
 
@@ -52,12 +79,12 @@ If you have a specific task that still requires Python 2 then you can use the Py
 
 ### Changes to GoogleCloudStorageHook
 
-* the discovery-based api (`googleapiclient.discovery`) used in `GoogleCloudStorageHook` is now replaced by the recommended client based api (`google-cloud-storage`). To know the difference between both the libraries, read https://cloud.google.com/apis/docs/client-libraries-explained. PR: [#5054](https://github.com/apache/airflow/pull/5054) 
+* the discovery-based api (`googleapiclient.discovery`) used in `GoogleCloudStorageHook` is now replaced by the recommended client based api (`google-cloud-storage`). To know the difference between both the libraries, read https://cloud.google.com/apis/docs/client-libraries-explained. PR: [#5054](https://github.com/apache/airflow/pull/5054)
 * as a part of this replacement, the `multipart` & `num_retries` parameters for `GoogleCloudStorageHook.upload` method have been deprecated.
 
   The client library uses multipart upload automatically if the object/blob size is more than 8 MB - [source code](https://github.com/googleapis/google-cloud-python/blob/11c543ce7dd1d804688163bc7895cf592feb445f/storage/google/cloud/storage/blob.py#L989-L997). The client also handles retries automatically
 
-* the `generation` parameter is deprecated in `GoogleCloudStorageHook.delete` and `GoogleCloudStorageHook.insert_object_acl`. 
+* the `generation` parameter is deprecated in `GoogleCloudStorageHook.delete` and `GoogleCloudStorageHook.insert_object_acl`.
 
 Updating to `google-cloud-storage >= 1.16` changes the signature of the upstream `client.get_bucket()` method from `get_bucket(bucket_name: str)` to `get_bucket(bucket_or_name: Union[str, Bucket])`. This method is not directly exposed by the airflow hook, but any code accessing the connection directly (`GoogleCloudStorageHook().get_conn().get_bucket(...)` or similar) will need to be updated.
 
@@ -84,6 +111,52 @@ in different scenarios.
 For more details about Celery pool implementation, please refer to:
 - https://docs.celeryproject.org/en/latest/userguide/workers.html#concurrency
 - https://docs.celeryproject.org/en/latest/userguide/concurrency/eventlet.html
+
+
+### Change to method signature in `BaseOperator` and `DAG` classes
+
+The signature of the `get_task_instances` method in the `BaseOperator` and `DAG` classes has changed. The change does not change the behavior of the method in either case.
+
+#### For `BaseOperator`
+
+Old signature:
+
+```python
+def get_task_instances(self, session, start_date=None, end_date=None):
+```
+
+New signature:
+
+```python
+@provide_session
+def get_task_instances(self, start_date=None, end_date=None, session=None):
+```
+
+#### For `DAG`
+
+Old signature:
+
+```python
+def get_task_instances(
+    self, session, start_date=None, end_date=None, state=None):
+```
+
+New signature:
+
+```python
+@provide_session
+def get_task_instances(
+    self, start_date=None, end_date=None, state=None, session=None):
+```
+
+In either case, it is necessary to rewrite calls to the `get_task_instances` method that currently provide the `session` positional argument. New calls to this method look like:
+
+```python
+# if you can rely on @provide_session
+dag.get_task_instances()
+# if you need to provide the session
+dag.get_task_instances(session=your_session)
+```
 
 ## Airflow 1.10.3
 
@@ -321,7 +394,7 @@ then you need to change it like this
     @property
     def is_active(self):
       return self.active
-      
+
 ### Support autodetected schemas to GoogleCloudStorageToBigQueryOperator
 
 GoogleCloudStorageToBigQueryOperator is now support schema auto-detection is available when you load data into BigQuery. Unfortunately, changes can be required.
@@ -333,7 +406,7 @@ define a schema_fields:
     gcs_to_bq.GoogleCloudStorageToBigQueryOperator(
       ...
       schema_fields={...})
-      
+
 or define a schema_object:
 
     gcs_to_bq.GoogleCloudStorageToBigQueryOperator(

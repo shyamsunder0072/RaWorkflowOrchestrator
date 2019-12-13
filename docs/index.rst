@@ -18,7 +18,7 @@
 
 
 
-.. image:: img/pin_large.png
+.. image:: ../airflow/www/static/pin_large.png
     :width: 100
 
 Apache Airflow Documentation
@@ -27,8 +27,8 @@ Apache Airflow Documentation
 Airflow is a platform to programmatically author, schedule and monitor
 workflows.
 
-Use airflow to author workflows as directed acyclic graphs (DAGs) of tasks.
-The airflow scheduler executes your tasks on an array of workers while
+Use Airflow to author workflows as Directed Acyclic Graphs (DAGs) of tasks.
+The Airflow scheduler executes your tasks on an array of workers while
 following the specified dependencies. Rich command line utilities make
 performing complex surgeries on DAGs a snap. The rich user interface
 makes it easy to visualize pipelines running in production,
@@ -91,9 +91,17 @@ Content
     api
     integration
     metrics
+    errors
     kubernetes
     lineage
     changelog
     faq
     macros
     _api/index
+    privacy_notice
+
+.. toctree::
+    :maxdepth: 1
+    :caption: References
+
+    Python API <_api/index>

@@ -19,29 +19,39 @@
 # Assume all the scripts are sourcing the _utils.sh from the scripts/ci directory
 # and MY_DIR variable is set to this directory. It can be overridden however
 
+if [[ ${VERBOSE:=} == "true" ]]; then
+    set -x
+else
+    set +x
+fi
+
 AIRFLOW_SOURCES=${AIRFLOW_SOURCES:=$(cd "${MY_DIR}/../../" && pwd)}
 export AIRFLOW_SOURCES
 
 BUILD_CACHE_DIR="${AIRFLOW_SOURCES}/.build"
 export BUILD_CACHE_DIR
 
-FILES_FOR_REBUILD_CHECK="\
-setup.py \
-setup.cfg \
-Dockerfile \
-.dockerignore \
-airflow/version.py
-"
+LAST_FORCE_ANSWER_FILE="${BUILD_CACHE_DIR}/last_force_answer.sh"
+
+IMAGES_TO_CHECK=("SLIM_CI" "CI" "CHECKLICENCE")
+export IMAGES_TO_CHECK
 
 mkdir -p "${AIRFLOW_SOURCES}/.mypy_cache"
 mkdir -p "${AIRFLOW_SOURCES}/logs"
 mkdir -p "${AIRFLOW_SOURCES}/tmp"
 
-# Dockerhub user and repo where the images are stored.
-export DOCKERHUB_USER=${DOCKERHUB_USER:="apache"}
-export DOCKERHUB_REPO=${DOCKERHUB_REPO:="airflow"}
-# Port on which webserver is exposed in host environment
-export WEBSERVER_HOST_PORT=${WEBSERVER_HOST_PORT:="8080"}
+# shellcheck source=common/_autodetect_variables.sh
+. "${AIRFLOW_SOURCES}/common/_autodetect_variables.sh"
+# shellcheck source=common/_files_for_rebuild_check.sh
+. "${AIRFLOW_SOURCES}/common/_files_for_rebuild_check.sh"
+
+# Default branch name for triggered builds is the one configured in default branch
+export AIRFLOW_CONTAINER_BRANCH_NAME=${AIRFLOW_CONTAINER_BRANCH_NAME:=${DEFAULT_BRANCH}}
+
+# Default port numbers for forwarded ports
+export WEBSERVER_HOST_PORT=${WEBSERVER_HOST_PORT:="28080"}
+export POSTGRES_HOST_PORT=${POSTGRES_HOST_PORT:="25433"}
+export MYSQL_HOST_PORT=${MYSQL_HOST_PORT:="23306"}
 
 # Do not push images from here by default (push them directly from the build script on Dockerhub)
 export AIRFLOW_CONTAINER_PUSH_IMAGES=${AIRFLOW_CONTAINER_PUSH_IMAGES:="false"}
@@ -49,19 +59,6 @@ export AIRFLOW_CONTAINER_PUSH_IMAGES=${AIRFLOW_CONTAINER_PUSH_IMAGES:="false"}
 # Disable writing .pyc files - slightly slower imports but not messing around when switching
 # Python version and avoids problems with root-owned .pyc files in host
 export PYTHONDONTWRITEBYTECODE=${PYTHONDONTWRITEBYTECODE:="true"}
-
-# Read default branch name
-# shellcheck source=hooks/_default_branch.sh
-. "${AIRFLOW_SOURCES}/hooks/_default_branch.sh"
-
-# Default branch name for triggered builds is the one configured in hooks/_default_branch.sh
-export AIRFLOW_CONTAINER_BRANCH_NAME=${AIRFLOW_CONTAINER_BRANCH_NAME:=${DEFAULT_BRANCH}}
-
-PYTHON_VERSION=${PYTHON_VERSION:=$(python -c \
-    'import sys; print("%s.%s" % (sys.version_info.major, sys.version_info.minor))')}
-export PYTHON_VERSION
-
-export PYTHON_BINARY=${PYTHON_BINARY:=python${PYTHON_VERSION}}
 
 #
 # Sets mounting of host volumes to container for static checks
@@ -71,23 +68,28 @@ export PYTHON_BINARY=${PYTHON_BINARY:=python${PYTHON_VERSION}}
 #
 AIRFLOW_MOUNT_HOST_VOLUMES_FOR_STATIC_CHECKS=${AIRFLOW_MOUNT_HOST_VOLUMES_FOR_STATIC_CHECKS:="true"}
 
+# If this variable is set, we mount the whole sources directory to the host rather than
+# selected volumes
+AIRFLOW_MOUNT_SOURCE_DIR_FOR_STATIC_CHECKS=${AIRFLOW_MOUNT_SOURCE_DIR_FOR_STATIC_CHECKS="false"}
+
 function print_info() {
-    if [[ ${AIRFLOW_CI_SILENT:="false"} != "true" || ${AIRFLOW_CI_VERBOSE:="false"} == "true" ]]; then
+    if [[ ${AIRFLOW_CI_SILENT:="false"} != "true" || ${VERBOSE:="false"} == "true" ]]; then
         echo "$@"
     fi
 }
 
-if [[ ${REBUILD:=false} ==  "true" ]]; then
-    print_info
-    print_info "Rebuilding is enabled. Assuming yes to all questions"
-    print_info
-    export ASSUME_YES_TO_ALL_QUESTIONS="true"
-fi
-
 declare -a AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS
-if [[ ${AIRFLOW_MOUNT_HOST_VOLUMES_FOR_STATIC_CHECKS} == "true" ]]; then
+if [[ ${AIRFLOW_MOUNT_SOURCE_DIR_FOR_STATIC_CHECKS} == "true" ]]; then
     print_info
-    print_info "Mounting host volumes to Docker"
+    print_info "Mount whole sourcce directory for static checks"
+    print_info
+    AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS=( \
+      "-v" "${AIRFLOW_SOURCES}:/opt/airflow" \
+      "--env" "PYTHONDONTWRITEBYTECODE" \
+    )
+elif [[ ${AIRFLOW_MOUNT_HOST_VOLUMES_FOR_STATIC_CHECKS} == "true" ]]; then
+    print_info
+    print_info "Mounting necessary host volumes to Docker"
     print_info
     AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS=( \
       "-v" "${AIRFLOW_SOURCES}/airflow:/opt/airflow/airflow:cached" \
@@ -132,17 +134,21 @@ export AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS
 # Most useful is out.log file in this directory storing verbose output of the scripts.
 #
 function create_cache_directory() {
-    mkdir -p "${BUILD_CACHE_DIR}/cache/"
-
-    CACHE_TMP_FILE_DIR=$(mktemp -d "${BUILD_CACHE_DIR}/cache/XXXXXXXXXX")
+    CACHE_TMP_FILE_DIR=$(mktemp -d)
     export CACHE_TMP_FILE_DIR
 
     if [[ ${SKIP_CACHE_DELETION:=} != "true" ]]; then
-        trap 'rm -rf -- "${CACHE_TMP_FILE_DIR}"' INT TERM HUP EXIT
+        trap 'rm -rf -- "${CACHE_TMP_FILE_DIR}"' INT TERM HUP
     fi
 
     OUTPUT_LOG="${CACHE_TMP_FILE_DIR}/out.log"
     export OUTPUT_LOG
+}
+
+function remove_cache_directory() {
+    if [[ -z "${CACHE_TMP_FILE_DIR}" ]]; then
+        rm -rf -- "${CACHE_TMP_FILE_DIR}"
+    fi
 }
 
 #
@@ -153,10 +159,11 @@ function create_cache_directory() {
 function check_file_md5sum {
     local FILE="${1}"
     local MD5SUM
-    mkdir -pv "${BUILD_CACHE_DIR}/${THE_IMAGE_TYPE}"
+    local MD5SUM_CACHE_DIR="${BUILD_CACHE_DIR}/${DEFAULT_BRANCH}/${THE_IMAGE_TYPE}"
+    mkdir -pv "${MD5SUM_CACHE_DIR}"
     MD5SUM=$(md5sum "${FILE}")
     local MD5SUM_FILE
-    MD5SUM_FILE=${BUILD_CACHE_DIR}/${THE_IMAGE_TYPE}/$(basename "${FILE}").md5sum
+    MD5SUM_FILE="${MD5SUM_CACHE_DIR}"/$(basename "${FILE}").md5sum
     local MD5SUM_FILE_NEW
     MD5SUM_FILE_NEW=${CACHE_TMP_FILE_DIR}/$(basename "${FILE}").md5sum.new
     echo "${MD5SUM}" > "${MD5SUM_FILE_NEW}"
@@ -182,8 +189,9 @@ function check_file_md5sum {
 function move_file_md5sum {
     local FILE="${1}"
     local MD5SUM_FILE
-    mkdir -pv "${BUILD_CACHE_DIR}/${THE_IMAGE_TYPE}"
-    MD5SUM_FILE=${BUILD_CACHE_DIR}/${THE_IMAGE_TYPE}/$(basename "${FILE}").md5sum
+    local MD5SUM_CACHE_DIR="${BUILD_CACHE_DIR}/${DEFAULT_BRANCH}/${THE_IMAGE_TYPE}"
+    mkdir -pv "${MD5SUM_CACHE_DIR}"
+    MD5SUM_FILE="${MD5SUM_CACHE_DIR}"/$(basename "${FILE}").md5sum
     local MD5SUM_FILE_NEW
     MD5SUM_FILE_NEW=${CACHE_TMP_FILE_DIR}/$(basename "${FILE}").md5sum.new
     if [[ -f "${MD5SUM_FILE_NEW}" ]]; then
@@ -201,7 +209,7 @@ function update_all_md5_files() {
     print_info
     print_info "Updating md5sum files"
     print_info
-    for FILE in ${FILES_FOR_REBUILD_CHECK}
+    for FILE in "${FILES_FOR_REBUILD_CHECK[@]}"
     do
         move_file_md5sum "${AIRFLOW_SOURCES}/${FILE}"
     done
@@ -209,7 +217,8 @@ function update_all_md5_files() {
     if [[ -n ${PYTHON_VERSION:=""} ]]; then
         SUFFIX="_${PYTHON_VERSION}"
     fi
-    touch "${BUILD_CACHE_DIR}/.built_${THE_IMAGE_TYPE}${SUFFIX}"
+    mkdir -pv "${BUILD_CACHE_DIR}/${DEFAULT_BRANCH}"
+    touch "${BUILD_CACHE_DIR}/${DEFAULT_BRANCH}/.built_${THE_IMAGE_TYPE}${SUFFIX}"
 }
 
 #
@@ -235,14 +244,40 @@ function update_all_md5_files() {
 # As result of this check - most of the static checks will start pretty much immediately.
 #
 function check_if_docker_build_is_needed() {
-    set +e
-    for FILE in ${FILES_FOR_REBUILD_CHECK}
-    do
-        if ! check_file_md5sum "${AIRFLOW_SOURCES}/${FILE}"; then
+    print_info
+    print_info "Checking if docker image build is needed for ${THE_IMAGE_TYPE} image."
+    print_info
+    local IMAGE_BUILD_NEEDED="false"
+    if [[ ${AIRFLOW_CONTAINER_FORCE_DOCKER_BUILD:=""} == "true" ]]; then
+        print_info "Docker image build is forced for ${THE_IMAGE_TYPE} image"
+        set +e
+        for FILE in "${FILES_FOR_REBUILD_CHECK[@]}"
+        do
+            # Just store md5sum for all files in md5sum.new - do not check if it is different
+            check_file_md5sum "${AIRFLOW_SOURCES}/${FILE}"
+        done
+        set -e
+        IMAGES_TO_REBUILD+=("${THE_IMAGE_TYPE}")
+        export AIRFLOW_CONTAINER_DOCKER_BUILD_NEEDED="true"
+    else
+        set +e
+        for FILE in "${FILES_FOR_REBUILD_CHECK[@]}"
+        do
+            if ! check_file_md5sum "${AIRFLOW_SOURCES}/${FILE}"; then
+                export AIRFLOW_CONTAINER_DOCKER_BUILD_NEEDED="true"
+                IMAGE_BUILD_NEEDED=true
+            fi
+        done
+        set -e
+        if [[ ${IMAGE_BUILD_NEEDED} == "true" ]]; then
+            IMAGES_TO_REBUILD+=("${THE_IMAGE_TYPE}")
             export AIRFLOW_CONTAINER_DOCKER_BUILD_NEEDED="true"
+            print_info "Docker image build is needed for ${THE_IMAGE_TYPE} image!"
+        else
+            print_info "Docker image build is not needed for ${THE_IMAGE_TYPE} image!"
         fi
-    done
-    set -e
+    fi
+    print_info
 }
 
 #
@@ -319,52 +354,89 @@ function assert_not_in_container() {
     fi
 }
 
-#
-# Forces Python version to 3.5 (for static checks)
-#
-function force_python_3_5() {
-    # Set python version variable to force it in the container scripts
-    PYTHON_VERSION=3.5
-    export PYTHON_VERSION
+function cleanup_last_force_answer() {
+    # Removes the "Force answer" (yes/no/quit) given previously, unles you specifically want to use it.
+    #
+    # This is the default behaviour of all rebuild scripts to ask independently whether you want to
+    # rebuild the image or not. Sometimes however we want to reuse answer previously given. For
+    # example if you answered "no" to rebuild the image, the assumption is that you do not
+    # want to rebuild image for other rebuilds in the same pre-commit execution.
+    #
+    # All the pre-commit checks therefore have `export SKIP_CLEANUP_OF_LAST_ANSWER="true"` set
+    # So that in case they are run in a sequence of commits they will not rebuild. Similarly if your most
+    # recent answer was "no" and you run `pre-commit run mypy` (for example) it will also reuse the
+    # "no" answer given previously. This happens until you run any of the breeze commands or run all
+    # precommits `pre-commit run` - then the "LAST_FORCE_ANSWER_FILE" will be removed and you will
+    # be asked again.
+    if [[ ${SKIP_CLEANUP_OF_LAST_ANSWER:=""} != "true" ]]; then
+        print_info
+        print_info "Removing last answer from ${LAST_FORCE_ANSWER_FILE}"
+        print_info
+        rm -f "${LAST_FORCE_ANSWER_FILE}"
+    else
+        if [[ -f "${LAST_FORCE_ANSWER_FILE}" ]]; then
+            print_info
+            print_info "Retaining last answer from ${LAST_FORCE_ANSWER_FILE}"
+            print_info "$(cat "${LAST_FORCE_ANSWER_FILE}")"
+            print_info
+        fi
+    fi
 }
 
+
 function confirm_image_rebuild() {
+    if [[ -f "${LAST_FORCE_ANSWER_FILE}" ]]; then
+        # set variable from last answered response given in the same pre-commit run - so that it can be
+        # set in one pre-commit check (build) and then used in another (pylint/mypy/flake8 etc).
+        # shellcheck disable=SC1090
+        source "${LAST_FORCE_ANSWER_FILE}"
+    fi
     set +e
-    "${AIRFLOW_SOURCES}/confirm" "${ACTION} the image ${THE_IMAGE_TYPE}."
-    RES=$?
+    if [[ ${CI:="false"} == "true" ]]; then
+        print_info
+        print_info "CI environment - forcing ${ACTION} for ${THE_IMAGE_TYPE} image."
+        print_info
+        RES="0"
+    elif [[ -c /dev/tty ]]; then
+        # Make sure to use /dev/tty first rather than stdin/stdout when available - this way confirm
+        # will works also in case of pre-commits (git does not pass stdin/stdout to pre-commit hooks)
+        "${AIRFLOW_SOURCES}/confirm" "${ACTION} ${THE_IMAGE_TYPE}" </dev/tty >/dev/tty
+        RES=$?
+    elif [[ -t 0 ]]; then
+        # Check if this script is run interactively with stdin open and terminal attached
+        "${AIRFLOW_SOURCES}/confirm" "${ACTION} ${THE_IMAGE_TYPE}"
+        RES=$?
+    else
+        # No terminal, no stdin - quitting!
+        RES="2"
+    fi
     set -e
     if [[ ${RES} == "1" ]]; then
+        print_info
+        print_info "Skipping ${ACTION} for ${THE_IMAGE_TYPE}"
+        print_info
         SKIP_REBUILD="true"
-        # Assume No also to subsequent questions
-        export ASSUME_NO_TO_ALL_QUESTIONS="true"
+        # Force "no" also to subsequent questions so that if you answer it once, you are not asked
+        # For all other pre-commits and you will continue using the images you already have
+        export FORCE_ANSWER_TO_QUESTIONS="no"
+        echo 'export FORCE_ANSWER_TO_QUESTIONS="no"' > "${LAST_FORCE_ANSWER_FILE}"
     elif [[ ${RES} == "2" ]]; then
         echo >&2
-        echo >&2 "#############################################"
-        echo >&2 "  ERROR:  ${ACTION} the image stopped. "
-        echo >&2 "#############################################"
+        echo >&2 "ERROR: The image needs ${ACTION} for ${THE_IMAGE_TYPE} - it is outdated. "
+        echo >&2 "   Make sure you build the images bu running run one of:"
+        echo >&2 "         * ./scripts/ci/local_ci_build.sh"
+        echo >&2 "         * ./scripts/ci/local_ci_pull_and_build.sh"
         echo >&2
-        echo >&2 "  You should re-run your command with REBUILD=true environment variable set"
-        echo >&2
-        echo >&2 "  * 'REBUILD=true git commit'"
-        echo >&2 "  * 'REBUILD=true git push'"
-        echo >&2
-        echo >&2 "  In case you do not want to rebuild, You can always commit the code "
-        echo >&2 "  with --no-verify switch. This skips pre-commit checks. CI will run the tests anyway."
-        echo >&2
-        echo >&2 "  You can also rebuild the image:        './scripts/ci/local_ci_build.sh'"
-        echo >&2 "  Or pull&build the image from registry: './scripts/ci/local_ci_pull_and_build.sh'"
+        echo >&2 "   If you run it via pre-commit separately, run 'pre-commit run build' first."
         echo >&2
         exit 1
     else
-        # Assume Yes also to subsequent questions
-        export ASSUME_YES_TO_ALL_QUESTIONS="true"
+        # Force "yes" also to subsequent questions
+        export FORCE_ANSWER_TO_QUESTIONS="yes"
     fi
 }
 
 function rebuild_image_if_needed() {
-    PYTHON_VERSION=${PYTHON_VERSION:=$(python -c \
-        'import sys; print("%s.%s" % (sys.version_info.major, sys.version_info.minor))')}
-    export PYTHON_VERSION
     AIRFLOW_VERSION=$(cat airflow/version.py - << EOF | python
 print(version.replace("+",""))
 EOF
@@ -373,48 +445,49 @@ EOF
 
     if [[ ${AIRFLOW_CONTAINER_CLEANUP_IMAGES:="false"} == "true" ]]; then
         print_info
-        print_info "Clean up ${THE_IMAGE_TYPE}"
+        print_info "Clean up ${THE_IMAGE_TYPE} image. Just cleanup no pull of images happen."
         print_info
         export AIRFLOW_CONTAINER_FORCE_PULL_IMAGES="false"
-        export AIRFLOW_CONTAINER_DOCKER_BUILD_NEEDED="true"
-    elif [[ -f "${BUILD_CACHE_DIR}/.built_${THE_IMAGE_TYPE}_${PYTHON_VERSION}" ]]; then
+        export AIRFLOW_CONTAINER_FORCE_DOCKER_BUILD="true"
+    elif [[ -f "${BUILD_CACHE_DIR}/${DEFAULT_BRANCH}/.built_${THE_IMAGE_TYPE}_${PYTHON_VERSION}" ]]; then
         print_info
-        print_info "Image ${THE_IMAGE_TYPE} built locally - skip force-pulling"
+        print_info "${THE_IMAGE_TYPE} image already built locally."
         print_info
     else
         print_info
-        print_info "Image ${THE_IMAGE_TYPE} not built locally - force pulling"
+        print_info "${THE_IMAGE_TYPE} image not built locally: pulling and building"
         print_info
         export AIRFLOW_CONTAINER_FORCE_PULL_IMAGES="true"
-        export AIRFLOW_CONTAINER_DOCKER_BUILD_NEEDED="true"
+        export AIRFLOW_CONTAINER_FORCE_DOCKER_BUILD="true"
     fi
 
-    AIRFLOW_CONTAINER_DOCKER_BUILD_NEEDED=${AIRFLOW_CONTAINER_DOCKER_BUILD_NEEDED:="false"}
+    AIRFLOW_CONTAINER_DOCKER_BUILD_NEEDED="false"
+    IMAGES_TO_REBUILD=()
     check_if_docker_build_is_needed
     if [[ "${AIRFLOW_CONTAINER_DOCKER_BUILD_NEEDED}" == "true" ]]; then
         SKIP_REBUILD="false"
         if [[ ${AIRFLOW_CONTAINER_CLEANUP_IMAGES} == "true" ]]; then
-            export ACTION="Cleaning"
+            export ACTION="clean"
         else
-            export ACTION="Rebuilding"
+            export ACTION="rebuild"
         fi
-        if [[ ${CI:=} != "true" ]]; then
+        if [[ ${CI:=} != "true" && "${FORCE_BUILD:=}" != "true" ]]; then
             confirm_image_rebuild
         fi
         if [[ ${SKIP_REBUILD} != "true" ]]; then
             print_info
-            print_info "${ACTION} image: ${THE_IMAGE_TYPE}"
+            print_info "${ACTION} start: ${THE_IMAGE_TYPE} image."
             print_info
             # shellcheck source=hooks/build
             ./hooks/build | tee -a "${OUTPUT_LOG}"
             update_all_md5_files
             print_info
-            print_info "${ACTION} image completed: ${THE_IMAGE_TYPE}"
+            print_info "${ACTION} completed: ${THE_IMAGE_TYPE} image."
             print_info
         fi
     else
         print_info
-        print_info "No need to rebuild the image as none of the sensitive files changed: ${FILES_FOR_REBUILD_CHECK}"
+        print_info "No need to rebuild - none of the important files changed: ${FILES_FOR_REBUILD_CHECK[*]}"
         print_info
     fi
 }
@@ -427,14 +500,16 @@ function rebuild_ci_slim_image_if_needed() {
     export AIRFLOW_CONTAINER_SKIP_CI_IMAGE="true"
     export AIRFLOW_CONTAINER_SKIP_CHECKLICENCE_IMAGE="true"
 
-    export PYTHON_VERSION=3.5  # Always use python version 3.5 for static checks
+    # Temporary force python version 3.5 for static checks
+    export OLD_PYTHON_VERSION=${PYTHON_VERSION=""}
+    export PYTHON_VERSION=3.5
 
     export THE_IMAGE_TYPE="SLIM_CI"
 
     rebuild_image_if_needed
 
-    AIRFLOW_SLIM_CI_IMAGE=$(cat "${BUILD_CACHE_DIR}/.AIRFLOW_SLIM_CI_IMAGE") || true 2>/dev/null
-    export AIRFLOW_SLIM_CI_IMAGE
+    export AIRFLOW_SLIM_CI_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${DEFAULT_BRANCH}-python${PYTHON_VERSION}-ci-slim"
+    export PYTHON_VERSION=${OLD_PYTHON_VERSION}
 }
 
 #
@@ -454,7 +529,7 @@ function cleanup_ci_slim_image() {
 }
 
 #
-# Rebuilds the image for static checks if needed.
+# Rebuilds the image for tests if needed.
 #
 function rebuild_ci_image_if_needed() {
     export AIRFLOW_CONTAINER_SKIP_SLIM_CI_IMAGE="true"
@@ -465,8 +540,7 @@ function rebuild_ci_image_if_needed() {
 
     rebuild_image_if_needed
 
-    AIRFLOW_CI_IMAGE=$(cat "${BUILD_CACHE_DIR}/.AIRFLOW_CI_IMAGE") || true 2>/dev/null
-    export AIRFLOW_CI_IMAGE
+    export AIRFLOW_CI_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${DEFAULT_BRANCH}-python${PYTHON_VERSION}-ci"
 }
 
 
@@ -496,8 +570,7 @@ function rebuild_checklicence_image_if_needed() {
 
     rebuild_image_if_needed
 
-    AIRFLOW_CHECKLICENCE_IMAGE=$(cat "${BUILD_CACHE_DIR}/.AIRFLOW_CHECKLICENCE_IMAGE") || true 2>/dev/null
-    export AIRFLOW_CHECKLICENCE_IMAGE
+    export AIRFLOW_CHECKLICENCE_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:checklicence"
 }
 
 #
@@ -536,10 +609,12 @@ function script_start {
             print_info "And skip deleting the output file with 'export SKIP_CACHE_DELETION=\"true\""
         fi
         print_info
+        set +x
     fi
     START_SCRIPT_TIME=$(date +%s)
 }
 
+#
 #
 # Disables verbosity in the script
 #
@@ -553,6 +628,7 @@ function script_end {
     print_info "Finished the script $(basename "$0")"
     print_info "It took ${RUN_SCRIPT_TIME} seconds"
     print_info
+    remove_cache_directory
 }
 
 function go_to_airflow_sources {
@@ -571,6 +647,7 @@ function basic_sanity_checks() {
     go_to_airflow_sources
     check_if_coreutils_installed
     create_cache_directory
+    cleanup_last_force_answer
 }
 
 
@@ -579,17 +656,7 @@ function run_flake8() {
 
     if [[ "${#FILES[@]}" == "0" ]]; then
         docker run "${AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS[@]}" \
-            --entrypoint /opt/airflow/scripts/ci/in_container/run_flake8.sh \
-            --env PYTHONDONTWRITEBYTECODE \
-            --env AIRFLOW_CI_VERBOSE="${VERBOSE}" \
-            --env AIRFLOW_CI_SILENT \
-            --env HOST_USER_ID="$(id -ur)" \
-            --env HOST_GROUP_ID="$(id -gr)" \
-            --rm \
-            "${AIRFLOW_SLIM_CI_IMAGE}" | tee -a "${OUTPUT_LOG}"
-    else
-        docker run "${AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS[@]}" \
-            --entrypoint /opt/airflow/scripts/ci/in_container/run_flake8.sh \
+            --entrypoint "/usr/local/bin/dumb-init"  \
             --env PYTHONDONTWRITEBYTECODE \
             --env AIRFLOW_CI_VERBOSE="${VERBOSE}" \
             --env AIRFLOW_CI_SILENT \
@@ -597,39 +664,56 @@ function run_flake8() {
             --env HOST_GROUP_ID="$(id -gr)" \
             --rm \
             "${AIRFLOW_SLIM_CI_IMAGE}" \
-            "${FILES[@]}" | tee -a "${OUTPUT_LOG}"
+            "--" "/opt/airflow/scripts/ci/in_container/run_flake8.sh" \
+            | tee -a "${OUTPUT_LOG}"
+    else
+        docker run "${AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS[@]}" \
+            --entrypoint "/usr/local/bin/dumb-init"  \
+            --env PYTHONDONTWRITEBYTECODE \
+            --env AIRFLOW_CI_VERBOSE="${VERBOSE}" \
+            --env AIRFLOW_CI_SILENT \
+            --env HOST_USER_ID="$(id -ur)" \
+            --env HOST_GROUP_ID="$(id -gr)" \
+            --rm \
+            "${AIRFLOW_SLIM_CI_IMAGE}" \
+            "--" "/opt/airflow/scripts/ci/in_container/run_flake8.sh" "${FILES[@]}" \
+            | tee -a "${OUTPUT_LOG}"
     fi
 }
 
 function run_docs() {
     docker run "${AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS[@]}" -t \
-            --entrypoint /opt/airflow/docs/build.sh \
+            --entrypoint "/usr/local/bin/dumb-init"  \
             --env PYTHONDONTWRITEBYTECODE \
             --env AIRFLOW_CI_VERBOSE="${VERBOSE}" \
             --env AIRFLOW_CI_SILENT \
             --env HOST_USER_ID="$(id -ur)" \
             --env HOST_GROUP_ID="$(id -gr)" \
             --rm \
-            "${AIRFLOW_SLIM_CI_IMAGE}"
+            "${AIRFLOW_SLIM_CI_IMAGE}" \
+            "--" "/opt/airflow/docs/build.sh" \
+            | tee -a "${OUTPUT_LOG}"
 }
 
 function run_check_license() {
     docker run "${AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS[@]}" -t \
-            --entrypoint /opt/airflow/scripts/ci/in_container/run_check_licence.sh \
+            --entrypoint "/usr/bin/dumb-init"  \
             --env PYTHONDONTWRITEBYTECODE \
             --env AIRFLOW_CI_VERBOSE="${VERBOSE}" \
             --env AIRFLOW_CI_SILENT \
             --env HOST_USER_ID="$(id -ur)" \
             --env HOST_GROUP_ID="$(id -gr)" \
             --rm \
-            "${AIRFLOW_CHECKLICENCE_IMAGE}"
+            "${AIRFLOW_CHECKLICENCE_IMAGE}" \
+            "--" "/opt/airflow/scripts/ci/in_container/run_check_licence.sh" \
+            | tee -a "${OUTPUT_LOG}"
 }
 
 function run_mypy() {
     FILES=("$@")
     if [[ "${#FILES[@]}" == "0" ]]; then
         docker run "${AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS[@]}" \
-            --entrypoint /opt/airflow/scripts/ci/in_container/run_mypy.sh \
+            --entrypoint "/usr/local/bin/dumb-init"  \
             --env PYTHONDONTWRITEBYTECODE \
             --env AIRFLOW_CI_VERBOSE="${VERBOSE}" \
             --env AIRFLOW_CI_SILENT \
@@ -637,10 +721,11 @@ function run_mypy() {
             --env HOST_GROUP_ID="$(id -gr)" \
             --rm \
             "${AIRFLOW_SLIM_CI_IMAGE}" \
-            "airflow" "tests" "docs" | tee -a "${OUTPUT_LOG}"
+            "--" "/opt/airflow/scripts/ci/in_container/run_mypy.sh" "airflow" "tests" "docs" \
+            | tee -a "${OUTPUT_LOG}"
     else
         docker run "${AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS[@]}" \
-            --entrypoint /opt/airflow/scripts/ci/in_container/run_mypy.sh \
+            --entrypoint "/usr/local/bin/dumb-init" \
             --env PYTHONDONTWRITEBYTECODE \
             --env AIRFLOW_CI_VERBOSE="${VERBOSE}" \
             --env AIRFLOW_CI_SILENT \
@@ -648,7 +733,8 @@ function run_mypy() {
             --env HOST_GROUP_ID="$(id -gr)" \
             --rm \
             "${AIRFLOW_SLIM_CI_IMAGE}" \
-            "${FILES[@]}" | tee -a "${OUTPUT_LOG}"
+            "--" "/opt/airflow/scripts/ci/in_container/run_mypy.sh" "${FILES[@]}" \
+            | tee -a "${OUTPUT_LOG}"
     fi
 }
 
@@ -679,4 +765,96 @@ function run_docker_lint() {
         echo "Docker lint completed with no errors"
         echo
     fi
+}
+
+
+
+function rebuild_all_images_if_needed_and_confirmed() {
+    AIRFLOW_CONTAINER_DOCKER_BUILD_NEEDED="false"
+    IMAGES_TO_REBUILD=()
+
+    for THE_IMAGE_TYPE in "${IMAGES_TO_CHECK[@]}"
+    do
+        if [[ "${THE_IMAGE_TYPE}" == "SLIM_CI" ]]; then
+            # Temporary force python version 3.5 for static checks
+            export OLD_PYTHON_VERSION=${PYTHON_VERSION=""}
+            export PYTHON_VERSION=3.5
+
+            check_if_docker_build_is_needed
+
+            export PYTHON_VERSION=${OLD_PYTHON_VERSION}
+        fi
+    done
+
+    if [[ ${AIRFLOW_CONTAINER_DOCKER_BUILD_NEEDED} == "true" ]]; then
+        print_info
+        print_info "Docker image build is needed for ${IMAGES_TO_REBUILD[*]}!"
+        print_info
+    else
+        print_info
+        print_info "Docker image build is not needed for any of the image types!"
+        print_info
+    fi
+
+    if [[ "${AIRFLOW_CONTAINER_DOCKER_BUILD_NEEDED}" == "true" ]]; then
+        echo
+        echo "Some of your images need to be rebuild because important files (like package list) has changed."
+        echo
+        echo "You have those options:"
+        echo "   * Rebuild the images now by answering 'y' (this might take some time!)"
+        echo "   * Skip rebuilding the images and hope changes are not big (you will be asked again)"
+        echo "   * Quit and manually rebuild the images using"
+        echo "        * scripts/local_ci_build.sh or"
+        echo "        * scripts/local_ci_pull_and_build.sh or"
+        echo
+        export ACTION="rebuild"
+        export THE_IMAGE_TYPE="${IMAGES_TO_REBUILD[*]}"
+
+        SKIP_REBUILD="false"
+        confirm_image_rebuild
+
+        if [[ ${SKIP_REBUILD} != "true" ]]; then
+            rebuild_ci_image_if_needed
+            rebuild_ci_slim_image_if_needed
+            rebuild_checklicence_image_if_needed
+        fi
+    fi
+}
+
+function build_image_on_ci() {
+    if [[ "${CI:=}" != "true" ]]; then
+        print_info
+        print_info "Cleaning up docker installation!!!!!!"
+        print_info
+        "${AIRFLOW_SOURCES}/confirm" "Cleaning docker data and rebuilding"
+    fi
+
+    export AIRFLOW_CONTAINER_FORCE_PULL_IMAGES="true"
+    export FORCE_BUILD="true"
+    export VERBOSE="${VERBOSE:="false"}"
+
+    # Cleanup docker installation. It should be empty in CI but let's not risk
+    docker system prune --all --force
+    rm -rf "${BUILD_CACHE_DIR}"
+
+    if [[ ${TRAVIS_JOB_NAME:=""} == "Tests"* ]]; then
+        rebuild_ci_image_if_needed
+    elif [[ ${TRAVIS_JOB_NAME} == "Check lic"* ]]; then
+        rebuild_checklicence_image_if_needed
+    elif [[ ${TRAVIS_JOB_NAME} == "Static"* ]]; then
+        rebuild_ci_slim_image_if_needed
+    elif [[ ${TRAVIS_JOB_NAME} == "Pylint"* ]]; then
+        rebuild_ci_slim_image_if_needed
+    elif [[ ${TRAVIS_JOB_NAME} == "Build documentation"* ]]; then
+        rebuild_ci_slim_image_if_needed
+    else
+        echo
+        echo "Error! Unexpected Travis job name: ${TRAVIS_JOB_NAME}"
+        echo
+        exit 1
+    fi
+
+    # Disable force pulling forced above
+    unset AIRFLOW_CONTAINER_FORCE_PULL_IMAGES
+    unset FORCE_BUILD
 }

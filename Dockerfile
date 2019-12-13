@@ -25,6 +25,7 @@ ARG PYTHON_BASE_IMAGE="python:3.6-slim-stretch"
 ############################################################################################################
 FROM ${PYTHON_BASE_IMAGE} as airflow-apt-deps-ci-slim
 
+
 SHELL ["/bin/bash", "-o", "pipefail", "-e", "-u", "-x", "-c"]
 
 ARG PYTHON_BASE_IMAGE="python:3.6-slim-stretch"
@@ -81,6 +82,14 @@ RUN curl -sL https://deb.nodesource.com/setup_10.x | bash - \
            rsync \
            sasl2-bin \
            sudo \
+    && apt-get autoremove -yqq --purge \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install graphviz - needed to build docs with diagrams
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+           graphviz \
     && apt-get autoremove -yqq --purge \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
@@ -159,59 +168,10 @@ RUN if [[ "${APT_DEPS_IMAGE}" == "airflow-apt-deps-ci" ]]; then \
         ;\
     fi
 
-ENV HADOOP_DISTRO=cdh \
-    HADOOP_MAJOR=5 \
-    HADOOP_DISTRO_VERSION=5.11.0 \
-    HADOOP_VERSION=2.6.0 \
-    HIVE_VERSION=1.1.0
-ENV HADOOP_URL=https://archive.cloudera.com/${HADOOP_DISTRO}${HADOOP_MAJOR}/${HADOOP_DISTRO}/${HADOOP_MAJOR}/
-ENV HADOOP_HOME=/tmp/hadoop-cdh HIVE_HOME=/tmp/hive
+# TODO: We should think about removing those and moving them into docker-compose dependencies.
+COPY scripts/ci/docker_build/ci_build_install_deps.sh /tmp/ci_build_install_deps.sh
 
-RUN \
-if [[ "${APT_DEPS_IMAGE}" == "airflow-apt-deps-ci" ]]; then \
-    mkdir -pv ${HADOOP_HOME} \
-    && mkdir -pv ${HIVE_HOME} \
-    && mkdir /tmp/minicluster \
-    && mkdir -pv /user/hive/warehouse \
-    && chmod -R 777 ${HIVE_HOME} \
-    && chmod -R 777 /user/ \
-    ;\
-fi
-# Install Hadoop
-# --absolute-names is a work around to avoid this issue https://github.com/docker/hub-feedback/issues/727
-RUN \
-if [[ "${APT_DEPS_IMAGE}" == "airflow-apt-deps-ci" ]]; then \
-    HADOOP_URL=${HADOOP_URL}hadoop-${HADOOP_VERSION}-${HADOOP_DISTRO}${HADOOP_DISTRO_VERSION}.tar.gz \
-    && HADOOP_TMP_FILE=/tmp/hadoop.tar.gz \
-    && curl -sL ${HADOOP_URL} > ${HADOOP_TMP_FILE} \
-    && tar xzf ${HADOOP_TMP_FILE} --absolute-names --strip-components 1 -C ${HADOOP_HOME} \
-    && rm ${HADOOP_TMP_FILE} \
-    ;\
-fi
-
-# Install Hive
-RUN \
-if [[ "${APT_DEPS_IMAGE}" == "airflow-apt-deps-ci" ]]; then \
-    HIVE_URL=${HADOOP_URL}hive-${HIVE_VERSION}-${HADOOP_DISTRO}${HADOOP_DISTRO_VERSION}.tar.gz \
-    && HIVE_TMP_FILE=/tmp/hive.tar.gz \
-    && curl -sL ${HIVE_URL} > ${HIVE_TMP_FILE} \
-    && tar xzf ${HIVE_TMP_FILE} --strip-components 1 -C ${HIVE_HOME} \
-    && rm ${HIVE_TMP_FILE} \
-    ;\
-fi
-
-ENV MINICLUSTER_URL=https://github.com/bolkedebruin/minicluster/releases/download/
-ENV MINICLUSTER_VER=1.1
-# Install MiniCluster TODO: install it differently. Installing to /tmp is probably a bad idea
-RUN \
-if [[ "${APT_DEPS_IMAGE}" == "airflow-apt-deps-ci" ]]; then \
-    MINICLUSTER_URL=${MINICLUSTER_URL}${MINICLUSTER_VER}/minicluster-${MINICLUSTER_VER}-SNAPSHOT-bin.zip \
-    && MINICLUSTER_TMP_FILE=/tmp/minicluster.zip \
-    && curl -sL ${MINICLUSTER_URL} > ${MINICLUSTER_TMP_FILE} \
-    && unzip ${MINICLUSTER_TMP_FILE} -d /tmp \
-    && rm ${MINICLUSTER_TMP_FILE} \
-    ;\
-fi
+RUN if [[ "${APT_DEPS_IMAGE}" == "airflow-apt-deps-ci" ]]; then /tmp/ci_build_install_deps.sh; fi
 
 ENV PATH "${PATH}:/tmp/hive/bin"
 
@@ -266,7 +226,7 @@ ENV PIP_NO_CACHE_DIR=${PIP_NO_CACHE_DIR}
 RUN echo "Pip no cache dir: ${PIP_NO_CACHE_DIR}"
 
 # PIP version used to install dependencies
-ARG PIP_VERSION="19.0.1"
+ARG PIP_VERSION="19.0.2"
 ENV PIP_VERSION=${PIP_VERSION}
 RUN echo "Pip version: ${PIP_VERSION}"
 
@@ -300,7 +260,7 @@ ENV AIRFLOW_CI_BUILD_EPOCH=${AIRFLOW_CI_BUILD_EPOCH}
 # And is automatically reinstalled from the scratch every month
 RUN \
     if [[ "${AIRFLOW_CONTAINER_CI_OPTIMISED_BUILD}" == "true" ]]; then \
-        pip install --no-use-pep517 \
+        pip install \
         "https://github.com/apache/airflow/archive/${AIRFLOW_BRANCH}.tar.gz#egg=apache-airflow[${AIRFLOW_EXTRAS}]" \
         && pip uninstall --yes apache-airflow; \
     fi
@@ -333,7 +293,7 @@ COPY --chown=airflow:airflow airflow/bin/airflow ${AIRFLOW_SOURCES}/airflow/bin/
 # The goal of this line is to install the dependencies from the most current setup.py from sources
 # This will be usually incremental small set of packages in CI optimized build, so it will be very fast
 # In non-CI optimized build this will install all dependencies before installing sources.
-RUN pip install --no-use-pep517 -e ".[${AIRFLOW_EXTRAS}]"
+RUN pip install -e ".[${AIRFLOW_EXTRAS}]"
 
 
 WORKDIR ${AIRFLOW_SOURCES}/airflow/www_rbac
@@ -351,7 +311,7 @@ COPY --chown=airflow:airflow . ${AIRFLOW_SOURCES}/
 WORKDIR ${AIRFLOW_SOURCES}
 
 # Finally install the requirements from the latest sources
-RUN pip install --no-use-pep517 -e ".[${AIRFLOW_EXTRAS}]"
+RUN pip install -e ".[${AIRFLOW_EXTRAS}]"
 
 # Additional python deps to install
 ARG ADDITIONAL_PYTHON_DEPS=""
@@ -365,28 +325,12 @@ COPY --chown=airflow:airflow ./scripts/docker/entrypoint.sh /entrypoint.sh
 ARG APT_DEPS_IMAGE="airflow-apt-deps-ci-slim"
 ENV APT_DEPS_IMAGE=${APT_DEPS_IMAGE}
 
-# Generate list of all tests to aid auto-complete of run-test command
-RUN \
-    if [[ "${APT_DEPS_IMAGE}" == "airflow-apt-deps-ci" ]]; then \
-        gosu "${AIRFLOW_USER}" nosetests --collect-only --with-xunit \
-        --xunit-file="${HOME}/all_tests.xml" && \
-        gosu "${AIRFLOW_USER}" python "${AIRFLOW_SOURCES}/tests/test_utils/get_all_tests.py" \
-            "${HOME}/all_tests.xml" >"${HOME}/all_tests.txt"; \
-    fi
+COPY --chown=airflow:airflow .bash_completion run-tests-complete run-tests ${HOME}/
+COPY --chown=airflow:airflow .bash_completion.d/run-tests-complete \
+     ${HOME}/.bash_completion.d/run-tests-complete
 
-COPY .bash_completion run-tests-complete run-tests ${HOME}/
-
-RUN \
-    if [[ "${APT_DEPS_IMAGE}" == "airflow-apt-deps-ci" ]]; then \
-        echo ". ${HOME}/.bash_completion" >> "${HOME}/.bashrc"; \
-    fi
-
-RUN \
-    if [[ "${APT_DEPS_IMAGE}" == "airflow-apt-deps-ci" ]]; then \
-        chmod +x "${HOME}/run-tests-complete" "${HOME}/run-tests" && \
-        chown "${AIRFLOW_USER}.${AIRFLOW_USER}" "${HOME}/.bashrc" \
-              "${HOME}/run-tests-complete" "${HOME}/run-tests"; \
-    fi
+RUN if [[ "${APT_DEPS_IMAGE}" == "airflow-apt-deps-ci" ]]; then \
+       ${AIRFLOW_SOURCES}/scripts/ci/docker_build/ci_build_extract_tests.sh; fi
 
 USER ${AIRFLOW_USER}
 

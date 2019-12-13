@@ -29,6 +29,7 @@ import six
 
 from airflow import configuration
 from airflow.configuration import conf, AirflowConfigParser, parameterized_config
+from tests.compat import mock
 
 if six.PY2:
     # Need `assertWarns` back-ported from unittest2
@@ -60,7 +61,6 @@ class ConfTest(unittest.TestCase):
     def setUpClass(cls):
         os.environ['AIRFLOW__TESTSECTION__TESTKEY'] = 'testvalue'
         os.environ['AIRFLOW__TESTSECTION__TESTPERCENT'] = 'with%percent'
-        configuration.load_test_config()
         conf.set('core', 'percent', 'with%%inside')
 
     @classmethod
@@ -439,3 +439,10 @@ AIRFLOW_HOME = /root/airflow
                 self.assertEqual(test_conf.get('core', 'task_runner'), 'NotBashTaskRunner')
 
                 self.assertListEqual([], w)
+
+    def test_deprecated_funcs(self):
+        for func in ['load_test_config', 'get', 'getboolean', 'getfloat', 'getint', 'has_option',
+                     'remove_option', 'as_dict', 'set']:
+            with mock.patch('airflow.configuration.{}'.format(func)):
+                with self.assertWarns(DeprecationWarning):
+                    getattr(configuration, func)()

@@ -36,7 +36,7 @@ from parameterized import parameterized
 
 import airflow.example_dags
 from airflow import AirflowException, models, settings
-from airflow import configuration
+from airflow.configuration import conf
 from airflow.executors import BaseExecutor
 from airflow.jobs import BackfillJob, SchedulerJob
 from airflow.models import DAG, DagBag, DagModel, DagRun, Pool, SlaMiss, \
@@ -55,7 +55,6 @@ from tests.executors.test_executor import TestExecutor
 from tests.test_utils.db import clear_db_dags, clear_db_errors, clear_db_pools, \
     clear_db_runs, clear_db_sla_miss, set_default_pool_slots
 
-configuration.load_test_config()
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 TRY_NUMBER = 1
@@ -86,20 +85,17 @@ class SchedulerJobTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.dagbag = DagBag()
-
-        def getboolean(section, key):
-            if section.lower() == 'core' and key.lower() == 'load_examples':
-                return False
-            else:
-                return configuration.conf.getboolean(section, key)
-
-        cls.patcher = mock.patch('airflow.jobs.scheduler_job.conf.getboolean')
-        cls.mock_getboolean = cls.patcher.start()
-        cls.mock_getboolean.side_effect = getboolean
+        cls.old_val = None
+        if conf.has_option('core', 'load_examples'):
+            cls.old_val = conf.get('core', 'load_examples')
+        conf.set('core', 'load_examples', 'false')
 
     @classmethod
     def tearDownClass(cls):
-        cls.patcher.stop()
+        if cls.old_val is not None:
+            conf.set('core', 'load_examples', cls.old_val)
+        else:
+            conf.remove_option('core', 'load_examples')
 
     def test_is_alive(self):
         job = SchedulerJob(None, heartrate=10, state=State.RUNNING)
@@ -2045,7 +2041,8 @@ class SchedulerJobTest(unittest.TestCase):
         but is still present in the executor.
         """
         executor = TestExecutor(do_update=False)
-        dagbag = DagBag(executor=executor)
+        dagbag = DagBag(executor=executor, dag_folder=os.path.join(settings.DAGS_FOLDER,
+                                                                   "no_dags.py"))
         dagbag.dags.clear()
         dagbag.executor = executor
 
@@ -2087,9 +2084,9 @@ class SchedulerJobTest(unittest.TestCase):
         do_schedule()
         self.assertEqual(1, len(executor.queued_tasks))
 
-        def run_with_error(task):
+        def run_with_error(task, ignore_ti_state=False):
             try:
-                task.run()
+                task.run(ignore_ti_state=ignore_ti_state)
             except AirflowException:
                 pass
 
@@ -2099,8 +2096,12 @@ class SchedulerJobTest(unittest.TestCase):
         ti.task = dag_task1
 
         self.assertEqual(ti.try_number, 1)
-        # fail execution
-        run_with_error(ti)
+        # At this point, scheduler has tried to schedule the task once and
+        # heartbeated the executor once, which moved the state of the task from
+        # SCHEDULED to QUEUED and then to SCHEDULED, to fail the task execution
+        # we need to ignore the TI state as SCHEDULED is not a valid state to start
+        # executing task.
+        run_with_error(ti, ignore_ti_state=True)
         self.assertEqual(ti.state, State.UP_FOR_RETRY)
         self.assertEqual(ti.try_number, 2)
 
@@ -2302,7 +2303,7 @@ class SchedulerJobTest(unittest.TestCase):
                          schedule_interval='* * * * *',
                          start_date=six_hours_ago_to_the_hour,
                          catchup=True)
-        default_catchup = configuration.conf.getboolean('scheduler', 'catchup_by_default')
+        default_catchup = conf.getboolean('scheduler', 'catchup_by_default')
         self.assertEqual(default_catchup, True)
         self.assertEqual(dag1.catchup, True)
 

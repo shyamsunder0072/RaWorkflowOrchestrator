@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,11 +16,24 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# We use this small Dockerfile to find out the list of files that are part of the Docker context
-# i.e. ignored by .dockerignore
-# We need it to fix permissions of files checked out by git to help with cache invalidation on different
-# system that have different UMASK. See hooks/build for some detailed explanation.
+# Bash sanity settings (error on exit, complain for undefined vars, error when pipe fails)
+set -euxo pipefail
 
-FROM alpine:3.9
+MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" || exit 1; pwd )"
 
-COPY . /context
+AIRFLOW_SOURCES=$(cd "${MY_DIR}/../../.." || exit 1; pwd)
+export AIRFLOW_SOURCES
+
+gosu "${AIRFLOW_USER}" nosetests --collect-only --with-xunit --xunit-file="${HOME}/all_tests.xml"
+
+gosu "${AIRFLOW_USER}" \
+    python "${AIRFLOW_SOURCES}/tests/test_utils/get_all_tests.py" \
+                    "${HOME}/all_tests.xml" >"${HOME}/all_tests.txt"; \
+
+echo ". ${HOME}/.bash_completion" >> "${HOME}/.bashrc"
+
+chmod +x "${HOME}/run-tests-complete"
+
+chmod +x "${HOME}/run-tests"
+
+chown "${AIRFLOW_USER}.${AIRFLOW_USER}" "${HOME}/.bashrc" "${HOME}/run-tests-complete" "${HOME}/run-tests"

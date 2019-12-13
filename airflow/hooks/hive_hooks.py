@@ -24,6 +24,7 @@ import os
 import re
 import subprocess
 import time
+import socket
 from collections import OrderedDict
 from tempfile import NamedTemporaryFile
 
@@ -34,7 +35,7 @@ from past.builtins import unicode
 from six.moves import zip
 
 import airflow.security.utils as utils
-from airflow import configuration
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
 from airflow.utils.file import TemporaryDirectory
@@ -102,8 +103,8 @@ class HiveCliHook(BaseHook):
                     "Invalid Mapred Queue Priority.  Valid values are: "
                     "{}".format(', '.join(HIVE_QUEUE_PRIORITIES)))
 
-        self.mapred_queue = mapred_queue or configuration.get('hive',
-                                                              'default_hive_mapred_queue')
+        self.mapred_queue = mapred_queue or conf.get('hive',
+                                                     'default_hive_mapred_queue')
         self.mapred_queue_priority = mapred_queue_priority
         self.mapred_job_name = mapred_job_name
 
@@ -134,7 +135,7 @@ class HiveCliHook(BaseHook):
             hive_bin = 'beeline'
             jdbc_url = "jdbc:hive2://{host}:{port}/{schema}".format(
                 host=conn.host, port=conn.port, schema=conn.schema)
-            if configuration.conf.get('core', 'security') == 'kerberos':
+            if conf.get('core', 'security') == 'kerberos':
                 template = conn.extra_dejson.get(
                     'principal', "hive/_HOST@EXAMPLE.COM")
                 if "_HOST" in template:
@@ -489,7 +490,7 @@ class HiveMetastoreHook(BaseHook):
     MAX_PART_COUNT = 32767
 
     def __init__(self, metastore_conn_id='metastore_default'):
-        self.metastore_conn = self.get_connection(metastore_conn_id)
+        self.conn_id = metastore_conn_id
         self.metastore = self.get_metastore_client()
 
     def __getstate__(self):
@@ -510,14 +511,20 @@ class HiveMetastoreHook(BaseHook):
         import hmsclient
         from thrift.transport import TSocket, TTransport
         from thrift.protocol import TBinaryProtocol
-        ms = self.metastore_conn
+
+        ms = self._find_valid_server()
+
+        if ms is None:
+            raise AirflowException("Failed to locate the valid server.")
+
         auth_mechanism = ms.extra_dejson.get('authMechanism', 'NOSASL')
-        if configuration.conf.get('core', 'security') == 'kerberos':
+
+        if conf.get('core', 'security') == 'kerberos':
             auth_mechanism = ms.extra_dejson.get('authMechanism', 'GSSAPI')
             kerberos_service_name = ms.extra_dejson.get('kerberos_service_name', 'hive')
 
-        socket = TSocket.TSocket(ms.host, ms.port)
-        if configuration.conf.get('core', 'security') == 'kerberos' \
+        conn_socket = TSocket.TSocket(ms.host, ms.port)
+        if conf.get('core', 'security') == 'kerberos' \
                 and auth_mechanism == 'GSSAPI':
             try:
                 import saslwrapper as sasl
@@ -532,13 +539,25 @@ class HiveMetastoreHook(BaseHook):
                 return sasl_client
 
             from thrift_sasl import TSaslClientTransport
-            transport = TSaslClientTransport(sasl_factory, "GSSAPI", socket)
+            transport = TSaslClientTransport(sasl_factory, "GSSAPI", conn_socket)
         else:
-            transport = TTransport.TBufferedTransport(socket)
+            transport = TTransport.TBufferedTransport(conn_socket)
 
         protocol = TBinaryProtocol.TBinaryProtocol(transport)
 
         return hmsclient.HMSClient(iprot=protocol)
+
+    def _find_valid_server(self):
+        conns = self.get_connections(self.conn_id)
+        for conn in conns:
+            host_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.log.info("Trying to connect to %s:%s", conn.host, conn.port)
+            if host_socket.connect_ex((conn.host, conn.port)) == 0:
+                self.log.info("Connected to %s:%s", conn.host, conn.port)
+                host_socket.close()
+                return conn
+            else:
+                self.log.info("Could not connect to %s:%s", conn.host, conn.port)
 
     def get_conn(self):
         return self.metastore
@@ -786,7 +805,7 @@ class HiveServer2Hook(BaseHook):
             # we need to give a username
             username = 'airflow'
         kerberos_service_name = None
-        if configuration.conf.get('core', 'security') == 'kerberos':
+        if conf.get('core', 'security') == 'kerberos':
             auth_mechanism = db.extra_dejson.get('authMechanism', 'KERBEROS')
             kerberos_service_name = db.extra_dejson.get('kerberos_service_name', 'hive')
 

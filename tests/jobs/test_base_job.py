@@ -18,13 +18,16 @@
 # under the License.
 #
 
+import datetime
 import unittest
 
-from airflow import configuration
-from airflow.jobs import BaseJob
-from airflow.utils.state import State
+from sqlalchemy.exc import OperationalError
 
-configuration.load_test_config()
+from airflow.jobs import BaseJob
+from airflow.utils import timezone
+from airflow.utils.db import create_session
+from airflow.utils.state import State
+from tests.compat import Mock, patch
 
 
 class BaseJobTest(unittest.TestCase):
@@ -33,9 +36,9 @@ class BaseJobTest(unittest.TestCase):
             'polymorphic_identity': 'TestJob'
         }
 
-        def __init__(self, cb):
+        def __init__(self, cb, **kwargs):
             self.cb = cb
-            super(BaseJobTest.TestJob, self).__init__()
+            super(BaseJobTest.TestJob, self).__init__(**kwargs)
 
         def _execute(self):
             return self.cb()
@@ -65,3 +68,50 @@ class BaseJobTest(unittest.TestCase):
 
         self.assertEqual(job.state, State.FAILED)
         self.assertIsNotNone(job.end_date)
+
+    def test_most_recent_job(self):
+
+        with create_session() as session:
+            old_job = self.TestJob(None, heartrate=10)
+            old_job.latest_heartbeat = old_job.latest_heartbeat - datetime.timedelta(seconds=20)
+            job = self.TestJob(None, heartrate=10)
+            session.add(job)
+            session.add(old_job)
+            session.flush()
+
+            self.assertEqual(
+                self.TestJob.most_recent_job(session=session),
+                job
+            )
+
+            session.rollback()
+
+    def test_is_alive(self):
+        job = self.TestJob(None, heartrate=10, state=State.RUNNING)
+        self.assertTrue(job.is_alive())
+
+        job.latest_heartbeat = timezone.utcnow() - datetime.timedelta(seconds=20)
+        self.assertTrue(job.is_alive())
+
+        job.latest_heartbeat = timezone.utcnow() - datetime.timedelta(seconds=21)
+        self.assertFalse(job.is_alive())
+
+        job.state = State.SUCCESS
+        job.latest_heartbeat = timezone.utcnow() - datetime.timedelta(seconds=10)
+        self.assertFalse(job.is_alive(), "Completed jobs even with recent heartbeat should not be alive")
+
+    @patch('airflow.jobs.base_job.create_session')
+    def test_heartbeat_failed(self, mock_create_session):
+        when = timezone.utcnow() - datetime.timedelta(seconds=60)
+        with create_session() as session:
+            mock_session = Mock(spec_set=session, name="MockSession")
+            mock_create_session.return_value.__enter__.return_value = mock_session
+
+            job = self.TestJob(None, heartrate=10, state=State.RUNNING)
+            job.latest_heartbeat = when
+
+            mock_session.commit.side_effect = OperationalError("Force fail", {}, None)
+
+            job.heartbeat()
+
+            self.assertEqual(job.latest_heartbeat, when, "attriubte not updated when heartbeat fails")

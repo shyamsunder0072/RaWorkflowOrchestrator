@@ -37,15 +37,16 @@ from collections import Iterable
 import os
 import re
 import signal
+import subprocess
 
 from jinja2 import Template
 
-from airflow import configuration
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 
 # When killing processes, time to wait after issuing a SIGTERM before issuing a
 # SIGKILL.
-DEFAULT_TIME_TO_WAIT_AFTER_SIGTERM = configuration.conf.getint(
+DEFAULT_TIME_TO_WAIT_AFTER_SIGTERM = conf.getint(
     'core', 'KILLED_TASK_CLEANUP_TIME'
 )
 
@@ -310,6 +311,10 @@ def reap_process_group(pid, log, sig=signal.SIGTERM,
     except OSError as err:
         if err.errno == errno.ESRCH:
             return
+        # If operation not permitted error is thrown due to run_as_user,
+        # use sudo -n(--non-interactive) to kill the process
+        if err.errno == errno.EPERM:
+            subprocess.check_call(["sudo", "-n", "kill", "-" + str(sig), str(os.getpgid(pid))])
         raise
 
     gone, alive = psutil.wait_procs(children, timeout=timeout, callback=on_terminate)
@@ -471,3 +476,7 @@ def render_log_filename(ti, try_number, filename_template):
                                     task_id=ti.task_id,
                                     execution_date=ti.execution_date.isoformat(),
                                     try_number=try_number)
+
+
+def convert_camel_to_snake(camel_str):
+    return re.sub('(?!^)([A-Z]+)', r'_\1', camel_str).lower()

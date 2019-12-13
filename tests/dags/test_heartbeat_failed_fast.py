@@ -16,26 +16,20 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from datetime import datetime
 
-import unittest
-from mock import Mock
+from airflow.models import DAG
+from airflow.operators.bash_operator import BashOperator
 
-from airflow.ti_deps.deps.not_skipped_dep import NotSkippedDep
-from airflow.utils.state import State
+DEFAULT_DATE = datetime(2016, 1, 1)
 
+args = {
+    'owner': 'airflow',
+    'start_date': DEFAULT_DATE,
+}
 
-class NotSkippedDepTest(unittest.TestCase):
-
-    def test_skipped(self):
-        """
-        Skipped task instances should fail this dep
-        """
-        ti = Mock(state=State.SKIPPED)
-        self.assertFalse(NotSkippedDep().is_met(ti=ti))
-
-    def test_not_skipped(self):
-        """
-        Non-skipped task instances should pass this dep
-        """
-        ti = Mock(state=State.RUNNING)
-        self.assertTrue(NotSkippedDep().is_met(ti=ti))
+dag = DAG(dag_id='test_heartbeat_failed_fast', default_args=args)
+task = BashOperator(
+    task_id='test_heartbeat_failed_fast_op',
+    bash_command='sleep 5',
+    dag=dag)

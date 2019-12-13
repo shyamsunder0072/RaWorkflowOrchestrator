@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,22 +17,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
-set -euo pipefail
-
-MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-
-export AIRFLOW_CI_SILENT=${AIRFLOW_CI_SILENT:="true"}
-export ASSUME_QUIT_TO_ALL_QUESTIONS=${ASSUME_QUIT_TO_ALL_QUESTIONS:="true"}
-
-# shellcheck source=scripts/ci/_utils.sh
-. "${MY_DIR}/_utils.sh"
-
-basic_sanity_checks
-
-force_python_3_5
-
-script_start
-
-rebuild_ci_slim_image_if_needed
-
-script_end
+FILES_FOR_REBUILD_CHECK=(
+ "setup.py"
+ "setup.cfg"
+ "Dockerfile"
+ "Dockerfile-checklicence"
+ ".dockerignore"
+ "airflow/version.py"
+ "airflow/www_rbac/package.json"
+ "airflow/www_rbac/package-lock.json" )
+export FILES_FOR_REBUILD_CHECK

@@ -17,9 +17,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from datetime import datetime
+
 from airflow.models import DAG
 from airflow.operators.python_operator import PythonOperator
-from datetime import datetime
 
 # AIRFLOW-1893 - Originally, impersonation tests were incomplete missing the use case when
 # DAGs access custom packages usually made available through the PYTHONPATH environment
@@ -28,7 +29,7 @@ from datetime import datetime
 # import the custom package.
 # This DAG is used to test that impersonation propagates the PYTHONPATH environment
 # variable correctly.
-from tests.test_utils.fake_datetime import FakeDatetime
+
 
 DEFAULT_DATE = datetime(2016, 1, 1)
 
@@ -41,13 +42,22 @@ args = {
 dag = DAG(dag_id='impersonation_with_custom_pkg', default_args=args)
 
 
+class FakeDatetime(datetime):
+    """
+    A fake replacement for datetime that can be mocked for testing.
+    """
+
+    def __new__(cls, *args, **kwargs):
+        return datetime.__new__(datetime, *args, **kwargs)
+
+
 def print_today():
-    dt = FakeDatetime.utcnow()
-    print('Today is {}'.format(dt.strftime('%Y-%m-%d')))
+    date_time = FakeDatetime.utcnow()
+    print('Today is {}'.format(date_time.strftime('%Y-%m-%d')))
 
 
 def check_hive_conf():
-    from airflow import configuration as conf
+    from airflow.configuration import conf
     assert conf.get('hive', 'default_hive_mapred_queue') == 'airflow'
 
 

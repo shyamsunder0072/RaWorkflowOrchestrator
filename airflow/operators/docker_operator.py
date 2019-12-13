@@ -16,16 +16,19 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+"""
+Implements Docker operator
+"""
 import json
+
+import ast
+from docker import APIClient, tls
 
 from airflow.hooks.docker_hook import DockerHook
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.file import TemporaryDirectory
-from docker import APIClient, tls
-import ast
 
 
 class DockerOperator(BaseOperator):
@@ -54,6 +57,8 @@ class DockerOperator(BaseOperator):
     :type auto_remove: bool
     :param command: Command to be run in the container. (templated)
     :type command: str or list
+    :param container_name: Name of the container. Optional (templated)
+    :type container_name: str or None
     :param cpus: Number of CPUs to assign to the container.
         This value gets multiplied with 1024. See
         https://docs.docker.com/engine/reference/run/#cpu-share-constraint
@@ -116,7 +121,7 @@ class DockerOperator(BaseOperator):
         greater than 0. If omitted uses system default.
     :type shm_size: int
     """
-    template_fields = ('command', 'environment',)
+    template_fields = ('command', 'environment', 'container_name')
     template_ext = ('.sh', '.bash',)
 
     @apply_defaults
@@ -125,6 +130,7 @@ class DockerOperator(BaseOperator):
             image,
             api_version=None,
             command=None,
+            container_name=None,
             cpus=1.0,
             docker_url='unix://var/run/docker.sock',
             environment=None,
@@ -155,6 +161,7 @@ class DockerOperator(BaseOperator):
         self.api_version = api_version
         self.auto_remove = auto_remove
         self.command = command
+        self.container_name = container_name
         self.cpus = cpus
         self.dns = dns
         self.dns_search = dns_search
@@ -217,6 +224,7 @@ class DockerOperator(BaseOperator):
 
             self.container = self.cli.create_container(
                 command=self.get_command(),
+                name=self.container_name,
                 environment=self.environment,
                 host_config=self.cli.create_host_config(
                     auto_remove=self.auto_remove,
@@ -252,6 +260,12 @@ class DockerOperator(BaseOperator):
                     if self.xcom_all else str(line)
 
     def get_command(self):
+        """
+        Retrieve command(s). if command string starts with [, it returns the command list)
+
+        :return: the command (or commands)
+        :rtype: str | List[str]
+        """
         if isinstance(self.command, str) and self.command.strip().find('[') == 0:
             commands = ast.literal_eval(self.command)
         else:
@@ -266,11 +280,14 @@ class DockerOperator(BaseOperator):
     def __get_tls_config(self):
         tls_config = None
         if self.tls_ca_cert and self.tls_client_cert and self.tls_client_key:
+            # Ignore type error on SSL version here - it is deprecated and type annotation is wrong
+            # it should be string
+            # noinspection PyTypeChecker
             tls_config = tls.TLSConfig(
                 ca_cert=self.tls_ca_cert,
                 client_cert=(self.tls_client_cert, self.tls_client_key),
                 verify=True,
-                ssl_version=self.tls_ssl_version,
+                ssl_version=self.tls_ssl_version,  # type: ignore
                 assert_hostname=self.tls_hostname
             )
             self.docker_url = self.docker_url.replace('tcp://', 'https://')

@@ -30,15 +30,14 @@ import mock
 import pandas as pd
 from hmsclient import HMSClient
 
-from airflow import DAG, configuration
+from airflow import DAG
 from airflow.exceptions import AirflowException
 from airflow.hooks.hive_hooks import HiveCliHook, HiveMetastoreHook, HiveServer2Hook
+from airflow.models.connection import Connection
 from airflow.operators.hive_operator import HiveOperator
 from airflow.utils import timezone
 from airflow.utils.operator_helpers import AIRFLOW_VAR_NAME_FORMAT_MAPPING
 from airflow.utils.tests import assertEqualIgnoreMultipleSpaces
-
-configuration.load_test_config()
 
 DEFAULT_DATE = timezone.datetime(2015, 1, 1)
 DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
@@ -49,7 +48,6 @@ NOT_ASSERTLOGS_VERSION = sys.version_info.major + sys.version_info.minor / 10
 class HiveEnvironmentTest(unittest.TestCase):
 
     def setUp(self):
-        configuration.load_test_config()
         args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
         self.dag = DAG('test_dag_id', default_args=args)
         self.next_day = (DEFAULT_DATE +
@@ -283,6 +281,13 @@ class TestHiveMetastoreHook(HiveEnvironmentTest):
     def test_get_metastore_client(self):
         self.assertIsInstance(self.hook.get_metastore_client(), HMSClient)
 
+    @mock.patch("airflow.hooks.hive_hooks.HiveMetastoreHook.get_connection",
+                return_value=[Connection(host="localhost", port="9802")])
+    @mock.patch("airflow.hooks.hive_hooks.socket")
+    def test_error_metastore_client(self, socket_mock, _find_vaild_server_mock):
+        socket_mock.socket.return_value.connect_ex.return_value = 0
+        self.hook.get_metastore_client()
+
     def test_get_conn(self):
         self.assertIsInstance(self.hook.get_conn(), HMSClient)
 
@@ -361,7 +366,6 @@ class TestHiveServer2Hook(unittest.TestCase):
         df.to_csv(self.local_path, header=False, index=False)
 
     def setUp(self):
-        configuration.load_test_config()
         self._upload_dataframe()
         args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
         self.dag = DAG('test_dag_id', default_args=args)

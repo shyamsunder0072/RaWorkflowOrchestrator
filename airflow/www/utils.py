@@ -41,7 +41,8 @@ import flask_admin.contrib.sqla.filters as sqlafilters
 from flask_login import current_user
 from six.moves.urllib.parse import urlencode
 
-from airflow import configuration, models, settings
+from airflow import models, settings
+from airflow.configuration import conf
 from airflow.utils.db import create_session
 from airflow.utils import timezone
 from airflow.utils.json import AirflowJsonEncoder
@@ -53,7 +54,7 @@ except ImportError:
     # Use cgi.escape for Python 2
     from cgi import escape  # type: ignore
 
-AUTHENTICATE = configuration.conf.getboolean('webserver', 'AUTHENTICATE')
+AUTHENTICATE = conf.getboolean('webserver', 'AUTHENTICATE')
 
 DEFAULT_SENSITIVE_VARIABLE_FIELDS = (
     'password',
@@ -69,7 +70,7 @@ DEFAULT_SENSITIVE_VARIABLE_FIELDS = (
 def should_hide_value_for_key(key_name):
     # It is possible via importing variables from file that a key is empty.
     if key_name:
-        config_set = configuration.conf.getboolean('admin',
+        config_set = conf.getboolean('admin',
                                                    'hide_sensitive_variable_fields')
         field_comp = any(s in key_name.lower() for s in DEFAULT_SENSITIVE_VARIABLE_FIELDS)
         return config_set and field_comp
@@ -103,11 +104,24 @@ class DataProfilingMixin(object):
 
 
 def get_params(**kwargs):
+    hide_paused_dags_by_default = conf.getboolean('webserver',
+                                                  'hide_paused_dags_by_default')
     if 'showPaused' in kwargs:
-        v = kwargs['showPaused']
-        if v or v is None:
+        show_paused_dags_url_param = kwargs['showPaused']
+        if _should_remove_show_paused_from_url_params(
+            show_paused_dags_url_param,
+            hide_paused_dags_by_default
+        ):
             kwargs.pop('showPaused')
     return urlencode({d: v if v is not None else '' for d, v in kwargs.items()})
+
+
+def _should_remove_show_paused_from_url_params(show_paused_dags_url_param,
+                                               hide_paused_dags_by_default):
+    return any([
+        show_paused_dags_url_param != hide_paused_dags_by_default,
+        show_paused_dags_url_param is None
+    ])
 
 
 def generate_pages(current_page, num_of_pages,
@@ -267,12 +281,12 @@ def action_logging(f):
             event=f.__name__,
             task_instance=None,
             owner=user,
-            extra=str(list(request.args.items())),
-            task_id=request.args.get('task_id'),
-            dag_id=request.args.get('dag_id'))
+            extra=str(list(request.values.items())),
+            task_id=request.values.get('task_id'),
+            dag_id=request.values.get('dag_id'))
 
-        if request.args.get('execution_date'):
-            log.execution_date = timezone.parse(request.args.get('execution_date'))
+        if request.values.get('execution_date'):
+            log.execution_date = timezone.parse(request.values.get('execution_date'))
 
         with create_session() as session:
             session.add(log)

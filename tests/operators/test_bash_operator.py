@@ -88,3 +88,22 @@ class BashOperatorTestCase(unittest.TestCase):
                 self.assertIn('manual__' + DEFAULT_DATE.isoformat(), output)
 
             os.environ['AIRFLOW_HOME'] = original_AIRFLOW_HOME
+
+    def test_task_retries(self):
+        bash_operator = BashOperator(
+            bash_command='echo "stdout"',
+            task_id='test_task_retries',
+            retries=2,
+            dag=None
+        )
+
+        self.assertEqual(bash_operator.retries, 2)
+
+    def test_default_retries(self):
+        bash_operator = BashOperator(
+            bash_command='echo "stdout"',
+            task_id='test_default_retries',
+            dag=None
+        )
+
+        self.assertEqual(bash_operator.retries, 0)

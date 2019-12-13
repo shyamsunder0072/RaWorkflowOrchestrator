@@ -1685,13 +1685,19 @@ class BigQueryBaseCursor(LoggingMixin):
                 'BigQuery job failed. Error was: {}'.format(err.content)
             )
 
-    def delete_dataset(self, project_id, dataset_id):
+    def delete_dataset(self, project_id, dataset_id, delete_contents=False):
         """
         Delete a dataset of Big query in your project.
+
         :param project_id: The name of the project where we have the dataset .
         :type project_id: str
         :param dataset_id: The dataset to be delete.
         :type dataset_id: str
+        :param delete_contents: [Optional] Whether to force the deletion even if the dataset is not empty.
+            Will delete all tables (if any) in the dataset if set to True.
+            Will raise HttpError 400: "{dataset_id} is still in use" if set to False and dataset is not empty.
+            The default value is False.
+        :type delete_contents: bool
         :return:
         """
         project_id = project_id if project_id is not None else self.project_id
@@ -1701,7 +1707,8 @@ class BigQueryBaseCursor(LoggingMixin):
         try:
             self.service.datasets().delete(
                 projectId=project_id,
-                datasetId=dataset_id).execute(num_retries=self.num_retries)
+                datasetId=dataset_id,
+                deleteContents=delete_contents).execute(num_retries=self.num_retries)
             self.log.info('Dataset deleted successfully: In project %s '
                           'Dataset %s', project_id, dataset_id)
 
@@ -1789,6 +1796,97 @@ class BigQueryBaseCursor(LoggingMixin):
                 'BigQuery job failed. Error was: {}'.format(err.content))
 
         return datasets_list
+
+    def patch_dataset(self, dataset_id, dataset_resource, project_id=None):
+        """
+        Patches information in an existing dataset.
+        It only replaces fields that are provided in the submitted dataset resource.
+        More info:
+        https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets/patch
+
+        :param dataset_id: The BigQuery Dataset ID
+        :type dataset_id: str
+        :param dataset_resource: Dataset resource that will be provided
+            in request body.
+            https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
+        :type dataset_resource: dict
+        :param project_id: The GCP Project ID
+        :type project_id: str
+        :rtype: dataset
+            https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
+        """
+
+        if not dataset_id or not isinstance(dataset_id, str):
+            raise ValueError(
+                "dataset_id argument must be provided and has "
+                "a type 'str'. You provided: {}".format(dataset_id)
+            )
+
+        dataset_project_id = project_id if project_id else self.project_id
+
+        try:
+            dataset = (
+                self.service.datasets()
+                .patch(
+                    datasetId=dataset_id,
+                    projectId=dataset_project_id,
+                    body=dataset_resource,
+                )
+                .execute(num_retries=self.num_retries)
+            )
+            self.log.info("Dataset successfully patched: %s", dataset)
+        except HttpError as err:
+            raise AirflowException(
+                "BigQuery job failed. Error was: {}".format(err.content)
+            )
+
+        return dataset
+
+    def update_dataset(self, dataset_id, dataset_resource, project_id=None):
+        """
+        Updates information in an existing dataset. The update method replaces the entire
+        dataset resource, whereas the patch method only replaces fields that are provided
+        in the submitted dataset resource.
+        More info:
+        https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets/update
+
+        :param dataset_id: The BigQuery Dataset ID
+        :type dataset_id: str
+        :param dataset_resource: Dataset resource that will be provided
+            in request body.
+            https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
+        :type dataset_resource: dict
+        :param project_id: The GCP Project ID
+        :type project_id: str
+        :rtype: dataset
+            https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
+        """
+
+        if not dataset_id or not isinstance(dataset_id, str):
+            raise ValueError(
+                "dataset_id argument must be provided and has "
+                "a type 'str'. You provided: {}".format(dataset_id)
+            )
+
+        dataset_project_id = project_id if project_id else self.project_id
+
+        try:
+            dataset = (
+                self.service.datasets()
+                .update(
+                    datasetId=dataset_id,
+                    projectId=dataset_project_id,
+                    body=dataset_resource,
+                )
+                .execute(num_retries=self.num_retries)
+            )
+            self.log.info("Dataset successfully updated: %s", dataset)
+        except HttpError as err:
+            raise AirflowException(
+                "BigQuery job failed. Error was: {}".format(err.content)
+            )
+
+        return dataset
 
     def insert_all(self, project_id, dataset_id, table_id,
                    rows, ignore_unknown_values=False,

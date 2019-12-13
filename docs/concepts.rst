@@ -20,7 +20,7 @@
 Concepts
 ########
 
-The Airflow Platform is a tool for describing, executing, and monitoring
+The Airflow platform is a tool for describing, executing, and monitoring
 workflows.
 
 Core Ideas
@@ -350,9 +350,33 @@ Task Instances
 ==============
 
 A task instance represents a specific run of a task and is characterized as the
-combination of a dag, a task, and a point in time. Task instances also have an
+combination of a DAG, a task, and a point in time. Task instances also have an
 indicative state, which could be "running", "success", "failed", "skipped", "up
 for retry", etc.
+
+Task Lifecycle
+==============
+
+A task goes through various stages from start to completion. In the Airflow UI
+(graph and tree views), these stages are displayed by a color representing each
+stage:
+
+.. image:: img/task_lifecycle.png
+
+The happy flow consists of the following stages:
+
+1. no status (scheduler created empty task instance)
+2. queued (scheduler placed a task to run on the queue)
+3. running (worker picked up a task and is now running it)
+4. success (task completed)
+
+There is also visual difference between scheduled and manually triggered
+DAGs/tasks:
+
+.. image:: img/task_manual_vs_scheduled.png
+
+The DAGs/tasks with a black border are scheduled runs, whereas the non-bordered
+DAGs/tasks are manually triggered, i.e. by ``airflow trigger_dag``.
 
 Workflows
 =========
@@ -427,8 +451,9 @@ reached, runnable tasks get queued and their state will show as such in the
 UI. As slots free up, queued tasks start running based on the
 ``priority_weight`` (of the task and its descendants).
 
-Note that by default tasks aren't assigned to any pool and their
-execution parallelism is only limited to the executor's setting.
+Note that if tasks are not given a pool, they are assigned to a default
+pool ``default_pool``.  ``default_pool`` is initialized with 128 slots and
+can changed through the UI or CLI (though it cannot be removed).
 
 .. _concepts-connections:
 
@@ -769,6 +794,11 @@ detailing the list of tasks that missed their SLA. The event is also recorded
 in the database and made available in the web UI under ``Browse->SLA Misses``
 where events can be analyzed and documented.
 
+SLAs can be configured for scheduled tasks by using the ``sla`` parameter.
+In addition to sending alerts to the addresses specified in a task's ``email`` parameter,
+the ``sla_miss_callback`` specifies an additional ``Callable``
+object to be invoked when the SLA is not met.
+
 Email Configuration
 -------------------
 
@@ -902,7 +932,7 @@ DAG. The ``LatestOnlyOperator`` skips all downstream tasks, if the time
 right now is not between its ``execution_time`` and the next scheduled
 ``execution_time``.
 
-For example, consider the following dag:
+For example, consider the following DAG:
 
 .. code:: python
 
@@ -935,7 +965,7 @@ For example, consider the following dag:
                         trigger_rule=TriggerRule.ALL_DONE)
   task4.set_upstream([task1, task2])
 
-In the case of this dag, the ``latest_only`` task will show up as skipped
+In the case of this DAG, the ``latest_only`` task will show up as skipped
 for all runs except the latest run. ``task1`` is directly downstream of
 ``latest_only`` and will also skip for all runs except the latest.
 ``task2`` is entirely independent of ``latest_only`` and will run in all
@@ -973,7 +1003,7 @@ state.
 Cluster Policy
 ==============
 
-Your local airflow settings file can define a ``policy`` function that
+Your local Airflow settings file can define a ``policy`` function that
 has the ability to mutate task attributes based on other task or DAG
 attributes. It receives a single argument as a reference to task objects,
 and is expected to alter its attributes.
@@ -996,8 +1026,8 @@ may look like inside your ``airflow_settings.py``:
 Documentation & Notes
 =====================
 
-It's possible to add documentation or notes to your dags & task objects that
-become visible in the web interface ("Graph View" for dags, "Task Details" for
+It's possible to add documentation or notes to your DAGs & task objects that
+become visible in the web interface ("Graph View" for DAGs, "Task Details" for
 tasks). There are a set of special task attributes that get rendered as rich
 content if defined:
 
@@ -1011,7 +1041,7 @@ doc_md      markdown
 doc_rst     reStructuredText
 ==========  ================
 
-Please note that for dags, doc_md is the only attribute interpreted.
+Please note that for DAGs, doc_md is the only attribute interpreted.
 
 This is especially useful if your tasks are built dynamically from
 configuration files, it allows you to expose the configuration that led
@@ -1065,14 +1095,84 @@ You can use Jinja templating with every parameter that is marked as "templated"
 in the documentation. Template substitution occurs just before the pre_execute
 function of your operator is called.
 
-Packaged dags
+You can also use Jinja templating with nested fields, as long as these nested fields
+are marked as templated in the structure they belong to: fields registered in
+``template_fields`` property will be submitted to template substitution, like the
+``path`` field in the example below:
+
+.. code:: python
+
+  class MyDataReader:
+    template_fields = ['path']
+
+    def __init__(self, my_path):
+      self.path = my_path
+
+    # [additional code here...]
+
+  t = PythonOperator(
+      task_id='transform_data',
+      python_callable=transform_data
+      op_args=[
+        MyDataReader('/tmp/{{ ds }}/my_file')
+      ],
+      dag=dag)
+
+.. note:: ``template_fields`` property can equally be a class variable or an
+   instance variable.
+
+Deep nested fields can also be substituted, as long as all intermediate fields are
+marked as template fields:
+
+.. code:: python
+
+  class MyDataTransformer:
+    template_fields = ['reader']
+
+    def __init__(self, my_reader):
+      self.reader = my_reader
+
+    # [additional code here...]
+
+  class MyDataReader:
+    template_fields = ['path']
+
+    def __init__(self, my_path):
+      self.path = my_path
+
+    # [additional code here...]
+
+  t = PythonOperator(
+      task_id='transform_data',
+      python_callable=transform_data
+      op_args=[
+        MyDataTransformer(MyDataReader('/tmp/{{ ds }}/my_file'))
+      ],
+      dag=dag)
+
+You can pass custom options to the Jinja ``Environment`` when creating your DAG.
+One common usage is to avoid Jinja from dropping a trailing newline from a
+template string:
+
+.. code:: python
+
+  my_dag = DAG(dag_id='my-dag',
+               jinja_environment_kwargs={
+                    'keep_trailing_newline': True,
+                    # some other jinja2 Environment options here
+               })
+
+See `Jinja documentation <https://jinja.palletsprojects.com/en/master/api/#jinja2.Environment>`_
+to find all available options.
+
+Packaged DAGs
 '''''''''''''
-While often you will specify dags in a single ``.py`` file it might sometimes
-be required to combine dag and its dependencies. For example, you might want
-to combine several dags together to version them together or you might want
+While often you will specify DAGs in a single ``.py`` file it might sometimes
+be required to combine a DAG and its dependencies. For example, you might want
+to combine several DAGs together to version them together or you might want
 to manage them together or you might need an extra module that is not available
-by default on the system you are running airflow on. To allow this you can create
-a zip file that contains the dag(s) in the root of the zip file and have the extra
+by default on the system you are running Airflow on. To allow this you can create
+a zip file that contains the DAG(s) in the root of the zip file and have the extra
 modules unpacked in directories.
 
 For instance you can create a zip file that looks like this:

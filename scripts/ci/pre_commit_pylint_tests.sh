@@ -1,5 +1,4 @@
-# -*- coding: utf-8 -*-
-#
+#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -17,16 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
-from airflow.utils.db import provide_session
-from airflow.utils.state import State
+set -uo pipefail
 
+MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+export FORCE_ANSWER_TO_QUESTIONS=${FORCE_ANSWER_TO_QUESTIONS:="quit"}
+export SKIP_CLEANUP_OF_LAST_ANSWER="true"
 
-class NotSkippedDep(BaseTIDep):
-    NAME = "Task Instance Not Skipped"
-    IGNOREABLE = True
-
-    @provide_session
-    def _get_dep_statuses(self, ti, session, dep_context):
-        if ti.state == State.SKIPPED:
-            yield self._failing_status(reason="The task instance has been skipped.")
+"${MY_DIR}/ci_pylint_tests.sh" "${@}"

@@ -29,7 +29,7 @@ import traceback
 import warnings
 from collections import OrderedDict, defaultdict
 from datetime import timedelta, datetime
-from typing import Union, Optional, Iterable, Dict, Type, Callable, List
+from typing import Union, Optional, Iterable, Dict, Type, Callable, List, TYPE_CHECKING
 
 import jinja2
 import pendulum
@@ -39,7 +39,8 @@ from dateutil.relativedelta import relativedelta
 from future.standard_library import install_aliases
 from sqlalchemy import Column, String, Boolean, Integer, Text, func, or_
 
-from airflow import configuration, settings, utils
+from airflow import settings, utils
+from airflow.configuration import conf
 from airflow.dag.base_dag import BaseDag
 from airflow.exceptions import AirflowException, AirflowDagCycleException
 from airflow.executors import LocalExecutor, get_default_executor
@@ -55,6 +56,9 @@ from airflow.utils.helpers import validate_key
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.sqlalchemy import UtcDateTime, Interval
 from airflow.utils.state import State
+
+if TYPE_CHECKING:
+    from airflow.models.baseoperator import BaseOperator  # Avoid circular dependency
 
 install_aliases()
 
@@ -169,6 +173,22 @@ class DAG(BaseDag, LoggingMixin):
         If the dag exists already, this flag will be ignored. If this optional parameter
         is not specified, the global config setting will be used.
     :type is_paused_upon_creation: bool or None
+    :param jinja_environment_kwargs: additional configuration options to be passed to Jinja
+        ``Environment`` for template rendering
+
+        **Example**: to avoid Jinja from removing a trailing newline from template strings ::
+
+            DAG(dag_id='my-dag',
+                jinja_environment_kwargs={
+                    'keep_trailing_newline': True,
+                    # some other jinja2 Environment options here
+                }
+            )
+
+        **See**: `Jinja Environment documentation
+        <https://jinja.palletsprojects.com/en/master/api/#jinja2.Environment>`_
+
+    :type jinja_environment_kwargs: dict
     """
 
     _comps = {
@@ -195,20 +215,21 @@ class DAG(BaseDag, LoggingMixin):
         user_defined_macros=None,  # type: Optional[Dict]
         user_defined_filters=None,  # type: Optional[Dict]
         default_args=None,  # type: Optional[Dict]
-        concurrency=configuration.conf.getint('core', 'dag_concurrency'),  # type: int
-        max_active_runs=configuration.conf.getint(
+        concurrency=conf.getint('core', 'dag_concurrency'),  # type: int
+        max_active_runs=conf.getint(
             'core', 'max_active_runs_per_dag'),  # type: int
         dagrun_timeout=None,  # type: Optional[timedelta]
         sla_miss_callback=None,  # type: Optional[Callable]
         default_view=None,  # type: Optional[str]
-        orientation=configuration.conf.get('webserver', 'dag_orientation'),  # type: str
-        catchup=configuration.conf.getboolean('scheduler', 'catchup_by_default'),  # type: bool
+        orientation=conf.get('webserver', 'dag_orientation'),  # type: str
+        catchup=conf.getboolean('scheduler', 'catchup_by_default'),  # type: bool
         on_success_callback=None,  # type: Optional[Callable]
         on_failure_callback=None,  # type: Optional[Callable]
         doc_md=None,  # type: Optional[str]
         params=None,  # type: Optional[Dict]
         access_control=None,  # type: Optional[Dict]
         is_paused_upon_creation=None,  # type: Optional[bool]
+        jinja_environment_kwargs=None,  # type: Optional[Dict]
     ):
         self.user_defined_macros = user_defined_macros
         self.user_defined_filters = user_defined_filters
@@ -231,7 +252,7 @@ class DAG(BaseDag, LoggingMixin):
         self._description = description
         # set file location to caller source path
         self.fileloc = sys._getframe().f_back.f_code.co_filename
-        self.task_dict = dict()  # type: Dict[str, TaskInstance]
+        self.task_dict = dict()  # type: Dict[str, BaseOperator]
 
         # set timezone from start_date
         if start_date and start_date.tzinfo:
@@ -297,6 +318,8 @@ class DAG(BaseDag, LoggingMixin):
         self._access_control = access_control
         self.is_paused_upon_creation = is_paused_upon_creation
 
+        self.jinja_environment_kwargs = jinja_environment_kwargs
+
     def __repr__(self):
         return "<DAG: {self.dag_id}>".format(self=self)
 
@@ -345,7 +368,7 @@ class DAG(BaseDag, LoggingMixin):
     def get_default_view(self):
         """This is only there for backward compatible jinja2 templates"""
         if self._default_view is None:
-            return configuration.conf.get('webserver', 'dag_default_view').lower()
+            return conf.get('webserver', 'dag_default_view').lower()
         else:
             return self._default_view
 
@@ -548,9 +571,7 @@ class DAG(BaseDag, LoggingMixin):
 
     @property
     def folder(self):
-        """
-        Folder location of where the dag object is instantiated
-        """
+        """Folder location of where the DAG object is instantiated."""
         return os.path.dirname(self.full_filepath)
 
     @property
@@ -725,20 +746,28 @@ class DAG(BaseDag, LoggingMixin):
         for t in self.tasks:
             t.resolve_template_files()
 
-    def get_template_env(self):
-        """
-        Returns a jinja2 Environment while taking into account the DAGs
-        template_searchpath, user_defined_macros and user_defined_filters
-        """
+    def get_template_env(self):  # type: () -> jinja2.Environment
+        """Build a Jinja2 environment."""
+
+        # Collect directories to search for template files
         searchpath = [self.folder]
         if self.template_searchpath:
             searchpath += self.template_searchpath
 
-        env = jinja2.Environment(
-            loader=jinja2.FileSystemLoader(searchpath),
-            undefined=self.template_undefined,
-            extensions=["jinja2.ext.do"],
-            cache_size=0)
+        # Default values (for backward compatibility)
+        jinja_env_options = {
+            'loader': jinja2.FileSystemLoader(searchpath),
+            'undefined': self.template_undefined,
+            'extensions': ["jinja2.ext.do"],
+            'cache_size': 0
+        }
+        if self.jinja_environment_kwargs:
+            jinja_env_options.update(self.jinja_environment_kwargs)
+
+        env = jinja2.Environment(**jinja_env_options)  # type: ignore
+
+        # Add any user defined items. Safe to edit globals as long as no templates are rendered yet.
+        # http://jinja.pocoo.org/docs/2.10/api/#jinja2.Environment.globals
         if self.user_defined_macros:
             env.globals.update(self.user_defined_macros)
         if self.user_defined_filters:
@@ -769,13 +798,29 @@ class DAG(BaseDag, LoggingMixin):
             TaskInstance.task_id.in_([t.task_id for t in self.tasks]),
         )
         if state:
-            tis = tis.filter(TaskInstance.state == state)
+            if isinstance(state, str):
+                tis = tis.filter(TaskInstance.state == state)
+            else:
+                # this is required to deal with NULL values
+                if None in state:
+                    tis = tis.filter(
+                        or_(TaskInstance.state.in_(state),
+                            TaskInstance.state.is_(None))
+                    )
+                else:
+                    tis = tis.filter(TaskInstance.state.in_(state))
         tis = tis.order_by(TaskInstance.execution_date).all()
         return tis
 
     @property
     def roots(self):
-        return [t for t in self.tasks if not t.downstream_list]
+        """Return nodes with no parents. These are first to execute and are called roots or root nodes."""
+        return [task for task in self.tasks if not task.upstream_list]
+
+    @property
+    def leaves(self):
+        """Return nodes with no children. These are last to execute and are called leaves or leaf nodes."""
+        return [task for task in self.tasks if not task.downstream_list]
 
     def topological_sort(self):
         """
@@ -1101,13 +1146,14 @@ class DAG(BaseDag, LoggingMixin):
         return dp
 
     def tree_view(self):
-        """
-        Shows an ascii tree representation of the DAG
-        """
+        """Print an ASCII tree representation of the DAG."""
         def get_downstream(task, level=0):
-            print((" " * level * 4) + str(task))
+            line = (" " * level * 4) + str(task)
+            if six.PY2:
+                line = line.decode("utf-8")
+            print(line)
             level += 1
-            for t in task.upstream_list:
+            for t in task.downstream_list:
                 get_downstream(t, level)
 
         for t in self.roots:
@@ -1169,7 +1215,7 @@ class DAG(BaseDag, LoggingMixin):
             mark_success=False,
             local=False,
             executor=None,
-            donot_pickle=configuration.conf.getboolean('core', 'donot_pickle'),
+            donot_pickle=conf.getboolean('core', 'donot_pickle'),
             ignore_task_deps=False,
             ignore_first_depends_on_past=False,
             pool=None,
@@ -1460,7 +1506,7 @@ class DagModel(Base):
     dag_id = Column(String(ID_LEN), primary_key=True)
     # A DAG can be paused from the UI / DB
     # Set this default value of is_paused based on a configuration value!
-    is_paused_at_creation = configuration.conf\
+    is_paused_at_creation = conf\
         .getboolean('core',
                     'dags_are_paused_at_creation')
     is_paused = Column(Boolean, default=is_paused_at_creation)
@@ -1512,7 +1558,7 @@ class DagModel(Base):
 
     def get_default_view(self):
         if self.default_view is None:
-            return configuration.conf.get('webserver', 'dag_default_view').lower()
+            return conf.get('webserver', 'dag_default_view').lower()
         else:
             return self.default_view
 

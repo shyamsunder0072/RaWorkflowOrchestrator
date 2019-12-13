@@ -42,9 +42,8 @@ from time import sleep
 
 from bs4 import BeautifulSoup
 
-from airflow import configuration
 from airflow.executors import SequentialExecutor
-from airflow.models import Variable, TaskInstance
+from airflow.models import DagModel, Variable, TaskInstance
 
 
 from airflow import jobs, models, DAG, utils, settings, exceptions
@@ -65,7 +64,9 @@ from airflow.utils.timezone import datetime
 from airflow.utils.state import State
 from airflow.utils.dates import days_ago, infer_time_unit, round_time, scale_time_units
 from airflow.exceptions import AirflowException
-from airflow.configuration import AirflowConfigException, run_command
+from airflow.configuration import (
+    AirflowConfigException, run_command, conf, parameterized_config, DEFAULT_CONFIG
+)
 from jinja2.exceptions import SecurityError
 from jinja2 import UndefinedError
 from pendulum import utcnow
@@ -108,7 +109,6 @@ class CoreTest(unittest.TestCase):
     default_scheduler_args = {"num_runs": 1}
 
     def setUp(self):
-        configuration.conf.load_test_config()
         self.dagbag = models.DagBag(
             dag_folder=DEV_NULL, include_examples=True)
         self.args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
@@ -343,7 +343,7 @@ class CoreTest(unittest.TestCase):
         self.assertIsNone(additional_dag_run)
 
     def test_confirm_unittest_mod(self):
-        self.assertTrue(configuration.conf.get('core', 'unit_test_mode'))
+        self.assertTrue(conf.get('core', 'unit_test_mode'))
 
     def test_pickling(self):
         dp = self.dag.pickle()
@@ -698,6 +698,13 @@ class CoreTest(unittest.TestCase):
         Variable.set("tested_var_set_id", "Monday morning breakfast")
         self.assertEqual("Monday morning breakfast", Variable.get("tested_var_set_id"))
 
+    def test_variable_set_existing_value_to_blank(self):
+        test_value = 'Some value'
+        test_key = 'test_key'
+        Variable.set(test_key, test_value)
+        Variable.set(test_key, '')
+        self.assertEqual(None, Variable.get('test_key'))
+
     def test_variable_set_get_round_trip_json(self):
         value = {"a": 17, "b": 47}
         Variable.set("tested_var_set_id", value, serialize_json=True)
@@ -744,7 +751,7 @@ class CoreTest(unittest.TestCase):
 
     def test_parameterized_config_gen(self):
 
-        cfg = configuration.parameterized_config(configuration.DEFAULT_CONFIG)
+        cfg = parameterized_config(DEFAULT_CONFIG)
 
         # making sure some basic building blocks are present:
         self.assertIn("[core]", cfg)
@@ -757,13 +764,13 @@ class CoreTest(unittest.TestCase):
         self.assertNotIn("{FERNET_KEY}", cfg)
 
     def test_config_use_original_when_original_and_fallback_are_present(self):
-        self.assertTrue(configuration.conf.has_option("core", "FERNET_KEY"))
-        self.assertFalse(configuration.conf.has_option("core", "FERNET_KEY_CMD"))
+        self.assertTrue(conf.has_option("core", "FERNET_KEY"))
+        self.assertFalse(conf.has_option("core", "FERNET_KEY_CMD"))
 
-        FERNET_KEY = configuration.conf.get('core', 'FERNET_KEY')
+        FERNET_KEY = conf.get('core', 'FERNET_KEY')
 
         with conf_vars({('core', 'FERNET_KEY_CMD'): 'printf HELLO'}):
-            FALLBACK_FERNET_KEY = configuration.conf.get(
+            FALLBACK_FERNET_KEY = conf.get(
                 "core",
                 "FERNET_KEY"
             )
@@ -771,12 +778,12 @@ class CoreTest(unittest.TestCase):
         self.assertEqual(FERNET_KEY, FALLBACK_FERNET_KEY)
 
     def test_config_throw_error_when_original_and_fallback_is_absent(self):
-        self.assertTrue(configuration.conf.has_option("core", "FERNET_KEY"))
-        self.assertFalse(configuration.conf.has_option("core", "FERNET_KEY_CMD"))
+        self.assertTrue(conf.has_option("core", "FERNET_KEY"))
+        self.assertFalse(conf.has_option("core", "FERNET_KEY_CMD"))
 
         with conf_vars({('core', 'fernet_key'): None}):
             with self.assertRaises(AirflowConfigException) as cm:
-                configuration.conf.get("core", "FERNET_KEY")
+                conf.get("core", "FERNET_KEY")
 
         exception = str(cm.exception)
         message = "section/key [core/fernet_key] not found in config"
@@ -788,7 +795,7 @@ class CoreTest(unittest.TestCase):
         self.assertNotIn(key, os.environ)
 
         os.environ[key] = value
-        FERNET_KEY = configuration.conf.get('core', 'FERNET_KEY')
+        FERNET_KEY = conf.get('core', 'FERNET_KEY')
         self.assertEqual(value, FERNET_KEY)
 
         # restore the envvar back to the original state
@@ -800,7 +807,7 @@ class CoreTest(unittest.TestCase):
         self.assertNotIn(key, os.environ)
 
         os.environ[key] = value
-        FERNET_KEY = configuration.conf.get('core', 'FERNET_KEY')
+        FERNET_KEY = conf.get('core', 'FERNET_KEY')
         self.assertEqual(value, FERNET_KEY)
 
         # restore the envvar back to the original state
@@ -1048,7 +1055,6 @@ class CliTests(unittest.TestCase):
     def setUp(self):
         super(CliTests, self).setUp()
         from airflow.www_rbac import app as application
-        configuration.load_test_config()
         self.app, self.appbuilder = application.create_app(session=Session, testing=True)
         self.app.config['TESTING'] = True
 
@@ -1480,6 +1486,19 @@ class CliTests(unittest.TestCase):
                 '--yes'])
         )
 
+    def test_delete_dag_existing_file(self):
+        # Test to check that the DAG should be deleted even if
+        # the file containing it is not deleted
+        DM = DagModel
+        key = "my_dag_id"
+        session = settings.Session()
+        with tempfile.NamedTemporaryFile() as f:
+            session.add(DM(dag_id=key, fileloc=f.name))
+            session.commit()
+            cli.delete_dag(self.parser.parse_args([
+                'delete_dag', key, '--yes']))
+            self.assertEqual(session.query(DM).filter_by(dag_id=key).count(), 0)
+
     def test_pool_create(self):
         cli.pool(self.parser.parse_args(['pool', '-s', 'foo', '1', 'test']))
         self.assertEqual(self.session.query(models.Pool).count(), 1)
@@ -1712,11 +1731,9 @@ class CliTests(unittest.TestCase):
         self.assertEqual(e.exception.code, 1)
 
 
+@conf_vars({('webserver', 'authenticate'): 'False', ('core', 'expose_config'): 'True'})
 class SecurityTests(unittest.TestCase):
     def setUp(self):
-        configuration.load_test_config()
-        configuration.conf.set("webserver", "authenticate", "False")
-        configuration.conf.set("webserver", "expose_config", "True")
         app = application.create_app()
         app.config['TESTING'] = True
         self.app = app.test_client()
@@ -1797,15 +1814,12 @@ class SecurityTests(unittest.TestCase):
             self.app.get("/admin/airflow/chart_data?chart_id={}".format(chart3.id))
 
     def tearDown(self):
-        configuration.conf.set("webserver", "expose_config", "False")
         self.dag_bash.clear(start_date=DEFAULT_DATE, end_date=timezone.utcnow())
 
 
+@conf_vars({('webserver', 'authenticate'): 'False', ('core', 'expose_config'): 'True'})
 class WebUiTests(unittest.TestCase):
     def setUp(self):
-        configuration.load_test_config()
-        configuration.conf.set("webserver", "authenticate", "False")
-        configuration.conf.set("webserver", "expose_config", "True")
         app = application.create_app()
         app.config['TESTING'] = True
         app.config['WTF_CSRF_METHODS'] = []
@@ -2153,7 +2167,6 @@ class WebUiTests(unittest.TestCase):
         self.assertIn("A __call__ method", response.data.decode('utf-8'))
 
     def tearDown(self):
-        configuration.conf.set("webserver", "expose_config", "False")
         self.dag_bash.clear(start_date=EXAMPLE_DAG_DEFAULT_DATE,
                             end_date=timezone.utcnow())
         session = Session()
@@ -2163,11 +2176,9 @@ class WebUiTests(unittest.TestCase):
         session.close()
 
 
+@conf_vars({('webserver', 'authenticate'): 'False', ('core', 'secure_mode'): 'True'})
 class SecureModeWebUiTests(unittest.TestCase):
     def setUp(self):
-        configuration.load_test_config()
-        configuration.conf.set("webserver", "authenticate", "False")
-        configuration.conf.set("core", "secure_mode", "True")
         app = application.create_app()
         app.config['TESTING'] = True
         self.app = app.test_client()
@@ -2179,9 +2190,6 @@ class SecureModeWebUiTests(unittest.TestCase):
     def test_charts(self):
         response = self.app.get('/admin/chart/')
         self.assertEqual(response.status_code, 404)
-
-    def tearDown(self):
-        configuration.conf.remove_option("core", "SECURE_MODE")
 
 
 class PasswordUserTest(unittest.TestCase):
@@ -2227,11 +2235,10 @@ class PasswordUserTest(unittest.TestCase):
         session.close()
 
 
+@conf_vars({('webserver', 'authenticate'): 'True',
+            ('webserver', 'auth_backend'): 'airflow.contrib.auth.backends.password_auth'})
 class WebPasswordAuthTest(unittest.TestCase):
     def setUp(self):
-        configuration.conf.set("webserver", "authenticate", "True")
-        configuration.conf.set("webserver", "auth_backend", "airflow.contrib.auth.backends.password_auth")
-
         app = application.create_app()
         app.config['TESTING'] = True
         self.app = app.test_client()
@@ -2265,7 +2272,7 @@ class WebPasswordAuthTest(unittest.TestCase):
         return self.app.get('/admin/airflow/logout', follow_redirects=True)
 
     def test_login_logout_password_auth(self):
-        self.assertTrue(configuration.conf.getboolean('webserver', 'authenticate'))
+        self.assertTrue(conf.getboolean('webserver', 'authenticate'))
 
         response = self.login('user1', 'whatever')
         self.assertIn('Incorrect login details', response.data.decode('utf-8'))
@@ -2284,30 +2291,24 @@ class WebPasswordAuthTest(unittest.TestCase):
         self.assertEqual(response.status_code, 302)
 
     def tearDown(self):
-        configuration.load_test_config()
         session = Session()
         session.query(models.User).delete()
         session.commit()
         session.close()
-        configuration.conf.set("webserver", "authenticate", "False")
 
 
+@conf_vars({('webserver', 'authenticate'): 'True',
+            ('webserver', 'auth_backend'): 'airflow.contrib.auth.backends.ldap_auth',
+            ('ldap', 'uri'): 'ldap://openldap:389',
+            ('ldap', 'user_filter'): 'objectClass=*',
+            ('ldap', 'user_name_attr'): 'uid',
+            ('ldap', 'bind_user'): 'cn=Manager,dc=example,dc=com',
+            ('ldap', 'bind_password'): 'insecure',
+            ('ldap', 'basedn'): 'dc=example,dc=com',
+            ('ldap', 'cacert'): '',
+            })
 class WebLdapAuthTest(unittest.TestCase):
     def setUp(self):
-        configuration.conf.set("webserver", "authenticate", "True")
-        configuration.conf.set("webserver", "auth_backend", "airflow.contrib.auth.backends.ldap_auth")
-        try:
-            configuration.conf.add_section("ldap")
-        except Exception:
-            pass
-        configuration.conf.set("ldap", "uri", "ldap://openldap:389")
-        configuration.conf.set("ldap", "user_filter", "objectClass=*")
-        configuration.conf.set("ldap", "user_name_attr", "uid")
-        configuration.conf.set("ldap", "bind_user", "cn=Manager,dc=example,dc=com")
-        configuration.conf.set("ldap", "bind_password", "insecure")
-        configuration.conf.set("ldap", "basedn", "dc=example,dc=com")
-        configuration.conf.set("ldap", "cacert", "")
-
         app = application.create_app()
         app.config['TESTING'] = True
         self.app = app.test_client()
@@ -2330,7 +2331,7 @@ class WebLdapAuthTest(unittest.TestCase):
         return self.app.get('/admin/airflow/logout', follow_redirects=True)
 
     def test_login_logout_ldap(self):
-        self.assertTrue(configuration.conf.getboolean('webserver', 'authenticate'))
+        self.assertTrue(conf.getboolean('webserver', 'authenticate'))
 
         response = self.login('user1', 'userx')
         self.assertIn('Incorrect login details', response.data.decode('utf-8'))
@@ -2353,12 +2354,9 @@ class WebLdapAuthTest(unittest.TestCase):
         self.assertIn('Data Profiling', response.data.decode('utf-8'))
         self.assertIn('Connections', response.data.decode('utf-8'))
 
+    @conf_vars({('ldap', 'superuser_filter'): 'description=superuser',
+                ('ldap', 'data_profiler_filter'): 'description=dataprofiler'})
     def test_with_filters(self):
-        configuration.conf.set('ldap', 'superuser_filter',
-                               'description=superuser')
-        configuration.conf.set('ldap', 'data_profiler_filter',
-                               'description=dataprofiler')
-
         response = self.login('dataprofiler', 'dataprofiler')
         self.assertIn('Data Profiling', response.data.decode('utf-8'))
 
@@ -2369,30 +2367,23 @@ class WebLdapAuthTest(unittest.TestCase):
         self.assertIn('Connections', response.data.decode('utf-8'))
 
     def tearDown(self):
-        configuration.load_test_config()
         session = Session()
         session.query(models.User).delete()
         session.commit()
         session.close()
-        configuration.conf.set("webserver", "authenticate", "False")
 
 
+@conf_vars({('webserver', 'authenticate'): 'True',
+            ('webserver', 'auth_backend'): 'airflow.contrib.auth.backends.ldap_auth',
+            ('ldap', 'uri'): 'ldap://openldap:389',
+            ('ldap', 'user_filter'): 'objectClass=*',
+            ('ldap', 'user_name_attr'): 'uid',
+            ('ldap', 'bind_user'): 'cn=Manager,dc=example,dc=com',
+            ('ldap', 'bind_password'): 'insecure',
+            ('ldap', 'basedn'): 'dc=example,dc=com',
+            ('ldap', 'cacert'): '',
+            })
 class LdapGroupTest(unittest.TestCase):
-    def setUp(self):
-        configuration.conf.set("webserver", "authenticate", "True")
-        configuration.conf.set("webserver", "auth_backend", "airflow.contrib.auth.backends.ldap_auth")
-        try:
-            configuration.conf.add_section("ldap")
-        except Exception:
-            pass
-        configuration.conf.set("ldap", "uri", "ldap://openldap:389")
-        configuration.conf.set("ldap", "user_filter", "objectClass=*")
-        configuration.conf.set("ldap", "user_name_attr", "uid")
-        configuration.conf.set("ldap", "bind_user", "cn=Manager,dc=example,dc=com")
-        configuration.conf.set("ldap", "bind_password", "insecure")
-        configuration.conf.set("ldap", "basedn", "dc=example,dc=com")
-        configuration.conf.set("ldap", "cacert", "")
-
     def test_group_belonging(self):
         from airflow.contrib.auth.backends.ldap_auth import LdapUser
         users = {"user1": ["group1", "group3"],
@@ -2403,10 +2394,6 @@ class LdapGroupTest(unittest.TestCase):
                              is_superuser=False)
             auth = LdapUser(mu)
             self.assertEqual(set(users[user]), set(auth.ldap_groups))
-
-    def tearDown(self):
-        configuration.load_test_config()
-        configuration.conf.set("webserver", "authenticate", "False")
 
 
 class FakeWebHDFSHook(object):
@@ -2574,7 +2561,6 @@ class FakeHDFSHook(object):
 
 class ConnectionTest(unittest.TestCase):
     def setUp(self):
-        configuration.load_test_config()
         utils.db.initdb()
         os.environ['AIRFLOW_CONN_TEST_URI'] = (
             'postgres://username:password@ec2.compute.com:5432/the_database')
@@ -2653,9 +2639,6 @@ class ConnectionTest(unittest.TestCase):
 
 
 class WebHDFSHookTest(unittest.TestCase):
-    def setUp(self):
-        configuration.load_test_config()
-
     def test_simple_init(self):
         from airflow.hooks.webhdfs_hook import WebHDFSHook
         c = WebHDFSHook()
@@ -2677,7 +2660,6 @@ if six.PY2:
                  "Skipping test because HDFSHook is not installed")
 class HDFSHookTest(unittest.TestCase):
     def setUp(self):
-        configuration.load_test_config()
         os.environ['AIRFLOW_CONN_HDFS_DEFAULT'] = 'hdfs://localhost:8020'
 
     def test_get_client(self):
@@ -2719,10 +2701,8 @@ class HDFSHookTest(unittest.TestCase):
 send_email_test = mock.Mock()
 
 
+@conf_vars({('email', 'email_backend'): None})
 class EmailTest(unittest.TestCase):
-    def setUp(self):
-        configuration.conf.remove_option('email', 'EMAIL_BACKEND')
-
     @mock.patch('airflow.utils.email.send_email')
     def test_default_backend(self, mock_send_email):
         res = utils.email.send_email('to', 'subject', 'content')
@@ -2739,10 +2719,8 @@ class EmailTest(unittest.TestCase):
         self.assertFalse(mock_send_email.called)
 
 
+@conf_vars({('smtp', 'smtp_ssl'): 'False'})
 class EmailSmtpTest(unittest.TestCase):
-    def setUp(self):
-        configuration.conf.set('smtp', 'SMTP_SSL', 'False')
-
     @mock.patch('airflow.utils.email.send_MIME_email')
     def test_send_smtp(self, mock_send_mime):
         attachment = tempfile.NamedTemporaryFile()
@@ -2751,11 +2729,11 @@ class EmailSmtpTest(unittest.TestCase):
         utils.email.send_email_smtp('to', 'subject', 'content', files=[attachment.name])
         self.assertTrue(mock_send_mime.called)
         call_args = mock_send_mime.call_args[0]
-        self.assertEqual(configuration.conf.get('smtp', 'SMTP_MAIL_FROM'), call_args[0])
+        self.assertEqual(conf.get('smtp', 'SMTP_MAIL_FROM'), call_args[0])
         self.assertEqual(['to'], call_args[1])
         msg = call_args[2]
         self.assertEqual('subject', msg['Subject'])
-        self.assertEqual(configuration.conf.get('smtp', 'SMTP_MAIL_FROM'), msg['From'])
+        self.assertEqual(conf.get('smtp', 'SMTP_MAIL_FROM'), msg['From'])
         self.assertEqual(2, len(msg.get_payload()))
         filename = u'attachment; filename="' + os.path.basename(attachment.name) + '"'
         self.assertEqual(filename, msg.get_payload()[-1].get(u'Content-Disposition'))
@@ -2779,11 +2757,11 @@ class EmailSmtpTest(unittest.TestCase):
         utils.email.send_email_smtp('to', 'subject', 'content', files=[attachment.name], cc='cc', bcc='bcc')
         self.assertTrue(mock_send_mime.called)
         call_args = mock_send_mime.call_args[0]
-        self.assertEqual(configuration.conf.get('smtp', 'SMTP_MAIL_FROM'), call_args[0])
+        self.assertEqual(conf.get('smtp', 'SMTP_MAIL_FROM'), call_args[0])
         self.assertEqual(['to', 'cc', 'bcc'], call_args[1])
         msg = call_args[2]
         self.assertEqual('subject', msg['Subject'])
-        self.assertEqual(configuration.conf.get('smtp', 'SMTP_MAIL_FROM'), msg['From'])
+        self.assertEqual(conf.get('smtp', 'SMTP_MAIL_FROM'), msg['From'])
         self.assertEqual(2, len(msg.get_payload()))
         self.assertEqual(u'attachment; filename="' + os.path.basename(attachment.name) + '"',
                          msg.get_payload()[-1].get(u'Content-Disposition'))
@@ -2798,13 +2776,13 @@ class EmailSmtpTest(unittest.TestCase):
         msg = MIMEMultipart()
         utils.email.send_MIME_email('from', 'to', msg, dryrun=False)
         mock_smtp.assert_called_with(
-            configuration.conf.get('smtp', 'SMTP_HOST'),
-            configuration.conf.getint('smtp', 'SMTP_PORT'),
+            conf.get('smtp', 'SMTP_HOST'),
+            conf.getint('smtp', 'SMTP_PORT'),
         )
         self.assertTrue(mock_smtp.return_value.starttls.called)
         mock_smtp.return_value.login.assert_called_with(
-            configuration.conf.get('smtp', 'SMTP_USER'),
-            configuration.conf.get('smtp', 'SMTP_PASSWORD'),
+            conf.get('smtp', 'SMTP_USER'),
+            conf.get('smtp', 'SMTP_PASSWORD'),
         )
         mock_smtp.return_value.sendmail.assert_called_with('from', 'to', msg.as_string())
         self.assertTrue(mock_smtp.return_value.quit.called)
@@ -2818,8 +2796,8 @@ class EmailSmtpTest(unittest.TestCase):
             utils.email.send_MIME_email('from', 'to', MIMEMultipart(), dryrun=False)
         self.assertFalse(mock_smtp.called)
         mock_smtp_ssl.assert_called_with(
-            configuration.conf.get('smtp', 'SMTP_HOST'),
-            configuration.conf.getint('smtp', 'SMTP_PORT'),
+            conf.get('smtp', 'SMTP_HOST'),
+            conf.getint('smtp', 'SMTP_PORT'),
         )
 
     @mock.patch('smtplib.SMTP_SSL')
@@ -2834,8 +2812,8 @@ class EmailSmtpTest(unittest.TestCase):
             utils.email.send_MIME_email('from', 'to', MIMEMultipart(), dryrun=False)
         self.assertFalse(mock_smtp_ssl.called)
         mock_smtp.assert_called_with(
-            configuration.conf.get('smtp', 'SMTP_HOST'),
-            configuration.conf.getint('smtp', 'SMTP_PORT'),
+            conf.get('smtp', 'SMTP_HOST'),
+            conf.getint('smtp', 'SMTP_PORT'),
         )
         self.assertFalse(mock_smtp.login.called)
 

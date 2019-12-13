@@ -26,12 +26,11 @@ import os
 import signal
 import time
 
-from sqlalchemy.exc import OperationalError
-
-from airflow import configuration as conf
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.settings import Stats
 from airflow.task.task_runner import get_task_runner
+from airflow.utils import timezone
 from airflow.utils.db import provide_session
 from airflow.utils.net import get_hostname
 from airflow.jobs.base_job import BaseJob
@@ -95,7 +94,6 @@ class LocalTaskJob(BaseJob):
         try:
             self.task_runner.start()
 
-            last_heartbeat_time = time.time()
             heartbeat_time_limit = conf.getint('scheduler',
                                                'scheduler_zombie_task_threshold')
             while True:
@@ -105,22 +103,12 @@ class LocalTaskJob(BaseJob):
                     self.log.info("Task exited with return code %s", return_code)
                     return
 
-                # Periodically heartbeat so that the scheduler doesn't think this
-                # is a zombie
-                try:
-                    self.heartbeat()
-                    last_heartbeat_time = time.time()
-                except OperationalError:
-                    Stats.incr('local_task_job_heartbeat_failure', 1, 1)
-                    self.log.exception(
-                        "Exception while trying to heartbeat! Sleeping for %s seconds",
-                        self.heartrate
-                    )
-                    time.sleep(self.heartrate)
+                self.heartbeat()
 
                 # If it's been too long since we've heartbeat, then it's possible that
                 # the scheduler rescheduled this task, so kill launched processes.
-                time_since_last_heartbeat = time.time() - last_heartbeat_time
+                # This can only really happen if the worker can't readh the DB for a long time
+                time_since_last_heartbeat = (timezone.utcnow() - self.latest_heartbeat).total_seconds()
                 if time_since_last_heartbeat > heartbeat_time_limit:
                     Stats.incr('local_task_job_prolonged_heartbeat_failure', 1, 1)
                     self.log.error("Heartbeat time limited exceeded!")
@@ -128,6 +116,13 @@ class LocalTaskJob(BaseJob):
                                            "exceeded limit ({}s)."
                                            .format(time_since_last_heartbeat,
                                                    heartbeat_time_limit))
+
+                if time_since_last_heartbeat < self.heartrate:
+                    sleep_for = self.heartrate - time_since_last_heartbeat
+                    self.log.warning("Time since last heartbeat(%.2f s) < heartrate(%s s)"
+                                     ", sleeping for %s s", time_since_last_heartbeat,
+                                     self.heartrate, sleep_for)
+                    time.sleep(sleep_for)
         finally:
             self.on_kill()
 

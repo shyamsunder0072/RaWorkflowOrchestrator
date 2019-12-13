@@ -34,14 +34,16 @@ from werkzeug.wrappers import BaseResponse
 
 
 import airflow
-from airflow import models, configuration
+from airflow import models
+from airflow.configuration import conf
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.settings import Session
 from airflow.utils.timezone import datetime
 from airflow.www import app as application
-from airflow import configuration as conf
+
+from tests.test_utils.config import conf_vars
 
 
 class TestChartModelView(unittest.TestCase):
@@ -62,7 +64,6 @@ class TestChartModelView(unittest.TestCase):
 
     def setUp(self):
         super(TestChartModelView, self).setUp()
-        configuration.load_test_config()
         app = application.create_app(testing=True)
         app.config['WTF_CSRF_METHODS'] = []
         self.app = app.test_client()
@@ -119,7 +120,6 @@ class TestVariableView(unittest.TestCase):
 
     def setUp(self):
         super(TestVariableView, self).setUp()
-        configuration.load_test_config()
         app = application.create_app(testing=True)
         app.config['WTF_CSRF_METHODS'] = []
         self.app = app.test_client()
@@ -191,7 +191,6 @@ class TestKnownEventView(unittest.TestCase):
 
     def setUp(self):
         super(TestKnownEventView, self).setUp()
-        configuration.load_test_config()
         app = application.create_app(testing=True)
         app.config['WTF_CSRF_METHODS'] = []
         self.app = app.test_client()
@@ -256,7 +255,6 @@ class TestPoolModelView(unittest.TestCase):
 
     def setUp(self):
         super(TestPoolModelView, self).setUp()
-        configuration.load_test_config()
         app = application.create_app(testing=True)
         app.config['WTF_CSRF_METHODS'] = []
         self.app = app.test_client()
@@ -335,10 +333,7 @@ class TestLogView(unittest.TestCase):
         # Make sure that the configure_logging is not cached
         self.old_modules = dict(sys.modules)
 
-        conf.load_test_config()
-
         # Create a custom logging configuration
-        configuration.load_test_config()
         logging_config = copy.deepcopy(DEFAULT_LOGGING_CONFIG)
         current_dir = os.path.dirname(os.path.abspath(__file__))
         logging_config['handlers']['task']['base_log_folder'] = os.path.normpath(
@@ -490,7 +485,6 @@ class TestVarImportView(unittest.TestCase):
 
     def setUp(self):
         super(TestVarImportView, self).setUp()
-        configuration.load_test_config()
         app = application.create_app(testing=True)
         app.config['WTF_CSRF_METHODS'] = []
         self.app = app.test_client()
@@ -566,12 +560,11 @@ class TestVarImportView(unittest.TestCase):
 class TestMountPoint(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        configuration.load_test_config()
-        configuration.conf.set("webserver", "base_url", "http://localhost:8080/test")
         # Clear cached app to remount base_url forcefully
         application.app = None
-        app = application.cached_app(config={'WTF_CSRF_ENABLED': False}, testing=True)
-        cls.client = Client(app, BaseResponse)
+        with conf_vars({("webserver", "base_url"): "http://localhost:8080/test"}):
+            app = application.cached_app(config={'WTF_CSRF_ENABLED': False}, testing=True)
+            cls.client = Client(app, BaseResponse)
 
     @classmethod
     def tearDownClass(cls):
@@ -604,7 +597,6 @@ class ViewWithDateTimeAndNumRunsAndDagRunsFormTester:
         self.endpoint = endpoint
 
     def setUp(self):
-        configuration.load_test_config()
         app = application.create_app(testing=True)
         app.config['WTF_CSRF_METHODS'] = []
         self.app = app.test_client()
@@ -681,7 +673,7 @@ class ViewWithDateTimeAndNumRunsAndDagRunsFormTester:
         data = response.data.decode('utf-8')
         self.assertBaseDateAndNumRuns(
             self.runs[1].execution_date,
-            configuration.getint('webserver', 'default_dag_run_display_number'),
+            conf.getint('webserver', 'default_dag_run_display_number'),
             data)
         self.assertRunIsNotInDropdown(self.runs[0], data)
         self.assertRunIsSelected(self.runs[1], data)
@@ -836,7 +828,6 @@ class TestTaskInstanceView(unittest.TestCase):
 
     def setUp(self):
         super(TestTaskInstanceView, self).setUp()
-        configuration.load_test_config()
         app = application.create_app(testing=True)
         app.config['WTF_CSRF_METHODS'] = []
         self.app = app.test_client()
@@ -852,7 +843,6 @@ class TestTaskInstanceView(unittest.TestCase):
 class TestDeleteDag(unittest.TestCase):
 
     def setUp(self):
-        conf.load_test_config()
         app = application.create_app(testing=True)
         app.config['WTF_CSRF_METHODS'] = []
         self.app = app.test_client()
@@ -885,7 +875,6 @@ class TestDeleteDag(unittest.TestCase):
 class TestTriggerDag(unittest.TestCase):
 
     def setUp(self):
-        conf.load_test_config()
         app = application.create_app(testing=True)
         app.config['WTF_CSRF_METHODS'] = []
         self.app = app.test_client()
@@ -1055,6 +1044,35 @@ class TestConnectionModelView(unittest.TestCase):
         conn = self.session.query(models.Connection).filter(models.Connection.conn_id == self.CONN_ID).one()
 
         self.assertIsNone(conn.extra_dejson['extra__google_cloud_platform__num_retries'])
+
+
+class TestDagModelView(unittest.TestCase):
+    EDIT_URL = '/admin/dagmodel/edit/?id=example_bash_operator'
+
+    @classmethod
+    def setUpClass(cls):
+        super(TestDagModelView, cls).setUpClass()
+        app = application.create_app(testing=True)
+        app.config['WTF_CSRF_METHODS'] = []
+        cls.app = app.test_client()
+
+    def test_edit_disabled_fields(self):
+        response = self.app.post(
+            self.EDIT_URL,
+            data={
+                "fileloc": "/etc/passwd",
+                "description": "Set in tests",
+            },
+            follow_redirects=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        session = Session()
+        DM = models.DagModel
+        dm = session.query(DM).filter(DM.dag_id == 'example_bash_operator').one()
+        session.close()
+
+        self.assertEqual(dm.description, "Set in tests")
+        self.assertNotEqual(dm.fileloc, "/etc/passwd", "Disabled fields shouldn't be updated")
 
 
 if __name__ == '__main__':

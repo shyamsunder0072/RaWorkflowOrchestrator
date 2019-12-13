@@ -20,7 +20,7 @@
 import six
 import unittest
 
-from airflow import configuration, AirflowException
+from airflow import AirflowException
 from airflow.models import Connection
 from airflow.utils import db
 from mock import patch, call
@@ -48,6 +48,7 @@ class TestSparkSubmitHook(unittest.TestCase):
         'executor_memory': '22g',
         'keytab': 'privileged_user.keytab',
         'principal': 'user/spark@airflow.org',
+        'proxy_user': 'sample_user',
         'name': 'spark-job',
         'num_executors': 10,
         'verbose': True,
@@ -71,8 +72,6 @@ class TestSparkSubmitHook(unittest.TestCase):
         return return_dict
 
     def setUp(self):
-
-        configuration.load_test_config()
         db.merge_conn(
             Connection(
                 conn_id='spark_yarn_cluster', conn_type='spark',
@@ -156,6 +155,7 @@ class TestSparkSubmitHook(unittest.TestCase):
             '--driver-memory', '3g',
             '--keytab', 'privileged_user.keytab',
             '--principal', 'user/spark@airflow.org',
+            '--proxy-user', 'sample_user',
             '--name', 'spark-job',
             '--class', 'com.foo.bar.AppMain',
             '--verbose',
@@ -650,6 +650,51 @@ class TestSparkSubmitHook(unittest.TestCase):
         self.assertEqual(kill_cmd[2], 'spark://spark-standalone-master:6066')
         self.assertEqual(kill_cmd[3], '--kill')
         self.assertEqual(kill_cmd[4], 'driver-20171128111415-0001')
+
+    @patch('airflow.contrib.kubernetes.kube_client.get_kube_client')
+    @patch('airflow.contrib.hooks.spark_submit_hook.subprocess.Popen')
+    def test_k8s_process_on_kill(self, mock_popen, mock_client_method):
+        # Given
+        mock_popen.return_value.stdout = six.StringIO('stdout')
+        mock_popen.return_value.stderr = six.StringIO('stderr')
+        mock_popen.return_value.poll.return_value = None
+        mock_popen.return_value.wait.return_value = 0
+        client = mock_client_method.return_value
+        hook = SparkSubmitHook(conn_id='spark_k8s_cluster')
+        log_lines = [
+            'INFO  LoggingPodStatusWatcherImpl:54 - State changed, new state:' +
+            'pod name: spark-pi-edf2ace37be7353a958b38733a12f8e6-driver' +
+            'namespace: default' +
+            'labels: spark-app-selector -> spark-465b868ada474bda82ccb84ab2747fcd,' +
+            'spark-role -> driver' +
+            'pod uid: ba9c61f6-205f-11e8-b65f-d48564c88e42' +
+            'creation time: 2018-03-05T10:26:55Z' +
+            'service account name: spark' +
+            'volumes: spark-init-properties, download-jars-volume,' +
+            'download-files-volume, spark-token-2vmlm' +
+            'node name: N/A' +
+            'start time: N/A' +
+            'container images: N/A' +
+            'phase: Pending' +
+            'status: []' +
+            '2018-03-05 11:26:56 INFO  LoggingPodStatusWatcherImpl:54 - State changed,' +
+            ' new state:' +
+            'pod name: spark-pi-edf2ace37be7353a958b38733a12f8e6-driver' +
+            'namespace: default' +
+            'Exit code: 0'
+        ]
+        hook._process_spark_submit_log(log_lines)
+        hook.submit()
+
+        # When
+        hook.on_kill()
+
+        # Then
+        import kubernetes
+        kwargs = {'pretty': True, 'body': kubernetes.client.V1DeleteOptions()}
+        client.delete_namespaced_pod.assert_called_once_with(
+            'spark-pi-edf2ace37be7353a958b38733a12f8e6-driver',
+            'mynamespace', **kwargs)
 
 
 if __name__ == '__main__':

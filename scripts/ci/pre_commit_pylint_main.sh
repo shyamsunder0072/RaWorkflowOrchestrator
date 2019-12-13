@@ -1,5 +1,4 @@
-# -*- coding: utf-8 -*-
-#
+#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -17,13 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from datetime import datetime
+set -uo pipefail
 
+MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+export FORCE_ANSWER_TO_QUESTIONS=${FORCE_ANSWER_TO_QUESTIONS:="quit"}
+export SKIP_CLEANUP_OF_LAST_ANSWER="true"
 
-class FakeDatetime(datetime):
-    """
-    A fake replacement for datetime that can be mocked for testing.
-    """
-
-    def __new__(cls, *args, **kwargs):
-        return datetime.__new__(datetime, *args, **kwargs)
+"${MY_DIR}/ci_pylint_main.sh" "${@}"

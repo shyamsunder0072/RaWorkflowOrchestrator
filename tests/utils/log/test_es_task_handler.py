@@ -20,12 +20,12 @@
 import os
 import shutil
 import unittest
+import logging
 
 import elasticsearch
 import mock
 import pendulum
 
-from airflow import configuration
 from airflow.models import TaskInstance, DAG
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils import timezone
@@ -73,7 +73,6 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
         self.es.index(index=self.index_name, doc_type=self.doc_type,
                       body=self.body, id=1)
 
-        configuration.load_test_config()
         self.dag = DAG(self.DAG_ID, start_date=self.EXECUTION_DATE)
         task = DummyOperator(task_id=self.TASK_ID, dag=self.dag)
         self.ti = TaskInstance(task=task, execution_date=self.EXECUTION_DATE)
@@ -262,12 +261,19 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
         self.es_task_handler.set_context(self.ti)
 
     def test_close(self):
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        self.es_task_handler.formatter = formatter
+
         self.es_task_handler.set_context(self.ti)
         self.es_task_handler.close()
         with open(os.path.join(self.local_log_location,
                                self.filename_template.format(try_number=1)),
                   'r') as log_file:
-            self.assertIn(self.end_of_log_mark, log_file.read())
+            # end_of_log_mark may contain characters like '\n' which is needed to
+            # have the log uploaded but will not be stored in elasticsearch.
+            # so apply the strip() to log_file.read()
+            log_line = log_file.read().strip()
+            self.assertEqual(self.end_of_log_mark.strip(), log_line)
         self.assertTrue(self.es_task_handler.closed)
 
     def test_close_no_mark_end(self):

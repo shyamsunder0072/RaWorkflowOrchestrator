@@ -42,7 +42,7 @@ complicated, a line by line explanation follows below.
 
 
     default_args = {
-        'owner': 'airflow',
+        'owner': 'Airflow',
         'depends_on_past': False,
         'start_date': datetime(2015, 6, 1),
         'email': ['airflow@example.com'],
@@ -133,7 +133,7 @@ of default parameters that we can use when creating tasks.
     from datetime import datetime, timedelta
 
     default_args = {
-        'owner': 'airflow',
+        'owner': 'Airflow',
         'depends_on_past': False,
         'start_date': datetime(2015, 6, 1),
         'email': ['airflow@example.com'],
@@ -266,7 +266,7 @@ in templates, make sure to read through the :doc:`macros`
 
 Setting up Dependencies
 -----------------------
-We have tasks `t1`, `t2` and `t3` that do not depend on each other. Here's a few ways
+We have tasks ``t1``, ``t2`` and ``t3`` that do not depend on each other. Here's a few ways
 you can define dependencies between them:
 
 .. code:: python
@@ -318,7 +318,7 @@ something like this:
 
 
     default_args = {
-        'owner': 'airflow',
+        'owner': 'Airflow',
         'depends_on_past': False,
         'start_date': datetime(2015, 6, 1),
         'email': ['airflow@example.com'],

@@ -1,5 +1,4 @@
-# -*- coding: utf-8 -*-
-#
+#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -17,22 +16,20 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
-from airflow.utils.db import provide_session
-from airflow.utils.state import State
+set -euo pipefail
+#
+# Builds full CI docker image - the image that can be used for running full tests of Airflow
+#
+set -euo pipefail
+MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
+# shellcheck source=scripts/ci/_utils.sh
+. "${MY_DIR}/_utils.sh"
 
-class NotRunningDep(BaseTIDep):
-    NAME = "Task Instance Not Already Running"
+basic_sanity_checks
 
-    # Task instances must not already be running, as running two copies of the same
-    # task instance at the same time (AKA double-trigger) should be avoided at all
-    # costs, even if the context specifies that all dependencies should be ignored.
-    IGNOREABLE = False
+script_start
 
-    @provide_session
-    def _get_dep_statuses(self, ti, session, dep_context):
-        if ti.state == State.RUNNING:
-            yield self._failing_status(
-                reason="Task is already running, it started on {0}.".format(
-                    ti.start_date))
+rebuild_ci_slim_image_if_needed
+
+script_end

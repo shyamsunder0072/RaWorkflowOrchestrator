@@ -90,20 +90,17 @@ spec:
         - name: xcom
           mountPath: {xcomMountPath}
     - name: {sidecarContainerName}
-      image: python:3.5-alpine
+      image: alpine
       command:
-        - python
+        - sh
         - -c
-        - |
-            import time
-            while True:
-                try:
-                    time.sleep(3600)
-                except KeyboardInterrupt:
-                    exit(0)
+        - 'trap "exit 0" INT; while true; do sleep 30; done;'
       volumeMounts:
         - name: xcom
           mountPath: {xcomMountPath}
+      resources:
+        requests:
+          cpu: 1m
   restartPolicy: Never
     """.format(xcomMountPath=XCOM_MOUNT_PATH, sidecarContainerName=SIDECAR_CONTAINER_NAME)
 
