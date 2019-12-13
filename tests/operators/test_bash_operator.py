@@ -80,7 +80,7 @@ class BashOperatorTestCase(unittest.TestCase):
             with open(fname, 'r') as fr:
                 output = ''.join(fr.readlines())
                 self.assertIn('MY_PATH_TO_AIRFLOW_HOME', output)
-                # exported in run_unit_tests.sh as part of PYTHONPATH
+                # exported in run-tests as part of PYTHONPATH
                 self.assertIn('tests/test_utils', output)
                 self.assertIn('bash_op_test', output)
                 self.assertIn('echo_env_vars', output)
@@ -88,3 +88,22 @@ class BashOperatorTestCase(unittest.TestCase):
                 self.assertIn('manual__' + DEFAULT_DATE.isoformat(), output)
 
             os.environ['AIRFLOW_HOME'] = original_AIRFLOW_HOME
+
+    def test_task_retries(self):
+        bash_operator = BashOperator(
+            bash_command='echo "stdout"',
+            task_id='test_task_retries',
+            retries=2,
+            dag=None
+        )
+
+        self.assertEqual(bash_operator.retries, 2)
+
+    def test_default_retries(self):
+        bash_operator = BashOperator(
+            bash_command='echo "stdout"',
+            task_id='test_default_retries',
+            dag=None
+        )
+
+        self.assertEqual(bash_operator.retries, 0)

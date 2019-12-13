@@ -22,11 +22,15 @@ import functools
 from bs4 import BeautifulSoup
 import mock
 import six
-from six.moves.urllib.parse import parse_qs
+from six.moves.urllib.parse import parse_qs, quote_plus
+from parameterized import parameterized
 
-from airflow.www import app as application
-
-from airflow.www import utils
+from airflow.models import DagRun, Log, DagBag
+from airflow.settings import Session
+from airflow.utils.state import State
+from airflow.utils import dates, timezone
+from airflow.www import utils, app as application
+from tests.test_utils.config import conf_vars
 
 if six.PY2:
     # Need `assertRegex` back-ported from unittest2
@@ -115,14 +119,38 @@ class UtilsTest(unittest.TestCase):
         self.assertEqual('search=bash_',
                          utils.get_params(search='bash_'))
 
-    def test_params_showPaused_true(self):
-        """Should detect True as default for showPaused"""
-        self.assertEqual('',
-                         utils.get_params(showPaused=True))
+    @parameterized.expand([
+        (True, False, ''),
+        (False, True, ''),
+        (True, True, 'showPaused=True'),
+        (False, False, 'showPaused=False'),
+        (None, True, ''),
+        (None, False, ''),
+    ])
+    def test_params_showPaused(self, show_paused, hide_by_default, expected_result):
+        with conf_vars({('webserver', 'hide_paused_dags_by_default'): str(hide_by_default)}):
+            self.assertEqual(expected_result,
+                             utils.get_params(showPaused=show_paused))
 
-    def test_params_showPaused_false(self):
-        self.assertEqual('showPaused=False',
-                         utils.get_params(showPaused=False))
+    @parameterized.expand([
+        (True, False, True),
+        (False, True, True),
+        (True, True, False),
+        (False, False, False),
+        (None, True, True),
+        (None, False, True),
+    ])
+    def test_should_remove_show_paused_from_url_params(self, show_paused,
+                                                       hide_by_default, expected_result):
+        with conf_vars({('webserver', 'hide_paused_dags_by_default'): str(hide_by_default)}):
+
+            self.assertEqual(
+                expected_result,
+                utils._should_remove_show_paused_from_url_params(
+                    show_paused,
+                    hide_by_default
+                )
+            )
 
     def test_params_none_and_zero(self):
         qs = utils.get_params(a=0, b=None)
@@ -290,6 +318,80 @@ class UtilsTest(unittest.TestCase):
     def test_get_python_source_from_none(self):
         result = utils.get_python_source(None)
         self.assertIn('No source code available', result)
+
+
+class TestDecorators(unittest.TestCase):
+    EXAMPLE_DAG_DEFAULT_DATE = dates.days_ago(2)
+    run_id = "test_{}".format(DagRun.id_for_date(EXAMPLE_DAG_DEFAULT_DATE))
+
+    @classmethod
+    def setUpClass(cls):
+        cls.dagbag = DagBag(include_examples=True)
+        app = application.create_app(testing=True)
+        app.config['WTF_CSRF_METHODS'] = []
+        cls.app = app.test_client()
+
+    def setUp(self):
+        self.session = Session()
+        self.cleanup_dagruns()
+        self.prepare_dagruns()
+
+    def cleanup_dagruns(self):
+        DR = DagRun
+        dag_ids = 'example_bash_operator'
+        (self.session
+             .query(DR)
+             .filter(DR.dag_id == dag_ids)
+             .filter(DR.run_id == self.run_id)
+             .delete(synchronize_session='fetch'))
+        self.session.commit()
+
+    def prepare_dagruns(self):
+        self.bash_dag = self.dagbag.dags['example_bash_operator']
+        self.bash_dag.sync_to_db()
+
+        self.bash_dagrun = self.bash_dag.create_dagrun(
+            run_id=self.run_id,
+            execution_date=self.EXAMPLE_DAG_DEFAULT_DATE,
+            start_date=timezone.utcnow(),
+            state=State.RUNNING)
+
+    def check_last_log(self, dag_id, event, execution_date=None):
+        qry = self.session.query(Log.dag_id, Log.task_id, Log.event, Log.execution_date,
+                                 Log.owner, Log.extra)
+        qry = qry.filter(Log.dag_id == dag_id, Log.event == event)
+        if execution_date:
+            qry = qry.filter(Log.execution_date == execution_date)
+        logs = qry.order_by(Log.dttm.desc()).limit(5).all()
+        self.assertGreaterEqual(len(logs), 1)
+        self.assertTrue(logs[0].extra)
+
+    def test_action_logging_get(self):
+        url = '/admin/airflow/graph?dag_id=example_bash_operator&execution_date={}'.format(
+            quote_plus(self.EXAMPLE_DAG_DEFAULT_DATE.isoformat().encode('utf-8')))
+        self.app.get(url, follow_redirects=True)
+
+        # In mysql backend, this commit() is needed to write down the logs
+        self.session.commit()
+        self.check_last_log("example_bash_operator", event="graph",
+                            execution_date=self.EXAMPLE_DAG_DEFAULT_DATE)
+
+    def test_action_logging_post(self):
+        form = dict(
+            task_id="runme_1",
+            dag_id="example_bash_operator",
+            execution_date=self.EXAMPLE_DAG_DEFAULT_DATE.isoformat().encode('utf-8'),
+            upstream="false",
+            downstream="false",
+            future="false",
+            past="false",
+            only_failed="false",
+        )
+        self.app.post("/admin/airflow/clear", data=form)
+        # In mysql backend, this commit() is needed to write down the logs
+        self.session.commit()
+        self.check_last_log("example_bash_operator", event="clear",
+                            execution_date=self.EXAMPLE_DAG_DEFAULT_DATE)
 
 
 if __name__ == '__main__':

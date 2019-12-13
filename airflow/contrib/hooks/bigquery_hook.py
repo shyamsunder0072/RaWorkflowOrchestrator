@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*- # pylint: disable=too-many-lines
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -60,7 +60,6 @@ class BigQueryHook(GoogleCloudBaseHook, DbApiHook):
             gcp_conn_id=bigquery_conn_id, delegate_to=delegate_to)
         self.use_legacy_sql = use_legacy_sql
         self.location = location
-        self.num_retries = self._get_field('num_retries', 5)
 
     def get_conn(self):
         """
@@ -110,13 +109,16 @@ class BigQueryHook(GoogleCloudBaseHook, DbApiHook):
             defaults to use `self.use_legacy_sql` if not specified
         :type dialect: str in {'legacy', 'standard'}
         """
+        private_key = self._get_field('key_path', None) or self._get_field('keyfile_dict', None)
+
         if dialect is None:
             dialect = 'legacy' if self.use_legacy_sql else 'standard'
 
         return read_gbq(sql,
                         project_id=self._get_field('project'),
                         dialect=dialect,
-                        verbose=False)
+                        verbose=False,
+                        private_key=private_key)
 
     def table_exists(self, project_id, dataset_id, table_id):
         """
@@ -210,7 +212,7 @@ class BigQueryBaseCursor(LoggingMixin):
                  use_legacy_sql=True,
                  api_resource_configs=None,
                  location=None,
-                 num_retries=None):
+                 num_retries=5):
 
         self.service = service
         self.project_id = project_id
@@ -223,6 +225,7 @@ class BigQueryBaseCursor(LoggingMixin):
         self.location = location
         self.num_retries = num_retries
 
+    # pylint: disable=too-many-arguments
     def create_empty_table(self,
                            project_id,
                            dataset_id,
@@ -232,7 +235,8 @@ class BigQueryBaseCursor(LoggingMixin):
                            cluster_fields=None,
                            labels=None,
                            view=None,
-                           num_retries=None):
+                           encryption_configuration=None,
+                           num_retries=5):
         """
         Creates a new, empty table in the dataset.
         To create a view, which is defined by a SQL query, parse a dictionary to 'view' kwarg
@@ -277,6 +281,13 @@ class BigQueryBaseCursor(LoggingMixin):
                 "useLegacySql": False
             }
 
+        :param encryption_configuration: [Optional] Custom encryption configuration (e.g., Cloud KMS keys).
+            **Example**: ::
+
+                encryption_configuration = {
+                    "kmsKeyName": "projects/testp/locations/us/keyRings/test-kr/cryptoKeys/test-key"
+                }
+        :type encryption_configuration: dict
         :return: None
         """
 
@@ -304,6 +315,9 @@ class BigQueryBaseCursor(LoggingMixin):
 
         if view:
             table_resource['view'] = view
+
+        if encryption_configuration:
+            table_resource["encryptionConfiguration"] = encryption_configuration
 
         num_retries = num_retries if num_retries else self.num_retries
 
@@ -339,7 +353,8 @@ class BigQueryBaseCursor(LoggingMixin):
                               allow_quoted_newlines=False,
                               allow_jagged_rows=False,
                               src_fmt_configs=None,
-                              labels=None
+                              labels=None,
+                              encryption_configuration=None
                               ):
         """
         Creates a new external table in the dataset with the data in Google
@@ -402,6 +417,13 @@ class BigQueryBaseCursor(LoggingMixin):
         :type src_fmt_configs: dict
         :param labels: a dictionary containing labels for the table, passed to BigQuery
         :type labels: dict
+        :param encryption_configuration: [Optional] Custom encryption configuration (e.g., Cloud KMS keys).
+            **Example**: ::
+
+                encryption_configuration = {
+                    "kmsKeyName": "projects/testp/locations/us/keyRings/test-kr/cryptoKeys/test-key"
+                }
+        :type encryption_configuration: dict
         """
 
         if src_fmt_configs is None:
@@ -505,6 +527,9 @@ class BigQueryBaseCursor(LoggingMixin):
         if labels:
             table_resource['labels'] = labels
 
+        if encryption_configuration:
+            table_resource["encryptionConfiguration"] = encryption_configuration
+
         try:
             self.service.tables().insert(
                 projectId=project_id,
@@ -532,7 +557,8 @@ class BigQueryBaseCursor(LoggingMixin):
                     schema=None,
                     time_partitioning=None,
                     view=None,
-                    require_partition_filter=None):
+                    require_partition_filter=None,
+                    encryption_configuration=None):
         """
         Patch information in an existing table.
         It only updates fileds that are provided in the request object.
@@ -584,6 +610,13 @@ class BigQueryBaseCursor(LoggingMixin):
         :param require_partition_filter: [Optional] If true, queries over the this table require a
             partition filter. If false, queries over the table
         :type require_partition_filter: bool
+        :param encryption_configuration: [Optional] Custom encryption configuration (e.g., Cloud KMS keys).
+            **Example**: ::
+
+                encryption_configuration = {
+                    "kmsKeyName": "projects/testp/locations/us/keyRings/test-kr/cryptoKeys/test-key"
+                }
+        :type encryption_configuration: dict
 
         """
 
@@ -609,6 +642,8 @@ class BigQueryBaseCursor(LoggingMixin):
             table_resource['view'] = view
         if require_partition_filter is not None:
             table_resource['requirePartitionFilter'] = require_partition_filter
+        if encryption_configuration:
+            table_resource["encryptionConfiguration"] = encryption_configuration
 
         self.log.info('Patching Table %s:%s.%s',
                       project_id, dataset_id, table_id)
@@ -628,7 +663,7 @@ class BigQueryBaseCursor(LoggingMixin):
                 'BigQuery job failed. Error was: {}'.format(err.content)
             )
 
-    def run_query(self,
+    def run_query(self,  # pylint: disable=too-many-locals,too-many-arguments
                   bql=None,
                   sql=None,
                   destination_dataset_table=None,
@@ -642,12 +677,13 @@ class BigQueryBaseCursor(LoggingMixin):
                   create_disposition='CREATE_IF_NEEDED',
                   query_params=None,
                   labels=None,
-                  schema_update_options=(),
+                  schema_update_options=None,
                   priority='INTERACTIVE',
                   time_partitioning=None,
                   api_resource_configs=None,
                   cluster_fields=None,
-                  location=None):
+                  location=None,
+                  encryption_configuration=None):
         """
         Executes a BigQuery SQL query. Optionally persists results in a BigQuery
         table. See here:
@@ -706,7 +742,7 @@ class BigQueryBaseCursor(LoggingMixin):
         :type labels: dict
         :param schema_update_options: Allows the schema of the destination
             table to be updated as a side effect of the query job.
-        :type schema_update_options: tuple
+        :type schema_update_options: Union[list, tuple, set]
         :param priority: Specifies a priority for the query.
             Possible values include INTERACTIVE and BATCH.
             The default value is INTERACTIVE.
@@ -722,7 +758,15 @@ class BigQueryBaseCursor(LoggingMixin):
             US and EU. See details at
             https://cloud.google.com/bigquery/docs/locations#specifying_your_location
         :type location: str
+        :param encryption_configuration: [Optional] Custom encryption configuration (e.g., Cloud KMS keys).
+            **Example**: ::
+
+                encryption_configuration = {
+                    "kmsKeyName": "projects/testp/locations/us/keyRings/test-kr/cryptoKeys/test-key"
+                }
+        :type encryption_configuration: dict
         """
+        schema_update_options = list(schema_update_options or [])
 
         if time_partitioning is None:
             time_partitioning = {}
@@ -806,15 +850,12 @@ class BigQueryBaseCursor(LoggingMixin):
             (maximum_billing_tier, 'maximumBillingTier', None, int),
             (maximum_bytes_billed, 'maximumBytesBilled', None, float),
             (time_partitioning, 'timePartitioning', {}, dict),
-            (schema_update_options, 'schemaUpdateOptions', None, tuple),
+            (schema_update_options, 'schemaUpdateOptions', None, list),
             (destination_dataset_table, 'destinationTable', None, dict),
             (cluster_fields, 'clustering', None, dict),
         ]
 
-        for param_tuple in query_param_list:
-
-            param, param_name, param_default, param_type = param_tuple
-
+        for param, param_name, param_default, param_type in query_param_list:
             if param_name not in configuration['query'] and param in [None, {}, ()]:
                 if param_name == 'timePartitioning':
                     param_default = _cleanse_time_partitioning(
@@ -863,6 +904,11 @@ class BigQueryBaseCursor(LoggingMixin):
             _api_resource_configs_duplication_check(
                 'labels', labels, configuration)
             configuration['labels'] = labels
+
+        if encryption_configuration:
+            configuration["query"][
+                "destinationEncryptionConfiguration"
+            ] = encryption_configuration
 
         return self.run_with_configuration(configuration)
 
@@ -939,7 +985,8 @@ class BigQueryBaseCursor(LoggingMixin):
                  destination_project_dataset_table,
                  write_disposition='WRITE_EMPTY',
                  create_disposition='CREATE_IF_NEEDED',
-                 labels=None):
+                 labels=None,
+                 encryption_configuration=None):
         """
         Executes a BigQuery copy command to copy data from one BigQuery table
         to another. See here:
@@ -965,6 +1012,13 @@ class BigQueryBaseCursor(LoggingMixin):
         :param labels: a dictionary containing labels for the job/query,
             passed to BigQuery
         :type labels: dict
+        :param encryption_configuration: [Optional] Custom encryption configuration (e.g., Cloud KMS keys).
+            **Example**: ::
+
+                encryption_configuration = {
+                    "kmsKeyName": "projects/testp/locations/us/keyRings/test-kr/cryptoKeys/test-key"
+                }
+        :type encryption_configuration: dict
         """
         source_project_dataset_tables = ([
             source_project_dataset_tables
@@ -1005,6 +1059,11 @@ class BigQueryBaseCursor(LoggingMixin):
         if labels:
             configuration['labels'] = labels
 
+        if encryption_configuration:
+            configuration["copy"][
+                "destinationEncryptionConfiguration"
+            ] = encryption_configuration
+
         return self.run_with_configuration(configuration)
 
     def run_load(self,
@@ -1021,11 +1080,12 @@ class BigQueryBaseCursor(LoggingMixin):
                  ignore_unknown_values=False,
                  allow_quoted_newlines=False,
                  allow_jagged_rows=False,
-                 schema_update_options=(),
+                 schema_update_options=None,
                  src_fmt_configs=None,
                  time_partitioning=None,
                  cluster_fields=None,
-                 autodetect=False):
+                 autodetect=False,
+                 encryption_configuration=None):
         """
         Executes a BigQuery load command to load data from Google Cloud Storage
         to BigQuery. See here:
@@ -1085,7 +1145,7 @@ class BigQueryBaseCursor(LoggingMixin):
         :type allow_jagged_rows: bool
         :param schema_update_options: Allows the schema of the destination
             table to be updated as a side effect of the load job.
-        :type schema_update_options: tuple
+        :type schema_update_options: Union[list, tuple, set]
         :param src_fmt_configs: configure optional fields specific to the source format
         :type src_fmt_configs: dict
         :param time_partitioning: configure optional time partitioning fields i.e.
@@ -1095,7 +1155,16 @@ class BigQueryBaseCursor(LoggingMixin):
             by one or more columns. This is only available in combination with
             time_partitioning. The order of columns given determines the sort order.
         :type cluster_fields: list[str]
+        :param encryption_configuration: [Optional] Custom encryption configuration (e.g., Cloud KMS keys).
+            **Example**: ::
+
+                encryption_configuration = {
+                    "kmsKeyName": "projects/testp/locations/us/keyRings/test-kr/cryptoKeys/test-key"
+                }
+        :type encryption_configuration: dict
         """
+        # To provide backward compatibility
+        schema_update_options = list(schema_update_options or [])
 
         # bigquery only allows certain source formats
         # we check to make sure the passed source format is valid
@@ -1185,6 +1254,11 @@ class BigQueryBaseCursor(LoggingMixin):
 
         if max_bad_records:
             configuration['load']['maxBadRecords'] = max_bad_records
+
+        if encryption_configuration:
+            configuration["load"][
+                "destinationEncryptionConfiguration"
+            ] = encryption_configuration
 
         # if following fields are not specified in src_fmt_configs,
         # honor the top-level params for backward-compatibility
@@ -1611,13 +1685,19 @@ class BigQueryBaseCursor(LoggingMixin):
                 'BigQuery job failed. Error was: {}'.format(err.content)
             )
 
-    def delete_dataset(self, project_id, dataset_id):
+    def delete_dataset(self, project_id, dataset_id, delete_contents=False):
         """
         Delete a dataset of Big query in your project.
+
         :param project_id: The name of the project where we have the dataset .
         :type project_id: str
         :param dataset_id: The dataset to be delete.
         :type dataset_id: str
+        :param delete_contents: [Optional] Whether to force the deletion even if the dataset is not empty.
+            Will delete all tables (if any) in the dataset if set to True.
+            Will raise HttpError 400: "{dataset_id} is still in use" if set to False and dataset is not empty.
+            The default value is False.
+        :type delete_contents: bool
         :return:
         """
         project_id = project_id if project_id is not None else self.project_id
@@ -1627,7 +1707,8 @@ class BigQueryBaseCursor(LoggingMixin):
         try:
             self.service.datasets().delete(
                 projectId=project_id,
-                datasetId=dataset_id).execute(num_retries=self.num_retries)
+                datasetId=dataset_id,
+                deleteContents=delete_contents).execute(num_retries=self.num_retries)
             self.log.info('Dataset deleted successfully: In project %s '
                           'Dataset %s', project_id, dataset_id)
 
@@ -1716,6 +1797,97 @@ class BigQueryBaseCursor(LoggingMixin):
 
         return datasets_list
 
+    def patch_dataset(self, dataset_id, dataset_resource, project_id=None):
+        """
+        Patches information in an existing dataset.
+        It only replaces fields that are provided in the submitted dataset resource.
+        More info:
+        https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets/patch
+
+        :param dataset_id: The BigQuery Dataset ID
+        :type dataset_id: str
+        :param dataset_resource: Dataset resource that will be provided
+            in request body.
+            https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
+        :type dataset_resource: dict
+        :param project_id: The GCP Project ID
+        :type project_id: str
+        :rtype: dataset
+            https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
+        """
+
+        if not dataset_id or not isinstance(dataset_id, str):
+            raise ValueError(
+                "dataset_id argument must be provided and has "
+                "a type 'str'. You provided: {}".format(dataset_id)
+            )
+
+        dataset_project_id = project_id if project_id else self.project_id
+
+        try:
+            dataset = (
+                self.service.datasets()
+                .patch(
+                    datasetId=dataset_id,
+                    projectId=dataset_project_id,
+                    body=dataset_resource,
+                )
+                .execute(num_retries=self.num_retries)
+            )
+            self.log.info("Dataset successfully patched: %s", dataset)
+        except HttpError as err:
+            raise AirflowException(
+                "BigQuery job failed. Error was: {}".format(err.content)
+            )
+
+        return dataset
+
+    def update_dataset(self, dataset_id, dataset_resource, project_id=None):
+        """
+        Updates information in an existing dataset. The update method replaces the entire
+        dataset resource, whereas the patch method only replaces fields that are provided
+        in the submitted dataset resource.
+        More info:
+        https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets/update
+
+        :param dataset_id: The BigQuery Dataset ID
+        :type dataset_id: str
+        :param dataset_resource: Dataset resource that will be provided
+            in request body.
+            https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
+        :type dataset_resource: dict
+        :param project_id: The GCP Project ID
+        :type project_id: str
+        :rtype: dataset
+            https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
+        """
+
+        if not dataset_id or not isinstance(dataset_id, str):
+            raise ValueError(
+                "dataset_id argument must be provided and has "
+                "a type 'str'. You provided: {}".format(dataset_id)
+            )
+
+        dataset_project_id = project_id if project_id else self.project_id
+
+        try:
+            dataset = (
+                self.service.datasets()
+                .update(
+                    datasetId=dataset_id,
+                    projectId=dataset_project_id,
+                    body=dataset_resource,
+                )
+                .execute(num_retries=self.num_retries)
+            )
+            self.log.info("Dataset successfully updated: %s", dataset)
+        except HttpError as err:
+            raise AirflowException(
+                "BigQuery job failed. Error was: {}".format(err.content)
+            )
+
+        return dataset
+
     def insert_all(self, project_id, dataset_id, table_id,
                    rows, ignore_unknown_values=False,
                    skip_invalid_rows=False, fail_on_error=False):
@@ -1802,7 +1974,7 @@ class BigQueryCursor(BigQueryBaseCursor):
     https://github.com/dropbox/PyHive/blob/master/pyhive/common.py
     """
 
-    def __init__(self, service, project_id, use_legacy_sql=True, location=None, num_retries=None):
+    def __init__(self, service, project_id, use_legacy_sql=True, location=None, num_retries=5):
         super(BigQueryCursor, self).__init__(
             service=service,
             project_id=project_id,

@@ -18,4 +18,6 @@
 # under the License.
 #
 
+# airflow version = '1.10.6'
+# this is workflow version
 version = '1.0rc'

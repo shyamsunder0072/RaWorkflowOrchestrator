@@ -66,6 +66,9 @@ class Variable(Base, LoggingMixin):
             fernet = get_fernet()
             self._val = fernet.encrypt(bytes(value, 'utf-8')).decode()
             self.is_encrypted = fernet.is_encrypted
+        else:
+            self._val = None
+            self.is_encrypted = False
 
     @declared_attr
     def val(cls):
@@ -130,7 +133,7 @@ class Variable(Base, LoggingMixin):
     ):
 
         if serialize_json:
-            stored_value = json.dumps(value)
+            stored_value = json.dumps(value, indent=2, separators=(',', ': '))
         else:
             stored_value = str(value)
 

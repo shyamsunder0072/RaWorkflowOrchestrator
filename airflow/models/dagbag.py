@@ -30,10 +30,11 @@ import zipfile
 from collections import namedtuple
 from datetime import datetime
 
+from croniter import CroniterBadCronError, CroniterBadDateError, CroniterNotAlphaError, croniter
 import six
-from croniter import croniter, CroniterBadCronError, CroniterBadDateError, CroniterNotAlphaError
 
-from airflow import configuration, settings
+from airflow import settings
+from airflow.configuration import conf
 from airflow.dag.base_dag import BaseDagBag
 from airflow.exceptions import AirflowDagCycleException
 from airflow.executors import get_default_executor
@@ -73,13 +74,16 @@ class DagBag(BaseDagBag, LoggingMixin):
     CYCLE_NEW = 0
     CYCLE_IN_PROGRESS = 1
     CYCLE_DONE = 2
+    DAGBAG_IMPORT_TIMEOUT = conf.getint('core', 'DAGBAG_IMPORT_TIMEOUT')
+    UNIT_TEST_MODE = conf.getboolean('core', 'UNIT_TEST_MODE')
+    SCHEDULER_ZOMBIE_TASK_THRESHOLD = conf.getint('scheduler', 'scheduler_zombie_task_threshold')
 
     def __init__(
             self,
             dag_folder=None,
             executor=None,
-            include_examples=configuration.conf.getboolean('core', 'LOAD_EXAMPLES'),
-            safe_mode=configuration.conf.getboolean('core', 'DAG_DISCOVERY_SAFE_MODE')):
+            include_examples=conf.getboolean('core', 'LOAD_EXAMPLES'),
+            safe_mode=conf.getboolean('core', 'DAG_DISCOVERY_SAFE_MODE')):
 
         # do not use default arg in signature, to fix import cycle on plugin load
         if executor is None:
@@ -133,7 +137,7 @@ class DagBag(BaseDagBag, LoggingMixin):
         ):
             # Reprocess source file
             found_dags = self.process_file(
-                filepath=orm_dag.fileloc, only_if_updated=False)
+                filepath=correct_maybe_zipped(orm_dag.fileloc), only_if_updated=False)
 
             # If the source file no longer exports `dag_id`, delete it from self.dags
             if found_dags and dag_id in [found_dag.dag_id for found_dag in found_dags]:
@@ -195,7 +199,7 @@ class DagBag(BaseDagBag, LoggingMixin):
             if mod_name in sys.modules:
                 del sys.modules[mod_name]
 
-            with timeout(configuration.conf.getint('core', "DAGBAG_IMPORT_TIMEOUT")):
+            with timeout(self.DAGBAG_IMPORT_TIMEOUT):
                 try:
                     m = imp.load_source(mod_name, filepath)
                     mods.append(m)
@@ -294,12 +298,10 @@ class DagBag(BaseDagBag, LoggingMixin):
                     ti.end_date = zombie.end_date
                     ti.try_number = zombie.try_number
                     ti.state = zombie.state
-                    ti.test_mode = configuration.getboolean('core', 'unit_test_mode')
+                    ti.test_mode = self.UNIT_TEST_MODE
                     ti.handle_failure("{} detected as zombie".format(ti),
                                       ti.test_mode, ti.get_template_context())
-                    self.log.info(
-                        'Marked zombie job %s as %s', ti, ti.state)
-                    Stats.incr('zombies_killed')
+                    self.log.info('Marked zombie job %s as %s', ti, ti.state)
         session.commit()
 
     def bag_dag(self, dag, parent_dag, root_dag):
@@ -342,8 +344,8 @@ class DagBag(BaseDagBag, LoggingMixin):
             self,
             dag_folder=None,
             only_if_updated=True,
-            include_examples=configuration.conf.getboolean('core', 'LOAD_EXAMPLES'),
-            safe_mode=configuration.conf.getboolean('core', 'DAG_DISCOVERY_SAFE_MODE')):
+            include_examples=conf.getboolean('core', 'LOAD_EXAMPLES'),
+            safe_mode=conf.getboolean('core', 'DAG_DISCOVERY_SAFE_MODE')):
         """
         Given a file path or a folder, this method looks for python modules,
         imports them and adds them to the dagbag collection.
@@ -356,15 +358,15 @@ class DagBag(BaseDagBag, LoggingMixin):
         **Note**: The patterns in .airflowignore are treated as
         un-anchored regexes, not shell-like glob patterns.
         """
-        start_dttm = timezone.utcnow()
         dag_folder = dag_folder or self.dag_folder
-
         # Used to store stats around DagBag processing
         stats = []
         FileLoadStat = namedtuple(
             'FileLoadStat', "file duration dag_num task_num dags")
 
         dag_folder = correct_maybe_zipped(dag_folder)
+
+        dags_by_name = {}
 
         for filepath in list_py_file_paths(dag_folder, safe_mode=safe_mode,
                                            include_examples=include_examples):
@@ -373,27 +375,32 @@ class DagBag(BaseDagBag, LoggingMixin):
                 found_dags = self.process_file(
                     filepath, only_if_updated=only_if_updated,
                     safe_mode=safe_mode)
+                dag_ids = [dag.dag_id for dag in found_dags]
+                dag_id_names = str(dag_ids)
 
                 td = timezone.utcnow() - ts
                 td = td.total_seconds() + (
                     float(td.microseconds) / 1000000)
+                dags_by_name[dag_id_names] = dag_ids
                 stats.append(FileLoadStat(
-                    filepath.replace(dag_folder, ''),
+                    filepath.replace(settings.DAGS_FOLDER, ''),
                     td,
                     len(found_dags),
                     sum([len(dag.tasks) for dag in found_dags]),
-                    str([dag.dag_id for dag in found_dags]),
+                    dag_id_names,
                 ))
             except Exception as e:
                 self.log.exception(e)
-        Stats.gauge(
-            'collect_dags', (timezone.utcnow() - start_dttm).total_seconds(), 1)
-        Stats.gauge(
-            'dagbag_size', len(self.dags), 1)
-        Stats.gauge(
-            'dagbag_import_errors', len(self.import_errors), 1)
         self.dagbag_stats = sorted(
             stats, key=lambda x: x.duration, reverse=True)
+        for file_stat in self.dagbag_stats:
+            dag_ids = dags_by_name[file_stat.dags]
+            if file_stat.dag_num >= 1:
+                # if we found multiple dags per file, the stat is 'dag_id1 _ dag_id2'
+                dag_names = '_'.join(dag_ids)
+                Stats.timing('dag.loading-duration.{}'.
+                             format(dag_names),
+                             file_stat.duration)
 
     def dagbag_report(self):
         """Prints a report around DagBag loading stats"""

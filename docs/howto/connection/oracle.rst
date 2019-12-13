@@ -1,4 +1,4 @@
-..  Licensed to the Apache Software Foundation (ASF) under one
+ .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
     regarding copyright ownership.  The ASF licenses this file
@@ -6,14 +6,16 @@
     "License"); you may not use this file except in compliance
     with the License.  You may obtain a copy of the License at
 
-..    http://www.apache.org/licenses/LICENSE-2.0
+ ..   http://www.apache.org/licenses/LICENSE-2.0
 
-..  Unless required by applicable law or agreed to in writing,
+ .. Unless required by applicable law or agreed to in writing,
     software distributed under the License is distributed on an
     "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
     KIND, either express or implied.  See the License for the
     specific language governing permissions and limitations
     under the License.
+
+
 
 Oracle Connection
 =================
@@ -44,18 +46,18 @@ Extra (optional)
     connection. The following parameters are supported:
 
     * **encoding** - The encoding to use for regular database strings. If not specified,
-      the environment variable `NLS_LANG` is used. If the environment variable `NLS_LANG`
-      is not set, `ASCII` is used.
+      the environment variable ``NLS_LANG`` is used. If the environment variable ``NLS_LANG``
+      is not set, ``ASCII`` is used.
     * **nencoding** - The encoding to use for national character set database strings.
-      If not specified, the environment variable `NLS_NCHAR` is used. If the environment
-      variable `NLS_NCHAR` is not used, the environment variable `NLS_LANG` is used instead,
-      and if the environment variable `NLS_LANG` is not set, `ASCII` is used.
+      If not specified, the environment variable ``NLS_NCHAR`` is used. If the environment
+      variable ``NLS_NCHAR`` is not used, the environment variable ``NLS_LANG`` is used instead,
+      and if the environment variable ``NLS_LANG`` is not set, ``ASCII`` is used.
     * **threaded** - Whether or not Oracle should wrap accesses to connections with a mutex.
       Default value is False.
     * **events** - Whether or not to initialize Oracle in events mode.
-    * **mode** - one of `sysdba`, `sysasm`, `sysoper`, `sysbkp`, `sysdgd`, `syskmt` or `sysrac`
+    * **mode** - one of ``sysdba``, ``sysasm``, ``sysoper``, ``sysbkp``, ``sysdgd``, ``syskmt`` or ``sysrac``
       which are defined at the module level, Default mode is connecting.
-    * **purity** - one of `new`, `self`, `default`. Specify the session acquired from the pool.
+    * **purity** - one of ``new``, ``self``, ``default``. Specify the session acquired from the pool.
       configuration parameter.
 
     More details on all Oracle connect parameters supported can be found in
