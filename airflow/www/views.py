@@ -42,7 +42,7 @@ import pendulum
 import sqlalchemy as sqla
 from flask import (
     abort, jsonify, redirect, url_for, request, Markup, Response,
-    current_app, render_template, make_response)
+    current_app, render_template, make_response, send_file)
 from flask import flash
 from flask_admin import BaseView, expose, AdminIndexView
 from flask_admin.actions import action
