@@ -37,7 +37,7 @@ class TestSlackWebhookHook(unittest.TestCase):
         'channel': '#general',
         'username': 'SlackMcSlackFace',
         'icon_emoji': ':hankey:',
-        'icon_url': 'https://airflow.apache.org/_images/pin_large.png',
+        'icon_url': 'https://airflow.apache.org/_images/pin_30.png',
         'link_names': True,
         'proxy': 'https://my-horrible-proxy.proxyist.com:8080'
     }
