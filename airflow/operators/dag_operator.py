@@ -38,7 +38,7 @@ class SkippableDagOperator(BaseOperator):
         python_callable=None,
         skip_dag=False,
         *args, **kwargs):
-        super(SkippableDagOperator, self).__init__(*args, **kwargs)
+        super(SkippableDagOperator, self).__init__(retries=0, *args, **kwargs)
         self.python_callable = python_callable
         self.skip_dag = skip_dag
 
