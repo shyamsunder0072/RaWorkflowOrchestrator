@@ -30,7 +30,7 @@ class SkippableDagOperator(BaseOperator):
     :type python_callable: python callable
     """
     template_fields = ('run_dag_id', 'skip_dag')
-    ui_color = '#dda0dd'
+    ui_color = '#e5c7f2'
 
     @apply_defaults
     def __init__(
@@ -72,7 +72,7 @@ class SkippableDagOperator(BaseOperator):
 
 class DagOperator(SkippableDagOperator):
 
-    ui_color = '#ab6cc6'
+    ui_color = '#d575ff'
     @apply_defaults
     def __init__(
         self,
