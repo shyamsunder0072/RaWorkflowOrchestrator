@@ -2325,7 +2325,7 @@ class HelpView(AirflowBaseView):
     @has_access
     def help(self):
         try:
-            return send_file('templates/airflow/Couture_AI_Workflow_Orchestrator_v0.1.pdf', 'application/pdf', as_attachment=False)
+            return send_file('templates/airflow/Couture_AI_Workflow_Orchestrator.pdf', 'application/pdf', as_attachment=False)
         except Exception as e:
             return str(e)
 
