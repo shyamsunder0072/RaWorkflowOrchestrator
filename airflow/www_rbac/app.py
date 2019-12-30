@@ -103,6 +103,7 @@ def create_app(config=None, session=None, testing=False, app_name="Workflow"):
             appbuilder.add_view_no_menu(views.HadoopConfView())
             appbuilder.add_view_no_menu(views.AddDagView())
             appbuilder.add_view_no_menu(views.SparkDepView())
+            appbuilder.add_view_no_menu(views.LdapConfView())
             appbuilder.add_view_no_menu(views.CodeArtifactView())
             appbuilder.add_view_no_menu(views.VersionView())
             appbuilder.add_view_no_menu(views.HelpView())
@@ -152,6 +153,10 @@ def create_app(config=None, session=None, testing=False, app_name="Workflow"):
                                 category_icon="fa-user")
             appbuilder.add_link("Spark Dependencies",
                                 href='/spark_dependencies',
+                                category="Admin",
+                                category_icon="fa-user")
+            appbuilder.add_link("Ldap Configuration",
+                                href='/ldap',
                                 category="Admin",
                                 category_icon="fa-user")
             appbuilder.add_link("Kerberos Configuration",

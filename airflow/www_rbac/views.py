@@ -2244,6 +2244,37 @@ class HadoopConfView(AirflowBaseView):
         path_file = os.path.join(UPLOAD_FOLDER,filename)
         return send_file(path_file, as_attachment=True)
 
+class LdapConfView(AirflowBaseView):
+    @expose('/ldap', methods=['GET', 'POST'])
+    @has_access
+    @action_logging
+    def update_ldap_conf(self):
+        import collections
+        import configparser as CP
+        from airflow.configuration import AIRFLOW_HOME
+        config = CP.ConfigParser()
+        config.optionxform = str
+        conf_path = AIRFLOW_HOME + '/ldap.conf'
+
+        config.read(filenames=conf_path)
+        args = collections.OrderedDict(config.items('ldap'))
+        title = "Ldap Configuration"
+
+        if request.method == 'POST':
+            config.read(filenames=conf_path)
+            args = collections.OrderedDict(config.items('ldap'))
+            for i in args:
+                config.set('ldap', i, request.form[i])
+            with open(conf_path, 'w') as configfile:
+                config.write(configfile)
+            new_args = collections.OrderedDict(config.items('ldap'))
+            return self.render_template(
+                'airflow/ldap.html', title=title, Arguments=new_args)
+        else:
+            return self.render_template(
+                'airflow/ldap.html', title=title, Arguments=args)
+
+
 class SparkDepView(AirflowBaseView):
     @expose('/spark_dependencies', methods=['GET', 'POST'])
     @has_access
