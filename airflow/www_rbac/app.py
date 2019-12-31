@@ -155,7 +155,7 @@ def create_app(config=None, session=None, testing=False, app_name="Workflow"):
                                 href='/spark_dependencies',
                                 category="Admin",
                                 category_icon="fa-user")
-            appbuilder.add_link("Ldap Configuration",
+            appbuilder.add_link("LDAP Configuration",
                                 href='/ldap',
                                 category="Admin",
                                 category_icon="fa-user")
