@@ -2,7 +2,8 @@ from airflow.models import BaseOperator
 from airflow.utils import timezone
 from airflow.utils.decorators import apply_defaults
 from airflow.api.common.experimental.run_dag import run_dag
-
+import datetime
+import six
 import json
 
 
@@ -44,11 +45,28 @@ class SkippableDagOperator(BaseOperator):
 
 
     def execute(self, context):
+        execution_date = context['execution_date']
+
+        if isinstance(execution_date, datetime.datetime):
+            exe_date = execution_date.isoformat()
+        elif isinstance(execution_date, six.string_types):
+            exe_date = execution_date
+        elif execution_date is None:
+            exe_date = execution_date
+        else:
+            raise TypeError(
+                'Expected str or datetime.datetime type '
+                'for execution_date. Got {}'.format(
+                    type(execution_date)))
+
+        execution_date = timezone.parse(exe_date)
+
         if self.skip_dag:
             self.log.info("Skipped this, moving on")
             #self.__setstate__(State.SUCCESS)
         else:
-            run_id = 'run__' + timezone.utcnow().isoformat()
+            run_id = 'dagrun__' + exe_date
+
             dro = DagRunOrder(run_id=run_id)
             if self.python_callable is not None:
                 dro = self.python_callable(context, dro)
@@ -57,7 +75,8 @@ class SkippableDagOperator(BaseOperator):
                 t = run_dag(dag_id=self.run_dag_id,
                             run_id=dro.run_id,
                             conf=json.dumps(dro.payload),
-                            replace_microseconds=False)
+                            replace_microseconds=False,
+                            execution_date=execution_date)
             else:
                 self.log.info("Criteria not met, moving on")
 
@@ -67,8 +86,6 @@ class SkippableDagOperator(BaseOperator):
                 'Is wait over?? ... %s',
                 t.get_state
             )
-
-
 
 class DagOperator(SkippableDagOperator):
 
