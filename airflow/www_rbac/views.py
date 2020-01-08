@@ -1434,7 +1434,6 @@ class Airflow(AirflowBaseView):
         doc_md = markdown.markdown(dag.doc_md) \
             if hasattr(dag, 'doc_md') and dag.doc_md else ''
 
-        print(dag, tasks, nodes, edges)
 
         return self.render_template(
             'airflow/graph.html',
@@ -1464,12 +1463,16 @@ class Airflow(AirflowBaseView):
     @action_logging
     @provide_session
     def graph_popover(self, session=None):
+        '''
+            Almost a copy of graph method.
+
+        This view is used to show the graph preview in a popover for DAGOperator.
+        '''
         dag_id = request.args.get('dag_id')
         blur = conf.getboolean('webserver', 'demo_mode')
         dag = dagbag.get_dag(dag_id)
         if dag_id not in dagbag.dags:
             flash('DAG "{0}" seems to be missing.'.format(dag_id), "error")
-            # WHAT to do here ??
             return redirect(url_for('Airflow.index'))
 
         root = request.args.get('root')
@@ -1540,7 +1543,6 @@ class Airflow(AirflowBaseView):
         doc_md = markdown.markdown(dag.doc_md) \
             if hasattr(dag, 'doc_md') and dag.doc_md else ''
 
-        print(dag, tasks, nodes, edges)
 
         return self.render_template(
             'airflow/graph_popover.html',

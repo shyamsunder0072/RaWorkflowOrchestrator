@@ -351,10 +351,6 @@ function updateQueryStringParameter(uri, key, value) {
       $('.never_active').removeClass('active');
     });
 
-    // enabling popover
-    $(function () {
-      $('[data-toggle="popover"]').popover();
-    });
 
     var id = '';
     var dag_id = '{{ dag.dag_id }}';
@@ -388,9 +384,6 @@ function updateQueryStringParameter(uri, key, value) {
       else {
           $("#div_btn_rundag").show();
           rundag_id = run_dag_id;
-          // document.getElementById("btn_rundag").setAttribute("title", rundag_id);
-          // $("#div_btn_rundag").attr("title", rundag_id);
-          // console.log("here", rundag_id, $("#div_btn_rundag").attr("title"));
       }
       if (try_numbers > 0)
           $("#dag_dl_logs").show();
@@ -421,78 +414,39 @@ function updateQueryStringParameter(uri, key, value) {
       }
     }
 
+    // enabling popover
+    $(function () {
+      $('[data-toggle="popover"]').popover();
+    });
 
-  function set_popover_content() {
-    $.get(
-        "{{ url_for('Airflow.graph_popover') }}",
-        {dag_id : rundag_id, execution_date : execution_date},
-        function (data, status) {
-          $('.popover-content').html(data);
-          // return data;
-        }
-    )
-  }
+    function set_popover_content() {
+      $.get(
+          "{{ url_for('Airflow.graph_popover') }}",
+          {dag_id : rundag_id, execution_date : execution_date},
+          function (data, status) {
+            $('.popover-content').html(data);
+          }
+      )
+    }
 
 
-  $('#btn_rundag').on('show.bs.popover', function () {
-            // console.log('show called');
-            set_popover_content();
-        });
+    $('#btn_rundag').on('show.bs.popover', function () {
+        set_popover_content();
+    });
 
-    $("#btn_rundag").mouseover(
-      function () {
-        console.log('mouse over');
-        // $.get(
-        //     "{{ url_for('Airflow.task_instances') }}",
-        //     {dag_id : rundag_id, execution_date : execution_date})
-        // .done(
-        //     function(task_instances) {
-        //       console.log(task_instances);
-        //         // update_nodes_states(JSON.parse(task_instances));
-        //         // $("#loading").hide();
-        //         // $("div#svg_container").css("opacity", "1");
-        //         // $('#error').hide();
-        //     }
-        // )
-        var temp = '<div class="popover dag-operator-popover" role="tooltip"><div class="arrow"></div><h3 class="popover-title"></h3><div class="popover-content"></div></div>'
-        $('#btn_rundag').popover({ title: '', content: 'Loading...', html: true, template: temp});
-        // $.get(
-        //     "{{ url_for('Airflow.graph_popover') }}",
-        //     {dag_id : rundag_id, execution_date : execution_date},
-        //     function (data, status) {
-        //       console.log(data, status)
-        //       // $('#div_btn_rundag').popover({ title: task_id, content: data, html: true, template: temp});
-        //       $('#btn_rundag').popover({ title: task_id, template: temp, boundary: 'viewport'});
-        //       // $('.popover-header').text(task_id)
-        //       $('.popover-body').html(data);
-        $('#btn_rundag').popover('show');
-        $("div.popover").mouseleave(function () {
-            console.log('here');
-            // setTimeout(function () {
-            // if (!$(".popover:hover").length) {
-            //   $('#btn_rundag').popover('hide');
-            // }
-            // }, 400);
-            $('#btn_rundag').popover('hide');
+    var popover_template = '<div class="popover dag-operator-popover" role="tooltip">' +
+                              '<div class="arrow"></div>' +
+                              '<h3 class="popover-title"></h3>' +
+                              '<div class="popover-content"></div>' +
+                            '</div>'
 
-            // console.log(e.target, e.target.classList, $(e.target).parents());
-            // var dag_popover = $("#dag-operator-popover");
-            // if(!e.target.classList.contains("dag-operator-popover") && !$(e.target).parents(".dag-operator-popover").length) {
-            //     // container.hide();
-            //     $('#btn_rundag').popover('hide');
-            //     // console.log('outside div')
-            // } else {
-            //   // console.log('inside div')
-            // }
-        });
-
-        //     }
-        // )
-      },
-      // function () {
-      //   // $('#btn_rundag').popover('toggle');
-      // }
-    );
+    $("#btn_rundag").mouseover( function () {
+      $('#btn_rundag').popover({ title: '', content: 'Loading...', html: true, template: popover_template});
+      $('#btn_rundag').popover('show');
+      $("div.popover").mouseleave(function () {
+          $('#btn_rundag').popover('hide');
+      });
+    });
 
     function call_modal_dag(dag) {
       id = dag && dag.id;

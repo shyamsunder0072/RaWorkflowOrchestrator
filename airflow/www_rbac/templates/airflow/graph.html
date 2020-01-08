@@ -103,7 +103,6 @@
     var highlightStrokeWidth = '5px';
 
     var nodes = {{ nodes|tojson|safe }};
-    console.log(nodes);
     var edges = {{ edges|tojson|safe }};
     var execution_date = "{{ execution_date }}";
     var arrange = "{{ arrange }}";
@@ -184,9 +183,7 @@
 
 
     function highlight_nodes(nodes, color) {
-      console.log("Smallllll", nodes);
         nodes.forEach (function (nodeid) {
-            // console.log(nodeid);
             my_node = d3.select('#' + nodeid).node().parentNode;
             d3.select(my_node).selectAll("rect").style("stroke", color) ;
         })
