@@ -433,25 +433,15 @@ function updateQueryStringParameter(uri, key, value) {
     )
   }
 
-  $(document).mouseup(function (e) {
-      // console.log(e.target, e.target.classList, $(e.target).parents());
-      var dag_popover = $("#dag-operator-popover");
-      if(!e.target.classList.contains("dag-operator-popover") && !$(e.target).parents(".dag-operator-popover").length) {
-          // container.hide();
-          $('#btn_rundag').popover('hide');
-          // console.log('outside div')
-      } else {
-        // console.log('inside div')
-      }
-  });
 
   $('#btn_rundag').on('show.bs.popover', function () {
             // console.log('show called');
             set_popover_content();
         });
 
-    $("#btn_rundag").hover(
+    $("#btn_rundag").mouseover(
       function () {
+        console.log('mouse over');
         // $.get(
         //     "{{ url_for('Airflow.task_instances') }}",
         //     {dag_id : rundag_id, execution_date : execution_date})
@@ -464,7 +454,7 @@ function updateQueryStringParameter(uri, key, value) {
         //         // $('#error').hide();
         //     }
         // )
-        var temp = '<div class="popover dag-operator-popover" role="tooltip"><h3 class="popover-title"></h3><div class="popover-content"></div></div>'
+        var temp = '<div class="popover dag-operator-popover" role="tooltip"><div class="arrow"></div><h3 class="popover-title"></h3><div class="popover-content"></div></div>'
         $('#btn_rundag').popover({ title: '', content: 'Loading...', html: true, template: temp});
         // $.get(
         //     "{{ url_for('Airflow.graph_popover') }}",
@@ -476,13 +466,32 @@ function updateQueryStringParameter(uri, key, value) {
         //       // $('.popover-header').text(task_id)
         //       $('.popover-body').html(data);
         $('#btn_rundag').popover('show');
+        $("div.popover").mouseleave(function () {
+            console.log('here');
+            // setTimeout(function () {
+            // if (!$(".popover:hover").length) {
+            //   $('#btn_rundag').popover('hide');
+            // }
+            // }, 400);
+            $('#btn_rundag').popover('hide');
+
+            // console.log(e.target, e.target.classList, $(e.target).parents());
+            // var dag_popover = $("#dag-operator-popover");
+            // if(!e.target.classList.contains("dag-operator-popover") && !$(e.target).parents(".dag-operator-popover").length) {
+            //     // container.hide();
+            //     $('#btn_rundag').popover('hide');
+            //     // console.log('outside div')
+            // } else {
+            //   // console.log('inside div')
+            // }
+        });
 
         //     }
         // )
       },
-      function () {
-        // $('#btn_rundag').popover('toggle');
-      }
+      // function () {
+      //   // $('#btn_rundag').popover('toggle');
+      // }
     );
 
     function call_modal_dag(dag) {
