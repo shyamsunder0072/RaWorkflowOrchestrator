@@ -2142,24 +2142,23 @@ class SparkConfView(AirflowBaseView):
                     config.set('arguments', i, pythonfiles)  # saving the new updated list of files
 
             for j in configs:
+                # print("printing j", j, request.form[j])
                 config.set('configurations', j, request.form[j])  # saving the new updated fields
 
-            # to handle the scenario when the new field(for new option) has not been added in form
-            try:
-                opt_title = request.form['option_title']
-                opt_value = request.form['option_value']
-                if len(opt_title) != 0 and len(opt_value) != 0:  # for not adding empty fields in file
-                    config.set('arguments', opt_title, opt_value)  # adding the new name and value in file
-            except:
-                print("Sorry ! No field found ")
+            # adding new fields in config['arguments']
+            # filtering out new keys:
+            for key in request.form:
+                if key.startswith('new-arg-key') and request.form[key]:
+                    key_no = key.split('-')[-1]
+                    config.set('arguments', request.form[key], request.form['new-arg-value-'+key_no])
 
-            try:
-                opt_title_config = request.form['option_title_config']
-                opt_value_config = request.form['option_value_config']
-                if len(opt_title_config) != 0 and len(opt_value_config) != 0:  # for not adding empty fields in file
-                    config.set('configurations', opt_title_config, opt_value_config)  # adding the new name and value in file
-            except:
-                print("Sorry ! No field found ")
+            # adding new fields in config['configurations']
+            # filtering out new keys:
+            for key in request.form:
+                if key.startswith('new-config-key') and request.form[key]:
+                    key_no = key.split('-')[-1]
+                    config.set('configurations', request.form[key], request.form['new-config-value-'+key_no])
+
 
             try:
                 if config.has_option('arguments', request.form['option_title_args_delete']):  # if there is option in the file, then delete
@@ -2185,7 +2184,17 @@ class SparkConfView(AirflowBaseView):
             # kt_files = []
             # kt_len = 0
             return self.render_template(
-                'airflow/couture_config.html', title=title, Arguments=new_args, Configurations=new_config, Files=files, Py_Files=py_files, len_jar=len_jar, len_py=len_py, kt_len=kt_len, kt_Files=kt_files)
+                            'airflow/couture_config.html',
+                            title=title,
+                            Arguments=new_args,
+                            Configurations=new_config,
+                            Files=files,
+                            Py_Files=py_files,
+                            len_jar=len_jar,
+                            len_py=len_py,
+                            kt_len=kt_len,
+                            kt_Files=kt_files
+                        )
         else:
             files = []
             py_files = []
