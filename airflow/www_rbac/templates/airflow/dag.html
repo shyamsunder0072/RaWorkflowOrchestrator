@@ -25,6 +25,12 @@
 {% endblock %}
 
 {% block content %}
+<style>
+  .dag-operator-popover {
+    max-width: 200%;
+    width: 100%;
+  }
+</style>
 <div>
     <h3 class="pull-left">
       {% if dag.parent_dag %}
@@ -141,7 +147,7 @@
               <hr/>
           </div>
           <div id="div_btn_rundag">
-            <button id="btn_rundag" type="button" class="btn btn-primary">
+            <button id="btn_rundag" type="button" class="btn btn-primary" tabindex="0">
               Zoom into DAG
             </button>
             <hr/>
@@ -345,6 +351,7 @@ function updateQueryStringParameter(uri, key, value) {
       $('.never_active').removeClass('active');
     });
 
+
     var id = '';
     var dag_id = '{{ dag.dag_id }}';
     var dagTZ = '{{ dag.timezone.name }}'; // Being used in datetime-utils.js
@@ -406,6 +413,48 @@ function updateQueryStringParameter(uri, key, value) {
         );
       }
     }
+
+    // enabling popover
+    $(function () {
+      $('[data-toggle="popover"]').popover();
+    });
+
+    function set_popover_content() {
+      $.get(
+          "{{ url_for('Airflow.graph_popover') }}",
+          {dag_id : rundag_id, execution_date : execution_date},
+          function (data, status) {
+            $('.popover-content').html(data);
+          }
+      )
+    }
+
+
+    $('#btn_rundag').on('show.bs.popover', function () {
+        set_popover_content();
+    });
+
+    $(document).mouseup(function (e) {
+      var dag_popover = $("#dag-operator-popover");
+      if(!e.target.classList.contains("dag-operator-popover") && !$(e.target).parents(".dag-operator-popover").length) {
+          $('#btn_rundag').popover('hide');
+      } else {
+      }
+    });
+
+    var popover_template = '<div class="popover dag-operator-popover" role="tooltip">' +
+                              '<div class="arrow"></div>' +
+                              '<h3 class="popover-title"></h3>' +
+                              '<div class="popover-content"></div>' +
+                            '</div>'
+
+    $("#btn_rundag").mouseover( function () {
+      $('#btn_rundag').popover({ title: '', content: 'Loading...', html: true, template: popover_template});
+      $('#btn_rundag').popover('show');
+      $("div.popover").mouseleave(function () {
+          $('#btn_rundag').popover('hide');
+      });
+    });
 
     function call_modal_dag(dag) {
       id = dag && dag.id;

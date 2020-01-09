@@ -264,7 +264,7 @@ input[type=submit]:hover {
           <label for={{i}} class="couturelabel">{{i}}</label>
         </div>
         <div class="couturecol-75">
-          <input id={{i}} name={{i}} type="text" value={{Arguments[i]}}>
+          <input id={{i}} name={{i}} type="text" value="{{Arguments[i]}}">
           <button onclick="javascript:del_feed('{{i}}')" class="couturebutton-delete" title="Delete Argument"> <i class="glyphicon glyphicon-remove-circle" style="color:red" aria-hidden="true"></i></button>
         </div>
         {%endif%}
@@ -283,7 +283,7 @@ input[type=submit]:hover {
           <label for={{j}}  class="couturelabel">{{j}}</label>
         </div>
         <div class="couturecol-75">
-          <input id={{j}} name={{j}} type="text" value={{Configurations[j]}}>
+          <input id={{j}} name={{j}} type="text" value="{{Configurations[j]}}">
           <button onclick="javascript:del_feed_config('{{j}}')" class="couturebutton-delete" title="Delete Configuration"> <i class="glyphicon glyphicon-remove-circle" style="color:red" aria-hidden="true"></i></button>
         </div>
       </div>
@@ -295,32 +295,6 @@ input[type=submit]:hover {
     </div>
   </form>
 </div>
-
-<!-- Template begins-->
-<div class="ccontainer" id="newfield_for_contaner1" style="display:none">
-  <div class="couturerow">
-    <div class="couturecol-20">
-      <input name="option_title" type="text" value="" placeholder="Enter name">
-    </div>
-    <div class="couturecol-75">
-      <input name="option_value" type="text" value="" placeholder="Enter value">
-    </div>
-  </div>
-</div>
-<!-- Template ends -->
-
-<!-- Template begins-->
-<div class="ccontainer" id="newfield_for_contaner2" style="display:none">
-  <div class="couturerow">
-    <div class="couturecol-20">
-      <input name="option_title_config" type="text" value="" placeholder="Enter name">
-    </div>
-    <div class="couturecol-75">
-      <input name="option_value_config" type="text" value="" placeholder="Enter value">
-    </div>
-  </div>
-</div>
-<!-- Template ends -->
 
 <!-- Template begins-->
 <div class="ccontainer" id="newfield_for_delete" style="display:none">
@@ -340,18 +314,48 @@ input[type=submit]:hover {
 {% block tail_js %}
 {{ super() }}
 <script type="text/javascript">
+
+const globalValues = {
+  newConfigKeySN: 0,
+  newArgKeySN: 0,
+};
+
 function add_feed()
 {
   var div1 = document.createElement('div');
-  div1.innerHTML = document.getElementById('newfield_for_contaner1').innerHTML;
+
+  // creating template here.
+  const template = '<div class="couturerow">'
+    + '<div class="couturecol-20">'
+      + '<input name="new-arg-key-'+ globalValues.newArgKeySN + '" type="text" value="" placeholder="Enter key">'
+    + '</div>'
+    + '<div class="couturecol-75">'
+    + '<input name="new-arg-value-' + globalValues.newArgKeySN + '" type="text" value="" placeholder="Enter value">'
+    + '</div>';
+  '</div>'
+  div1.innerHTML = template;
+  globalValues.newArgKeySN += 1;
   document.getElementById('container1').appendChild(div1);
 }
+
 function add_feed_config()
 {
   var div1 = document.createElement('div');
-  div1.innerHTML = document.getElementById('newfield_for_contaner2').innerHTML;
+
+  // creating template here.
+  const template = '<div class="couturerow">'
+    + '<div class="couturecol-20">'
+      + '<input name="new-config-key-'+ globalValues.newConfigKeySN + '" type="text" value="" placeholder="Enter key">'
+    + '</div>'
+    + '<div class="couturecol-75">'
+    + '<input name="new-config-value-' + globalValues.newConfigKeySN + '" type="text" value="" placeholder="Enter value">'
+    + '</div>';
+  '</div>'
+  div1.innerHTML = template;
+  globalValues.newConfigKeySN += 1;
   document.getElementById('container2').appendChild(div1);
 }
+
 function del_feed(option)
 {
   let del = confirm("Are you sure you want to delete?");
