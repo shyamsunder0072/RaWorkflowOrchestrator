@@ -2145,17 +2145,14 @@ class SparkConfView(AirflowBaseView):
                 # print("printing j", j, request.form[j])
                 config.set('configurations', j, request.form[j])  # saving the new updated fields
 
-            # adding new fields in config['arguments']
             # filtering out new keys:
             for key in request.form:
                 if key.startswith('new-arg-key') and request.form[key]:
+                    # adding new fields in config['arguments']
                     key_no = key.split('-')[-1]
                     config.set('arguments', request.form[key], request.form['new-arg-value-'+key_no])
-
-            # adding new fields in config['configurations']
-            # filtering out new keys:
-            for key in request.form:
-                if key.startswith('new-config-key') and request.form[key]:
+                elif key.startswith('new-config-key') and request.form[key]:
+                    # adding new fields in config['configurations']
                     key_no = key.split('-')[-1]
                     config.set('configurations', request.form[key], request.form['new-config-value-'+key_no])
 
