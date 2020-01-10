@@ -2374,8 +2374,6 @@ class LdapConfView(AirflowBaseView):
         config.optionxform = str
         conf_path = AIRFLOW_HOME + '/ldap.conf'
 
-        config.read(filenames=conf_path)
-        args = collections.OrderedDict(config.items('ldap'))
         title = "Ldap Configuration"
 
         if request.method == 'POST':
@@ -2389,8 +2387,19 @@ class LdapConfView(AirflowBaseView):
             return self.render_template(
                 'airflow/ldap.html', title=title, Arguments=new_args)
         else:
-            return self.render_template(
-                'airflow/ldap.html', title=title, Arguments=args)
+            try:
+                config.read(filenames=conf_path)
+                args = collections.OrderedDict(config.items('ldap'))
+                return self.render_template(
+                    'airflow/ldap.html', title=title, Arguments=args)
+            except CP.NoSectionError:
+                return self.render_template(
+                    'airflow/ldap.html', title=title, error='No LDAP Config Found')
+            except Exception:
+                error = '''Error while parsing LDAP conf file. Please check the
+                           file and try again.'''
+                return self.render_template(
+                    'airflow/ldap.html', title=title, error=error)
 
 
 class SparkDepView(AirflowBaseView):

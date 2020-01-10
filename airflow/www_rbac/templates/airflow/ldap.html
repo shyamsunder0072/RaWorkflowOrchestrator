@@ -108,26 +108,30 @@ input[type=submit]:hover {
 {% block body %}
 {{ super() }}
 
-<div class="couture-container">
+<div class="couture-container text-center">
+  {% if error %}
+    <h3>Error: {{error}}</h3>
+  {% else %}
   <form action="", method="post">
     <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
     <h2>Configuration</h2>
     <div id="container_xml">
-      {%for j in Arguments%}
-      <div class="couture-row">
-        <div class="couture-col-25">
-          <label for={{j}}  class="couture-label">{{j}}</label>
+        {% for j in Arguments %}
+        <div class="couture-row">
+          <div class="couture-col-25">
+            <label for={{j}}  class="couture-label">{{j}}</label>
+          </div>
+          <div class="couture-col-75">
+            <input id={{j}} name={{j}} type="text" value={{Arguments[j]}}>
+          </div>
         </div>
-        <div class="couture-col-75">
-          <input id={{j}} name={{j}} type="text" value={{Arguments[j]}}>
-        </div>
-      </div>
-      {%endfor%}
+        {% endfor %}
     </div>
     <div class="couture-row">
       <input align="middle" type="submit" value="Submit All Changes">
     </div>
   </form>
+  {% endif %}
 </div>
 
 {% endblock %}
