@@ -127,6 +127,9 @@ const config = {
       },
       { from: 'node_modules/datatables.net/**/**.min.*', flatten: true },
       { from: 'node_modules/datatables.net-bs/**/**.min.*', flatten: true },
+      { from: 'static/js/difflib.js' },
+      { from: 'static/js/diffview.js' },
+      { from: 'static/css/diffview.css' },
     ], { copyUnmodified: true }),
   ],
 };
