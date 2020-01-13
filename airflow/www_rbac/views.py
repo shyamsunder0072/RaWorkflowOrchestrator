@@ -2821,6 +2821,8 @@ class AddDagView(AirflowBaseView):
     @expose("/editdag/<string:filename>", methods=['GET', 'POST'])
     @action_logging
     def editdag(self, filename):
+        # NOTE: This method has to be rewritten entirely as diffview has been
+        # made to work from HTML side itself.
         from airflow.configuration import AIRFLOW_HOME
         add_to_dir = AIRFLOW_HOME + '/dags'
 
@@ -2902,9 +2904,12 @@ class AddDagView(AirflowBaseView):
 
     @expose("/save_task/<string:filename>", methods=['POST'])   # for saving a new task
     def save_task(self, filename):
+        from pathlib import Path
         from airflow.configuration import AIRFLOW_HOME
         TASK_FOLDER = AIRFLOW_HOME + '/repo'
 
+        # creating a path to TASK_FOLDER (for python >= 3.5)
+        Path(TASK_FOLDER).mkdir(parents=True, exist_ok=True)
         if request.method == 'POST':
             new_heading = request.form['new_heading']
             description = request.form['description']
