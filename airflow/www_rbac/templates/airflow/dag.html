@@ -349,6 +349,13 @@ function updateQueryStringParameter(uri, key, value) {
     $(document).ready(function () {
       $('a[href*="' + this.location.pathname + '"]').parent().addClass('active');
       $('.never_active').removeClass('active');
+      // enabling popover
+      $(function () {
+        $('[data-toggle="popover"]').popover();
+      });
+      $('#btn_rundag').on('show.bs.popover', function () {
+        set_popover_content();
+      });
     });
 
 
@@ -414,10 +421,6 @@ function updateQueryStringParameter(uri, key, value) {
       }
     }
 
-    // enabling popover
-    $(function () {
-      $('[data-toggle="popover"]').popover();
-    });
 
     function set_popover_content() {
       $.get(
@@ -429,11 +432,6 @@ function updateQueryStringParameter(uri, key, value) {
       )
     }
 
-
-    $('#btn_rundag').on('show.bs.popover', function () {
-        set_popover_content();
-    });
-
     $(document).mouseup(function (e) {
       var dag_popover = $("#dag-operator-popover");
       if(!e.target.classList.contains("dag-operator-popover") && !$(e.target).parents(".dag-operator-popover").length) {
@@ -443,13 +441,13 @@ function updateQueryStringParameter(uri, key, value) {
     });
 
     var popover_template = '<div class="popover dag-operator-popover" role="tooltip">' +
-                              '<div class="arrow"></div>' +
+                              // '<div class="arrow"></div>' +
                               '<h3 class="popover-title"></h3>' +
                               '<div class="popover-content"></div>' +
                             '</div>'
 
     $("#btn_rundag").mouseover( function () {
-      $('#btn_rundag').popover({ title: '', content: 'Loading...', html: true, template: popover_template});
+      $('#btn_rundag').popover({ title: 'Preview', content: 'Loading...', html: true, template: popover_template});
       $('#btn_rundag').popover('show');
       $("div.popover").mouseleave(function () {
           $('#btn_rundag').popover('hide');

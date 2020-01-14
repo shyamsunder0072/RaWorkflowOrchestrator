@@ -1,537 +1,212 @@
 {% extends "airflow/master.html" %}
 {% block title %}
-{{ title }}
+  {{ title }}
 {% endblock %}
 
 {% block head_css %}
-{{ super() }}
-
+  {{ super() }}
 <style>
-   * {
-  box-sizing: border-box;
-    }
-
-input[type=text], select, textarea {
-  width: 100%;
-  padding: 12px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  resize: vertical;
-}
-
-input[type=submit] {
-  background-color: #4CAF50;
-  color: white;
-  padding: 12px 20px;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  margin-left: 50%;
-  margin-top: 0px;
-<!--  margin-bottom : 10px;-->
-  text-align: center;
-  text-decoration: none;
-  display: inline-block;
-}
-
-.couturebutton {
-  background-color: #4CAF50;
-  border: none;
-  border-radius: 4px;
-  color: white;
-  padding: 12px 20px;
-  cursor: pointer;
-  float: right;
-  text-align: center;
-  text-decoration: none;
-  display: inline-block;
-  margin-left: 5px;
-  margin-top: -50px;
-}
-.add_button {
-    background-color: #4CAF50;
-    border: none;
-    border-radius: 4px;
-    color: white;
-    padding: 8px 20px;
-    cursor: pointer;
-    text-align: center;
-    text-decoration: none;
-    display: inline-block;
-    margin-bottom: 5px;
-    margin-left: 40%;
-}
-.couturebutton_insert {
-  background-color: #4CAF50;
-  border: none;
-  border-radius: 4px;
-  color: white;
-  padding: 3px 11px;
-  cursor: pointer;
-  float: right;
-  text-align: center;
-  text-decoration: none;
-  display: inline-block;
-  margin-right: 5px;
-  margin-top: -20px;
-}
-#rev_button {
-visibility:visible;
-margin-left: 50%;
- background-color: #4CAF50;
-  border: none;
-  border-radius: 4px;
-  color: white;
-  padding: 12px 20px;
-  cursor: pointer;
-  text-align: center;
-  text-decoration: none;
-<!--  display: inline-block;-->
-
-}
-input[type=submit]:hover {
-  background-color: #45a049;
-}
-
-.couturecontainer {
-  border-radius: 5px;
-  padding: 10px;
-<!--  background-color: #f2f2f2;-->
-}
-
-textarea {
-  overflow: auto;
-  white-space: pre-wrap;
-}
-.table-responsive {
-    width: 100%;
-    margin-bottom: 15px;
-    overflow-y: hidden;
-    overflow-x: auto;
-    -ms-overflow-style: -ms-autohiding-scrollbar;
-    border: 5px solid #dddddd;
-    -webkit-overflow-scrolling: touch;
-  }
-
-   .couturecol-lg-1-1 {
-        width: 8.33333333%;
-  }
-
-/* Responsive layout - when the screen is less than 600px wide, make the two columns stack on top of each other instead of next to each other */
-@media screen and (max-width: 600px) {
-  .couture-col-25, .couture-col-75, input[type=submit] {
-    width: 100%;
-    margin-top: 0;
-    display : table;
-  }
-}
-table.diff {
-table-layout: fixed;
-width: 100%;
-border:medium;
- word-wrap:break-word;
-<!--font-family:Courier;-->
-
-}
-.diff_header {background-color:#e0e0e0}
-td.diff_header {
-     text-align: center;
-    /* padding-right: 4px; */
-    /* padding-left: 2px; */
-     width: 40px;
-    }
-td, th {
-    padding: 0;
-    word-break: break-word;
-     white-space: normal;
-}
-.diff_next {background-color:#c0c0c0;  width: 10px;}
-.diff_add {background-color:#aaffaa}
-.diff_chg {background-color:#ffff77}
-.diff_sub {background-color:#ffaaaa}
-
-   /* Style the couturetab */
-.couturetab {
-  overflow: hidden;
-  border: 1px solid #ccc;
-  background-color: #f1f1f1;
-}
-/* Style the buttons inside the couturetab */
-.couturetab button {
-  background-color: inherit;
-  float: left;
-  border: none;
-  outline: none;
-  cursor: pointer;
-  padding: 14px 16px;
-  transition: 0.3s;
-  font-size: 17px;
-}
-
-/* Change background color of buttons on hover */
-.couturetab button:hover {
-  background-color: #ddd;
-}
-
-/* Create an active/current couturetablink class */
-.couturetab button.active {
-  background-color: #ccc;
-}
-
-/* Style the tab content */
-.couturetabcontent {
-  display: none;
-<!--  padding: 0px 0px 0px;-->
-  padding: 6px 12px;
-<!--  border: 1px solid #ccc;-->
-<!--  border-bottom: none ;-->
-<!--  border-top: none;-->
-}
-.couturedropdown-submenu {
-  position: relative;
-}
-.couturedropdown {
-    position: relative;
-}
-.couturedropdown-menu-right {
-<!--    right: 0;-->
-    left: auto;
-}
-:after, :before {
-    -webkit-box-sizing: border-box;
-    -moz-box-sizing: border-box;
-    box-sizing: border-box;
-}
-html {
-    font-size: 10px;
-    -webkit-tap-highlight-color: rgba(0,0,0,0);
-}
-.couturedropdown-menu>li>a {
-    display: block;
-    padding: 3px 20px;
-    clear: both;
-    font-weight: 400;
-    line-height: 1.42857143;
-    color: #333;
-    white-space: nowrap;
-}
-a {
-    color: #337ab7;
-    text-decoration: none;
-}
-a {
-    background-color: transparent;
-}
-body {
-    font-family: "Helvetica Neue",Helvetica,Arial,sans-serif;
+  .CodeMirror {
     font-size: 14px;
-    line-height: 1.42857143;
-    color: #333;
-    background-color: #fff;
-}
-html {
-    font-size: 10px;
-    -webkit-tap-highlight-color: rgba(0,0,0,0);
-}
-button, input, select, textarea {
-    font-family: inherit;
-    font-size: inherit;
-    line-height: inherit;
-}
-button, html input[type=button], input[type=reset], input[type=submit] {
-    -webkit-appearance: button;
-    cursor: pointer;
-}
-button, select {
-    text-transform: none;
-}
-button {
-    overflow: visible;
-}
-button, input, optgroup, select, textarea {
-    margin: 0;
-    font: inherit;
-    color: inherit;
-}
-.caret {
-    display: inline-block;
-    width: 0;
-    height: 0;
-    margin-left: 2px;
-    vertical-align: middle;
-    border-top: 4px dashed;
-    border-top: 4px solid\9;
-    border-right: 4px solid transparent;
-    border-left: 4px solid transparent;
-}
-.couturedropdown-submenu .couturedropdown-menu {
-    top: 0;
-     right: 100%;
-    left: auto;
-  min-width: 350px;
-  min-height: 200px;
-  margin-top: -5px;
-  max-width : 400px;
-  max-height : 400px;
-  overflow-y : auto;
-}
-.open>.couturedropdown-menu {
-    display: block;
-    right: 0;
-}
-.couturedropdown-menu {
-    position: absolute;
-    top: 100%;
-    right : 0;
-    /* left: 0; */
-    z-index: 1000;
-    display: none;
-    float: left;
-    min-width: 250px;
-    padding: 0px 0;
-    margin: 2px 0 0;
-    font-size: 14px;
-    text-align: left;
-    list-style: none;
-    background-color: #fff;
-    background-clip: padding-box;
-    border: 1px solid #ccc;
-    border: 1px solid rgba(0,0,0,.15);
-    border-radius: 4px;
-    }
-    pre {
-    display: block;
-    padding: 7px;
-    margin: 10px 5px 10px;
-    font-size: 13px;
-    line-height: 1.42857143;
-    color: #333;
-    word-break: break-all;
-    word-wrap: break-word;
-    background-color: #f5f5f5;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    white-space: pre;
-    font-family: Menlo,Monaco,Consolas,"Courier New",monospace;
-    overflow: auto;
-    min-height: 150px;
-    }
-   .dropdown-divider {
-    height: 0;
-    margin: .5rem 0;
-    overflow: hidden;
-    border-top: 1px solid #e9ecef;
-    }
-    #desc {
-    margin-left: 5px;
-    margin-top: 5px;
-    white-space: pre-wrap;
-    }
+    border: 1px solid #eee;
+    height: 500px !important;
+  }
+  .CodeMirror-merge-gap {
+    height: 500px !important;
+  }
+  .dropdown-submenu{position:relative;}
+  .dropdown-submenu>.dropdown-menu{top:0;left:100%;margin-top:-6px;margin-left:-1px;-webkit-border-radius:0 6px 6px 6px;-moz-border-radius:0 6px 6px 6px;border-radius:0 6px 6px 6px;}
+  .dropdown-submenu:hover>.dropdown-menu{display:block;}
+  .dropdown-submenu>a:after{display:block;content:" ";float:right;width:0;height:0;border-color:transparent;border-style:solid;border-width:5px 0 5px 5px;border-left-color:#cccccc;margin-top:5px;margin-right:-10px;}
+  .dropdown-submenu:hover>a:after{border-left-color:#ffffff;}
+  .dropdown-submenu.pull-left{float:none;}.dropdown-submenu.pull-left>.dropdown-menu{left:-100%;margin-left:10px;-webkit-border-radius:6px 0 6px 6px;-moz-border-radius:6px 0 6px 6px;border-radius:6px 0 6px 6px;}
 </style>
-
+<link rel="stylesheet" href="{{ url_for_asset('codemirror/lib/codemirror.css') }}" />
+<link rel=stylesheet href="{{url_for_asset('codemirror/addon/merge/merge.css')}}">
 {% endblock %}
 
 {% block head_js %}
-{{ super() }}
-
-
-
-<script type="text/javascript">
-
-    function openTab(evt, tabName) {
-      var i, couturetabcontent, tablinks;
-      couturetabcontent = document.getElementsByClassName("couturetabcontent");
-      for (i = 0; i < couturetabcontent.length; i++) {
-        couturetabcontent[i].style.display = "none";
-      }
-      tablinks = document.getElementsByClassName("tablinks");
-      for (i = 0; i < tablinks.length; i++) {
-        tablinks[i].className = tablinks[i].className.replace(" active", "");
-      }
-      document.getElementById(tabName).style.display = "block";
-      evt.currentTarget.className += " active";
-    }
-
-</script>
-
+  {{ super() }}
 {% endblock %}
 
-{% block body %}
-{{ super() }}
-<div class="couturecontainer" id="main_container">
-  <h3>DAGs Code Editor - {{Filename}}</h3>
-  <div class="couturedropdown">
-    <button class="couturebutton dropdown-toggle" type="button" data-toggle="dropdown">Code Bricks
-      <span class="caret"></span></button>
-    <ul class="couturedropdown-menu couturedropdown-menu-right" >
-      {% for file in values %}
-      <li class="couturedropdown-submenu">
-        <a class="test" tabindex="-1" href="#"> {{ file }}</a>
-        <ul class="couturedropdown-menu couturedropdown-menu-right">
-          <li><div id="desc">{{ values[file]['desc'] }}</div><br />
-            <button class="couturebutton_insert" value={{ file }}  onclick="javascript:insert_code()">Insert</button>
-            <div id={{ file }}>
-              <pre id="contents">{{ values[file]['code'] }}</pre>
-            </div>
+{% block content %}
+<div class="container-fluid">
+  <h3>DAGs Code Editor - {{filename}}</h3>
+  <button class="btn btn-primary pull-right" onclick="submitCode()">Save Code</button>
+  <ul class="nav nav-tabs" id="codeEditorTab">
+    <li class="active"><a data-toggle="tab" href="#code-content">Code</a></li>
+    <li><a data-toggle="tab" href="#review-content">Review</a></li>
+    <li class="dropdown">
+      <a href="#" class="dropdown-toggle" data-toggle="dropdown" id="snippetsDropdown">Snippets <b class="caret"></b></a>
+      <ul class="dropdown-menu">
+        {% for title in snippets %}
+          <li class=dropdown-submenu>
+            <a href="#">{{title}}</a>
+            <ul class="dropdown-menu">
+              <li>
+                <div style="margin: 0.5em;">
+                  <button class="btn btn-success pull-right padding-x-md"  onclick="insertSnip(this)">Insert snippet</button>
+                  <label class="label label-default">Description</label>
+                  <p>{{snippets[title]['description']}}</p>
+                  <textarea cols="100" rows="10" class="snip-textarea {{title}}" readonly>{{snippets[title]['snippet']}}</textarea>
+                </div>
+              </li>
+            </ul>
           </li>
-        </ul>
-      </li>
-      {% endfor %}
+        {% endfor %}
+        <li><a data-toggle="modal" data-target="#addSnippet">Add code snippet</a></li>
+      </ul>
+    </li>
+  </ul>
 
-      <div class="dropdown-divider"></div>
-      <li class="couturedropdown-submenu">
-        <a class="test" tabindex="-1" href="#">ADD ITEM </a>
-        <ul class="couturedropdown-menu couturedropdown-menu-right" >
-          <form action="{{ url_for('AddDagView.save_task', filename = Filename) }}" method="post">
-            <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
-            <input name="new_heading" type="text" value="" placeholder="Enter heading">
-            <input name="description" type="text" value="" placeholder="Enter description">
-            <textarea id="new_code" name="new_code" placeholder="enter code" rows="10" cols="5"></textarea>
-            <button type="submit" class="add_button" value="Add" onclick="javascript:new_task({{Filename}})">Add</button>
-          </form>
-        </ul>
-      </li>
-    </ul>
+  <div class="tab-content">
+    <div id="code-content" class="tab-pane fade in active codeTab">
+      <h3>Edit Code</h3>
+        <textarea id="code" name="code" wrap="hard">{{code}}</textarea>
+    </div>
+    <div id="review-content" class="tab-pane fade">
+      <h3>Review Changes</h3>
+      <div class="div-2" id="code-2"></div>
+    </div>
   </div>
-
-
-  <div class="couturetab">
-    <button class="tablinks" onclick="javascript:openTab(event, 'Edit Code'); javascript:get_button();" id="defaultOpen">Edit Code</button>
-    <button class="tablinks" onclick="javascript:openTab(event, 'Review Code'); javascript:get_button();" id="review_code">Review Code</button>
-  </div>
-  <form action="{{ url_for('AddDagView.editdag', filename = Filename) }}" method="post" enctype="multipart/form-data" id="editdag">
-    <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
-    <div class="couturecontainer" id="container_editdag">
-      <div id="Edit Code" class="couturetabcontent">
-        <table class="table table-bordered">
-          <tbody>
-          <tr>
-            <td class="couturecol-lg-1-1">
-              <textarea rows="40" cols="80" id="code" name="code" wrap="hard" value={{code}}>{{code}}</textarea>
-            </td>
-          </tr>
-          </tbody>
-        </table>
-      </div>
-      <div id="Review Code" class="couturetabcontent">
-        {%if Diff!=None %}
-        <div id="container1" class="couturecontainer">{{Diff | safe}}</div>
-        <input type="submit" value="Save Changes" onclick="javascript:function_save()">
-        {% else %}
-        <div id="container2" class="couturecontainer">No changes made yet</div>
-        {% endif %}
+  <div class="modal fade" id="addSnippet" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+          <h4 class="modal-title">Add a snippet to snippets repo.</h4>
+        </div>
+        <form role="form" id="snippetForm" method="POST" action="{{ url_for('AddDagView.save_snippet', filename=filename) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+          <div class="modal-body">
+              <div class="form-group">
+                <label for="snippetTitle">Title</label>
+                <input type="text" class="form-control" name="title" required>
+              </div>
+              <div class="form-group">
+                <label for="snippetDescription">Description</label>
+                <textarea class="form-control" name="description" rows="5"></textarea>
+              </div>
+              <div class="form-group">
+                <label for="snippet">Snippet</label>
+                <textarea class="form-control" name="snippet" id="snippetInput"></textarea>
+              </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+            <button type="submit" class="btn btn-primary">Submit</button>
+          </div>
+        </form>
       </div>
     </div>
-  </form>
-  <button class="tablinks" onclick="javascript:openTab(event, 'Review Code'); javascript:get_button();" id="rev_button" style="visibility:visible; margin-left: 50%;">Review Changes</button>
-  <script>
-  function get_button() {
-  if (document.getElementById('Review Code').style.display != "block") {
-  document.getElementById('rev_button').style.visibility="visible";
-  }
-  else {
-  document.getElementById('rev_button').style.visibility="hidden";
-  }
-    }
-    </script>
+  </div>
 </div>
 
-
-<!-- Template begins-->
-<div class="couturecontainer" id="newfield_for_editdag" style="display:none">
-  <input name="option_editdag" id="for_editdag" type="hidden" placeholder="Enter name">
-</div>
-<!-- Template ends -->
-
-<!-- Template begins-->
-<div class="couturecontainer" id="newfield_for_reviewdag" style="display:none">
-  <input name="option_reviewdag" id="for_reviewdag" type="hidden" placeholder="Enter name">
-</div>
-<!-- Template ends -->
+<!-- old code -->
+<textarea id="oldCode" hidden>{{code}}</textarea>
 {% endblock %}
 
 {% block tail_js %}
-{{ super() }}
+  {{ super() }}
 <script src="{{ url_for('static', filename='js/jquery-3.4.1.min.js') }}"></script>
+<script src="{{ url_for_asset('diff_match_patch.js') }}"></script>
+<script src="{{ url_for_asset('codemirror/lib/codemirror.js') }}"></script>
+<script src="{{ url_for_asset('codemirror/mode/python/python.js') }}"></script>
+<script src="{{ url_for_asset('codemirror/addon/merge/merge.js') }}"></script>
 <script type="text/javascript">
-     var delay = (function(){
-     var timer = 0;
-     return function(callback, ms){
-     clearTimeout (timer);
-     timer = setTimeout(callback, ms);
-     };
-    })();
 
-    $('#code').keyup(function() {
-      delay(function(){
-       code = document.getElementById("code").value;
-        document.getElementById("for_reviewdag").value = code;
-        var div1 = document.createElement('div');
-        div1.innerHTML = document.getElementById('newfield_for_reviewdag').innerHTML;
-        document.getElementById('container_editdag').appendChild(div1);
-        document.getElementById('editdag').submit();
-      }, 1000 );
+  var codeEditor, diffEditor, snippetEditor;
+  function compareChanges() {
+    var target = document.getElementById('code-2');
+    target.innerHTML = '';
+    diffEditor = CodeMirror.MergeView(target, {
+      value: codeEditor.getValue(),
+      orig: document.getElementById('oldCode').value,
+      origLeft: null,
+      lineNumbers: true,
+      mode: 'python',
+      highlightDifferences: true,
+    });
+    diffEditor.edit.setOption('readOnly', true);
+    diffEditor.edit.on('change', function (_cm, change) {
+      codeEditor.setValue(_cm.getValue());
+    });
+  }
+
+  function insertSnip(el) {
+    var text = $("textarea", $(el).parent()).val();
+    var doc = codeEditor.getDoc();
+    var cursor = doc.getCursor();
+    doc.replaceRange(text, cursor);
+    compareChanges();
+  }
+
+  $(document).ready(function() {
+    var myTextArea = document.getElementById('code');
+    codeEditor = CodeMirror.fromTextArea(myTextArea, { lineNumbers:true, smartIndent: true, mode: 'python' });
+    jQuery.noConflict();
+    $('a[data-toggle="tab"]').on('shown.bs.tab', function (e) {
+      compareChanges();
     });
 
-    function function_save(option)
-    {
-        let save = confirm("Are you sure you want to save?");
-            if(save) {
-                document.getElementById("for_editdag").value = 'save_now';
-                var div1 = document.createElement('div');
-                div1.innerHTML = document.getElementById('newfield_for_editdag').innerHTML;
-                document.getElementById('container_editdag').appendChild(div1);
-                    }
-    }
+    $('#addSnippet').on('shown.bs.modal', function (e) {
+      if(!snippetEditor){
+        var snipArea = document.getElementById('snippetInput');
+        snippetEditor = CodeMirror.fromTextArea(snipArea, { lineNumbers:true, smartIndent: true, mode: 'python' });
+      }
+    })
 
-    function typeInTextarea(el, newText) {
-
-      var start = el.prop("selectionStart")
-      var end = el.prop("selectionEnd")
-      var text = el.val()
-      var before = text.substring(0, start)
-      var after  = text.substring(end, text.length)
-      el.val(before + newText + after)
-      el[0].selectionStart = el[0].selectionEnd = start + newText.length
-      el.focus()
-
-    }
-
-    function insert_code() {
-         var task_number = window.event.target.value
-        var code_task = document.getElementById(task_number).innerText;
-        typeInTextarea($("textarea#code"), code_task);
-    }
-
-    $(document).ready(function(){
-      document.getElementById('defaultOpen').click();
-
-      $('.couturedropdown-submenu a.test').on("click", function(e){
-        $('.couturedropdown-submenu>ul').hide();
-        $(this).next('ul').toggle();
-        e.stopPropagation();
-        e.preventDefault();
-      });
-
-      $('.couturecontainer>form').on("click", function(e){
-        $('.couturedropdown-submenu>ul.couturedropdown-menu').hide();
-      });
+    $('a[data-toggle="tab"]').on('shown.bs.tab', function (e) {
+      var target = $(e.target).attr("href") // activated tab
+      switch (target) {
+        case '#review-content':
+          $('#snippetsDropdown').addClass('disabled');
+          $('#snippetsDropdown').text('Snippets (Not available in review mode.)')
+          break;
+        case '#code-content':
+          $('#snippetsDropdown').html('Snippets <b class="caret"></b>')
+          $('#snippetsDropdown').removeClass('disabled');
+          break;
+        default:
+          $('#snippetsDropdown').html('Snippets <b class="caret"></b>')
+          $('#snippetsDropdown').removeClass('disabled');
+          break;
+      }
     });
+  });
 
-    function new_task(filename) {
-       var form_data = new FormData();
-           $.ajax({
-            type: 'POST',
-            url: url_for('save_task', filename=filename),
-            data: form_data,
-            contentType: false,
-            cache: false,
-            processData: false,
-            success: function(data) {
-            console.log('Success!');
-            },
-        });
+    /**
+   * sends a request to the specified url from a form. this will change the window location.
+   * @param {string} path the path to send the post request to
+   * @param {object} params the paramiters to add to the url
+   * @param {string} [method=post] the method to use on the form
+   */
+
+  function post(path, params, method = 'post') {
+    // The rest of this code assumes you are not using a library.
+    // It can be made less wordy if you use one.
+    const form = document.createElement('form');
+    form.method = method;
+    form.action = path;
+
+    for (const key in params) {
+      if (params.hasOwnProperty(key)) {
+        const hiddenField = document.createElement('input');
+        hiddenField.type = 'hidden';
+        hiddenField.name = key;
+        hiddenField.value = params[key];
+
+        form.appendChild(hiddenField);
+      }
     }
 
+      document.body.appendChild(form);
+      form.submit();
+    }
+
+  function submitCode() {
+    var path = "{{ url_for('AddDagView.editdag', filename=filename) }}";
+    post(path, { code: codeEditor.getValue(), csrf_token: '{{ csrf_token() }}' });
+  }
 </script>
 {% endblock %}
