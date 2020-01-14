@@ -42,6 +42,7 @@ from flask_appbuilder import BaseView, ModelView, expose, has_access
 from flask_appbuilder.actions import action
 from flask_appbuilder.models.sqla.filters import BaseFilter
 from flask_babel import lazy_gettext
+from pathlib import Path
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
 from sqlalchemy import func, or_, desc, and_, union_all
@@ -53,8 +54,10 @@ from airflow import models, jobs
 from airflow import settings
 from airflow.api.common.experimental.mark_tasks import (set_dag_run_state_to_success,
                                                         set_dag_run_state_to_failed)
+from airflow.configuration import AIRFLOW_HOME
 from airflow.models import Connection, DagModel, DagRun, errors, Log, SlaMiss, TaskFail, XCom
 from airflow.ti_deps.dep_context import DepContext, QUEUE_DEPS, SCHEDULER_DEPS
+
 from airflow.utils import timezone
 from airflow.utils.dates import infer_time_unit, scale_time_units
 from airflow.utils.db import provide_session
@@ -2709,55 +2712,17 @@ class CodeArtifactView(AirflowBaseView):
 
 class AddDagView(AirflowBaseView):
 
-    def make_tree(self, path):    # to get all the files inside the directory passed in the function
-        tree = dict(name=os.path.basename(path), children=[])
-        try:
-            lst = os.listdir(path)
-        except OSError:
-            pass  # ignore errors
-        else:
-            for name in lst:
-                fn = os.path.join(path, name)
-                if os.path.isdir(fn):
-                    tree['children'].append(self.make_tree(fn))
-                else:
-                    with open(fn) as f:
-                        contents = f.read()
-                    tree['children'].append(dict(name=name, contents=contents))
-        return tree
+    def get_dag_file_path(self, filename):
+        return os.path.join(AIRFLOW_HOME, *['dags', filename])
 
-    def get_values(self):   # to preprocess the files and get code and description separately
-        from airflow.configuration import AIRFLOW_HOME
-        TASK_FOLDER = AIRFLOW_HOME + '/repo'
-        path = TASK_FOLDER
-        tree = self.make_tree(path)
-        values = {}
-        for key, value in tree.items():
-            if key == 'children':
-                for n in value:
-                    cont = n['contents'].split('\n')
-                    task_name = n["name"].split(".py")[0]  # to remove .py extension from the file(task) names
-                    desc_temp = []
-                    code_temp = []
-                    i = 0
-                    if cont[i].startswith("description:"):
-                        i = i + 1   # to get the next line after the heading "description"
-                        while not cont[i].startswith("code:") and i < len(cont):
-                            desc_temp.append(cont[i])  # storing the description lines
-                            i = i + 1
-                    if cont[i].startswith("code:"):
-                        i = i + 1   # to get the next line after the heading "description"
-                        while i < len(cont):
-                            code_temp.append(cont[i])  # storing the code
-                            i = i + 1
-                    if i == 0:     # if there is no description inside the file, directly code is stored
-                        while i < len(cont):
-                            code_temp.append(cont[i])
-                            i = i + 1
-                        desc_temp.append("No description available")   # if there is no description inside the file, this message is stored
-                    temp_dict = {'desc': "\n".join(desc_temp), 'code': "\n".join(code_temp)}
-                    values[task_name] = temp_dict
-        return values
+    def get_snippet_file_path(self):
+        return os.path.join(AIRFLOW_HOME, *['repo', 'dag-snippets.json'])
+    def get_snippets(self):
+        snippets_path = self.get_snippet_file_path()
+        if Path(snippets_path).exists():
+            with open(snippets_path) as f:
+                return json.load(f)
+        return dict()
 
     @expose('/add_dag', methods=['GET', 'POST'])
     @action_logging
@@ -2821,110 +2786,43 @@ class AddDagView(AirflowBaseView):
     @expose("/editdag/<string:filename>", methods=['GET', 'POST'])
     @action_logging
     def editdag(self, filename):
-        # NOTE: This method has to be rewritten entirely as diffview has been
-        # made to work from HTML side itself.
-        from airflow.configuration import AIRFLOW_HOME
-        add_to_dir = AIRFLOW_HOME + '/dags'
-
-        fullpath = os.path.join(add_to_dir, filename)
-        with open(fullpath, 'r') as f1:
-            f_old = f1.readlines()
-
-        from airflow.configuration import AIRFLOW_HOME
-        TASK_FOLDER = AIRFLOW_HOME + '/repo'
-        path = TASK_FOLDER
-
+        fullpath = self.get_dag_file_path(filename)
         if request.method == 'POST':
-
-            code = request.form['code']   # extracting code from from and storing it in "code" variable
-            temp_dir = tempfile.gettempdir()
-            temp_path = os.path.join(temp_dir, 'temp_file_name')
-            shutil.copy2(fullpath, temp_path)
-
-            path2 = temp_path
-            with open(path2, 'w') as f_temp:  # writing code to temp file
-                f_temp.write(code)
-
-            fo = open(path2, "r")
-            f_temp = fo.readlines()
-            # using DiffLib to create an HTML table showing a side by side, line by line comparison of text with inter-line and intra-line change highlights
-            # here comparsion is done between two versions of code stored in f_old and f_new
-            diff = difflib.HtmlDiff().make_table(f_old, f_temp, fromdesc='', todesc='')
-
-            try:
-                with open(fullpath, 'r') as f1:
-                    f_old = f1.readlines()
-
-                code_changed = request.form['option_reviewdag']
-
-                temp_dir = tempfile.gettempdir()
-                temp_path = os.path.join(temp_dir, 'temp_file_name')
-                shutil.copy2(fullpath, temp_path)
-
-                path2 = temp_path
-
-                with open(path2, 'w') as f_temp:  # writing code to temp file
-                    f_temp.write(code_changed)
-
-                fo = open(path2, "r")
-                f_temp = fo.readlines()
-                # using DiffLib to create an HTML table showing a side by side, line by line comparison of text with inter-line and intra-line change highlights
-                # here comparsion is done between two versions of code stored in f_old and f_new
-                diff = difflib.HtmlDiff().make_table(f_old, f_temp, fromdesc='', todesc='')
-                return self.render_template("airflow/editdag.html", code=code, Filename=filename, Diff=diff, values=self.get_values())
-            except:
-                print("code not changed yet")
-
-            try:  # only when "save changes" button is clicked
-                with open(fullpath, 'r') as f1:
-                    f_old = f1.readlines()
-                save_name = request.form['option_editdag']
-                if save_name != '':
-                    with open(fullpath, 'w') as f:  # writing code to original file, saving all changes
-                        f.write(code)
-                flash("File Saved!!", "success")
-
-                with open(fullpath, 'r') as f1:
-                    f_new = f1.readlines()
-                # using DiffLib to create an HTML table showing a side by side, line by line comparison of text with inter-line and intra-line change highlights
-                # here comparsion is done between two versions of code stored in f_old and f_new
-                diff = difflib.HtmlDiff().make_table(f_old, f_new, fromdesc='', todesc='')
-                return self.render_template("airflow/editdag.html", code=code, Filename=filename, Diff=diff, values=self.get_values())
-            except:
-                print("file not to be saved yet")
-
-            return self.render_template("airflow/editdag.html", code=code, Filename=filename, Diff=diff, values=self.get_values())
-
+            code = request.form['code']
+            with open(fullpath, 'w') as code_file:
+                code_file.write(code)
+                flash('Successfully saved !')
         else:
-            fullpath = os.path.join(add_to_dir, filename)
-            with open(fullpath, 'r') as f:
-                code = f.read()
-            diff = None
-            return self.render_template("airflow/editdag.html", code=code, Filename=filename, Diff=diff, values=self.get_values())
+            with open(fullpath, 'r') as code_file:
+                code = code_file.read()
 
-    @expose("/save_task/<string:filename>", methods=['POST'])   # for saving a new task
-    def save_task(self, filename):
-        from pathlib import Path
-        from airflow.configuration import AIRFLOW_HOME
-        TASK_FOLDER = AIRFLOW_HOME + '/repo'
+        return self.render_template("airflow/editdag.html",
+                                    code=code, filename=filename, snippets=self.get_snippets())
 
-        # creating a path to TASK_FOLDER (for python >= 3.5)
-        Path(TASK_FOLDER).mkdir(parents=True, exist_ok=True)
+    @expose("/save_snippet/<string:filename>", methods=['POST'])
+    def save_snippet(self, filename):
+        snippet_file_path = self.get_snippet_file_path()
+
+        # creating a path to tasks_folder (works for python >= 3.5)
+        Path(snippet_file_path).parent.mkdir(parents=True, exist_ok=True)
+
         if request.method == 'POST':
-            new_heading = request.form['new_heading']
-            description = request.form['description']
-            new_code = request.form['new_code']
-            file_name = new_heading + ".py"
-            path_to_save = os.path.join(TASK_FOLDER, file_name)
-            with open(path_to_save, 'w+') as f:  # creating and saving file inside TASK_FOLDER
-                f.write("description:")
-                f.write("\n")
-                f.write(description)
-                f.write("\n")
-                f.write("code:")
-                f.write("\n")
-                f.write(new_code)
+            if Path(snippet_file_path).exists():
+                with open(snippet_file_path) as f:
+                    snippets = json.load(f)
+            else:
+                snippets = {}
+
+            snippets[request.form['title']] = {
+                'description': request.form['description'],
+                'snippet': request.form['snippet']
+            }
+
+            with open(snippet_file_path, 'w') as f:
+                json.dump(snippets, f)
+
             return redirect(url_for('AddDagView.editdag', filename=filename))
+        return make_response(('METHOD_NOT_ALLOWED', 403))
 
 
     @expose("/dag_download/<string:filename>", methods=['GET', 'POST'])

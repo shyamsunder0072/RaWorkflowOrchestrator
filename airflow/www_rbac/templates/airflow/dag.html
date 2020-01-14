@@ -349,6 +349,13 @@ function updateQueryStringParameter(uri, key, value) {
     $(document).ready(function () {
       $('a[href*="' + this.location.pathname + '"]').parent().addClass('active');
       $('.never_active').removeClass('active');
+      // enabling popover
+      $(function () {
+        $('[data-toggle="popover"]').popover();
+      });
+      $('#btn_rundag').on('show.bs.popover', function () {
+        set_popover_content();
+      });
     });
 
 
@@ -414,10 +421,6 @@ function updateQueryStringParameter(uri, key, value) {
       }
     }
 
-    // enabling popover
-    $(function () {
-      $('[data-toggle="popover"]').popover();
-    });
 
     function set_popover_content() {
       $.get(
@@ -428,11 +431,6 @@ function updateQueryStringParameter(uri, key, value) {
           }
       )
     }
-
-
-    $('#btn_rundag').on('show.bs.popover', function () {
-        set_popover_content();
-    });
 
     $(document).mouseup(function (e) {
       var dag_popover = $("#dag-operator-popover");
