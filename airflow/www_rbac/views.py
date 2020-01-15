@@ -2717,6 +2717,7 @@ class AddDagView(AirflowBaseView):
 
     def get_snippet_file_path(self):
         return os.path.join(AIRFLOW_HOME, *['repo', 'dag-snippets.json'])
+
     def get_snippets(self):
         snippets_path = self.get_snippet_file_path()
         if Path(snippets_path).exists():
@@ -2823,7 +2824,6 @@ class AddDagView(AirflowBaseView):
 
             return redirect(url_for('AddDagView.editdag', filename=filename))
         return make_response(('METHOD_NOT_ALLOWED', 403))
-
 
     @expose("/dag_download/<string:filename>", methods=['GET', 'POST'])
     def download(self, filename):    # for downloading the file passed in the filename

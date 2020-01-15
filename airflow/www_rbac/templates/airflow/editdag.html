@@ -21,7 +21,7 @@
   .dropdown-submenu:hover>a:after{border-left-color:#ffffff;}
   .dropdown-submenu.pull-left{float:none;}.dropdown-submenu.pull-left>.dropdown-menu{left:-100%;margin-left:10px;-webkit-border-radius:6px 0 6px 6px;-moz-border-radius:6px 0 6px 6px;border-radius:6px 0 6px 6px;}
 </style>
-<link rel="stylesheet" href="{{ url_for_asset('codemirror/lib/codemirror.css') }}" />
+<link rel="stylesheet" href="{{ url_for_asset('codemirror/codemirrorlib/codemirror.css') }}" />
 <link rel=stylesheet href="{{url_for_asset('codemirror/addon/merge/merge.css')}}">
 {% endblock %}
 
@@ -54,7 +54,11 @@
             </ul>
           </li>
         {% endfor %}
-        <li><a data-toggle="modal" data-target="#addSnippet">Add code snippet</a></li>
+        <li>
+          <a data-toggle="modal" data-target="#addSnippet">
+            Add code snippet &emsp;
+          </a>
+        </li>
       </ul>
     </li>
   </ul>
@@ -110,7 +114,7 @@
   {{ super() }}
 <script src="{{ url_for('static', filename='js/jquery-3.4.1.min.js') }}"></script>
 <script src="{{ url_for_asset('diff_match_patch.js') }}"></script>
-<script src="{{ url_for_asset('codemirror/lib/codemirror.js') }}"></script>
+<script src="{{ url_for_asset('codemirror/codemirrorlib/codemirror.js') }}"></script>
 <script src="{{ url_for_asset('codemirror/mode/python/python.js') }}"></script>
 <script src="{{ url_for_asset('codemirror/addon/merge/merge.js') }}"></script>
 <script type="text/javascript">
