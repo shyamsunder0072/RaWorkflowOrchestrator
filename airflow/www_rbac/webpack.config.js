@@ -127,6 +127,8 @@ const config = {
       },
       // diff_match_patch is needed by codemirror merge view
       { from: 'static/js/diff_match_patch.js' },
+      { from: 'node_modules/datatables.net/**/**.min.*', flatten: true },
+      { from: 'node_modules/datatables.net-bs/**/**.min.*', flatten: true },
       { from: 'static/codemirror-5.50.2/', to: 'codemirror' },
     ], { copyUnmodified: true }),
   ],
