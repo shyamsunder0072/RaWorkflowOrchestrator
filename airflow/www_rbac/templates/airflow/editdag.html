@@ -14,6 +14,21 @@
   .CodeMirror-merge-gap {
     height: 500px !important;
   }
+  .margin-top-lg { margin-top: 2em; }
+  .padding-sm { padding: .5em; }
+  #codebrickList{
+    max-height: 500px;
+    margin-bottom: 10px;
+    overflow:scroll;
+    -webkit-overflow-scrolling: touch;
+  }
+  .disabledDiv {
+    pointer-events: none;
+    opacity: 0.4;
+  }
+  .hover-cursor-pointer:hover {
+    cursor: pointer;
+  }
   .dropdown-submenu{position:relative;}
   .dropdown-submenu>.dropdown-menu{top:0;left:100%;margin-top:-6px;margin-left:-1px;-webkit-border-radius:0 6px 6px 6px;-moz-border-radius:0 6px 6px 6px;border-radius:0 6px 6px 6px;}
   .dropdown-submenu:hover>.dropdown-menu{display:block;}
@@ -30,55 +45,72 @@
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid">
   <h3>DAGs Code Editor - {{filename}}</h3>
-  <button class="btn btn-primary pull-right" onclick="submitCode()">Save Code</button>
-  <ul class="nav nav-tabs" id="codeEditorTab">
-    <li class="active"><a data-toggle="tab" href="#code-content">Code</a></li>
-    <li><a data-toggle="tab" href="#review-content">Review</a></li>
-    <li class="dropdown">
-      <a href="#" class="dropdown-toggle" data-toggle="dropdown" id="snippetsDropdown">Snippets <b class="caret"></b></a>
-      <ul class="dropdown-menu">
-        {% for title in snippets %}
-          <li class=dropdown-submenu>
-            <a href="#">{{title}}</a>
-            <ul class="dropdown-menu">
-              <li>
-                <div style="margin: 0.5em;">
-                  <button class="btn btn-success pull-right padding-x-md"  onclick="insertSnip(this)">Insert snippet</button>
-                  <label class="label label-default">Description</label>
-                  <p>{{snippets[title]['description']}}</p>
-                  <textarea cols="100" rows="10" class="snip-textarea {{title}}" readonly>{{snippets[title]['snippet']}}</textarea>
-                </div>
-              </li>
-            </ul>
-          </li>
-        {% endfor %}
-        <li>
-          <a data-toggle="modal" data-target="#addSnippet">
-            Add code snippet &emsp;
-          </a>
-        </li>
-      </ul>
-    </li>
-  </ul>
+  <div class="col-md-8 col-sm-8 padding-sm codeEditorDiv">
+    <ul class="nav nav-tabs" id="codeEditorTab">
+      <div class="pull-right hidden" id="editCodeAnchor">
+        <a class="btn btn-primary" data-toggle="tab" href="#code-content">
+          <i class="fa fa-arrow-left" aria-hidden="true"></i>
+          Back to edit mode
+        </a>
+        <button class="btn btn-primary" onclick="submitCode()">
+          Save Code
+          <i class="fa fa-floppy-o" aria-hidden="true"></i>
+        </button>
+      </div>
+      <a class="btn btn-primary pull-right" data-toggle="tab" href="#review-content" id="reviewCodeAnchor">Review</a>
+    </ul>
 
-  <div class="tab-content">
-    <div id="code-content" class="tab-pane fade in active codeTab">
-      <h3>Edit Code</h3>
-        <textarea id="code" name="code" wrap="hard">{{code}}</textarea>
+    <div class="tab-content">
+      <div id="code-content" class="tab-pane fade in active codeTab">
+        <h3>Edit Code</h3>
+          <textarea id="code" name="code" wrap="hard">{{code}}</textarea>
+      </div>
+      <div id="review-content" class="tab-pane fade">
+        <h3>Review Changes</h3>
+        <div class="div-2" id="code-2"></div>
+      </div>
     </div>
-    <div id="review-content" class="tab-pane fade">
-      <h3>Review Changes</h3>
-      <div class="div-2" id="code-2"></div>
+  </div>
+  <div class="col-md-4 col-sm-4 codebricksDiv padding-sm" style="background-color: #d4d7dd; border-radius: 0.5rem;">
+    <div class="row">
+      <div class="col-sm-6"><h5>Codebricks</h5></div>
+      <div class="col-sm-6">
+        <a class="btn btn-info pull-right" data-toggle="modal" data-target="#addSnippet">
+          Add codebrick
+        </a>
+      </div>
     </div>
+
+    <div class="input-group">
+      <span class="input-group-addon"><i class="fa fa-search" aria-hidden="true"></i></span>
+      <input type="text" class="form-control" id="codebrickSearch">
+    </div>
+    <br>
+    <ul class="list-group" id="codebrickList">
+      {% for title in snippets %}
+      <a class="list-group-item" data-toggle="collapse" data-parent="#codebrickList" href="#codebrick-{{loop.index}}">
+        <strong>{{ title }}</strong>
+        <div id="codebrick-{{loop.index}}" class="collapse">
+          <span>
+            <p>{{snippets[title]['description']}}</p>
+            <button class="btn btn-success pull-right" onclick="insertSnip({{loop.index}})">
+              INSERT
+            </button>
+            <br>
+            <pre class="margin-top-lg" id="codebrick-code-{{loop.index}}" style="background-color: #ffffff;">{{snippets[title]['snippet']}}</pre>
+          </span>
+        </div>
+      </a>
+      {% endfor %}
+    </ul>
   </div>
   <div class="modal fade" id="addSnippet" tabindex="-1" role="dialog" aria-hidden="true">
     <div class="modal-dialog">
       <div class="modal-content">
         <div class="modal-header">
           <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
-          <h4 class="modal-title">Add a snippet to snippets repo.</h4>
+          <h4 class="modal-title">Add a codebrick to codebrick repo.</h4>
         </div>
         <form role="form" id="snippetForm" method="POST" action="{{ url_for('AddDagView.save_snippet', filename=filename) }}">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
@@ -92,7 +124,7 @@
                 <textarea class="form-control" name="description" rows="5"></textarea>
               </div>
               <div class="form-group">
-                <label for="snippet">Snippet</label>
+                <label for="snippet">Codebrick</label>
                 <textarea class="form-control" name="snippet" id="snippetInput"></textarea>
               </div>
           </div>
@@ -104,7 +136,6 @@
       </div>
     </div>
   </div>
-</div>
 
 <!-- old code -->
 <textarea id="oldCode" hidden>{{code}}</textarea>
@@ -137,8 +168,8 @@
     });
   }
 
-  function insertSnip(el) {
-    var text = $("textarea", $(el).parent()).val();
+  function insertSnip(index) {
+    var text = $("#codebrick-code-"+index).text();
     var doc = codeEditor.getDoc();
     var cursor = doc.getCursor();
     doc.replaceRange(text, cursor);
@@ -160,22 +191,41 @@
       }
     })
 
+
+    // WARNING: DO NOT TOUCH.
+    // this method adds and removes classes based on which tab is active.
     $('a[data-toggle="tab"]').on('shown.bs.tab', function (e) {
       var target = $(e.target).attr("href") // activated tab
       switch (target) {
         case '#review-content':
-          $('#snippetsDropdown').addClass('disabled');
-          $('#snippetsDropdown').text('Snippets (Not available in review mode.)')
+          $('.codebricksDiv').addClass('hidden');
+          $('.codeEditorDiv').removeClass('col-md-8 col-sm-8');
+          $('.codeEditorDiv').addClass('col-md-12 col-sm-12');
+          $('#reviewCodeAnchor').addClass('hidden');
+          $('#editCodeAnchor').removeClass('hidden');
           break;
         case '#code-content':
-          $('#snippetsDropdown').html('Snippets <b class="caret"></b>')
-          $('#snippetsDropdown').removeClass('disabled');
+          $('.codebricksDiv').removeClass('hidden');
+          $('.codeEditorDiv').removeClass('col-md-12 col-sm-12');
+          $('.codeEditorDiv').addClass('col-md-8 col-sm-8');
+          $('#reviewCodeAnchor').removeClass('hidden');
+          $('#editCodeAnchor').addClass('hidden');
           break;
         default:
-          $('#snippetsDropdown').html('Snippets <b class="caret"></b>')
-          $('#snippetsDropdown').removeClass('disabled');
+          $('.codebricksDiv').removeClass('hidden');
+          $('.codeEditorDiv').removeClass('col-md-12 col-sm-12');
+          $('.codeEditorDiv').addClass('col-md-8 col-sm-8');
+          $('#reviewCodeAnchor').removeClass('hidden');
+          $('#editCodeAnchor').addClass('hidden');
           break;
       }
+    });
+
+    $("#codebrickSearch").on("keyup", function() {
+      var value = $(this).val().toLowerCase();
+      $("#codebrickList a").filter(function() {
+          $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1);
+      });
     });
   });
 

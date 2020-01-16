@@ -2793,6 +2793,7 @@ class AddDagView(AirflowBaseView):
             with open(fullpath, 'w') as code_file:
                 code_file.write(code)
                 flash('Successfully saved !')
+            return redirect(url_for('AddDagView.editdag', filename=filename))
         else:
             with open(fullpath, 'r') as code_file:
                 code = code_file.read()
