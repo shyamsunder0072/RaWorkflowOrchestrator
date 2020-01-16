@@ -25,6 +25,7 @@ import json
 import logging
 import math
 import os
+import re
 import socket
 import traceback
 from collections import defaultdict
@@ -2711,9 +2712,14 @@ class CodeArtifactView(AirflowBaseView):
         return send_file(path_file, as_attachment=True)
 
 class AddDagView(AirflowBaseView):
+    # WARNING: No access control decorators found in this view.
+    # TODO: Add access control decorators.
+
+    # regex for validating filenames while adding new ones
+    regex_valid_filenames = re.compile('^[a-z0-9_.@()-]+\.py$')
 
     def get_dag_file_path(self, filename):
-        return os.path.join(AIRFLOW_HOME, *['dags', filename])
+        return os.path.join(settings.DAGS_FOLDER, filename)
 
     def get_snippet_file_path(self):
         return os.path.join(AIRFLOW_HOME, *['repo', 'dag-snippets.json'])
@@ -2728,61 +2734,55 @@ class AddDagView(AirflowBaseView):
     @expose('/add_dag', methods=['GET', 'POST'])
     @action_logging
     def add_dag(self):
+        """This view adds or removes DAG files.
+        """
+        # TODO: Refactor this code further.
+        # TODO: Change name of this view.
         title = "Add DAG"
-        from airflow.configuration import AIRFLOW_HOME
-        add_to_dir = AIRFLOW_HOME + '/dags'
+        dags_dir = settings.DAGS_FOLDER
 
-        if request.method == 'POST':
-            try:    # for deleting the py files from the folder
-                del_filename = request.form['option_title_delete_DAG']
-                file_data = {}
-                for r, d, f in os.walk(add_to_dir):
-                    for file_name in f:
-                        if file_name.endswith(".py"):
-                            if file_name == del_filename:
-                                os.remove(os.path.join(add_to_dir, file_name))
-                                AirflowBaseView.audit_logging("dag_deleted", file_name, request.environ['REMOTE_ADDR'])
-                                flash('File Deleted!!', "warning")
-                            else:
-                                filePath = os.path.join(add_to_dir, file_name)
-                                if(os.path.exists(filePath)):
-                                    fileStatsObj = os.stat(filePath)
-                                    modificationTime = time.ctime(fileStatsObj[stat.ST_MTIME])
-                                    size = os.stat(filePath).st_size
-                                    size = AirflowBaseView.convert_size(size)
-                                    temp_dict = {'time': modificationTime.split(' ', 1)[1], 'size': size}
-                                    file_data[file_name] = temp_dict
-
-                return self.render_template(
-                    'airflow/add_dag.html', title=title,file_data=file_data)
-            except:
-                print("Sorry ! No file in xml for delete")
-
-            target = os.path.join(add_to_dir)
-
+        if request.method == 'GET':
+            del_filename = request.args.get('delete')
+            if del_filename:
+                for file_name in os.listdir(dags_dir):
+                    if file_name.endswith(".py") and file_name == del_filename:
+                        os.remove(self.get_dag_file_path(file_name))
+                        AirflowBaseView.audit_logging('dag_deleted',
+                                                        file_name,
+                                                        request.environ['REMOTE_ADDR'])
+                        flash('File ' + file_name + ' Deleted!!', "warning")
+                        break
+        elif request.method == 'POST':
             list_files = request.files.getlist("file")
+            # check if a new filename has been sent to be created.
+            filename = request.form.get('filename')
             if len(list_files) > 0:
-                flag = False
+                files_uploaded = 0
                 for upload in request.files.getlist("file"):
                     filename = upload.filename
-                    if filename.endswith('.py'):  # for allowing only py files to be uploaded
-                        flag = True
-                        destination = "/".join([target, filename])
-                        AirflowBaseView.audit_logging("dag_added", filename, request.environ['REMOTE_ADDR'])
+                    if self.regex_valid_filenames.match(filename):
+                        destination = self.get_dag_file_path(filename)
                         upload.save(destination)
+                        AirflowBaseView.audit_logging('dag_added',
+                                                      filename,
+                                                      request.environ['REMOTE_ADDR'])
+                        files_uploaded += 1
                     elif filename:
-                        flash('Only python file allowed!!', "error")
-                if flag:
-                    flash('File Uploaded!!',"success")
+                        flash('Only python files allowed !, ' + filename + ' not allowed', 'error')
 
-                file_data = AirflowBaseView.get_details(add_to_dir, ".py")  # calling get_details with extension ".py"
+                flash(str(files_uploaded) + ' files uploaded!!', 'success')
 
-                return self.render_template(
-                    'airflow/add_dag.html', title=title,file_data=file_data)
-        else:
-            file_data = AirflowBaseView.get_details(add_to_dir, ".py")  # calling get_details with extension ".py"
-
-            return self.render_template('airflow/add_dag.html',title=title,  file_data=file_data)
+            elif filename:
+                if self.regex_valid_filenames.match(filename):
+                    Path(self.get_dag_file_path(filename)).touch(exist_ok=True)
+                    AirflowBaseView.audit_logging('empty_dag_added',
+                                                  filename,
+                                                  request.environ['REMOTE_ADDR'])
+                    return redirect(url_for('AddDagView.editdag', filename=filename))
+                else:
+                    flash('Invalid filename, file not created.', 'error')
+        file_data = AirflowBaseView.get_details(dags_dir, ".py")
+        return self.render_template('airflow/add_dag.html', title=title, file_data=file_data)
 
     @expose("/editdag/<string:filename>", methods=['GET', 'POST'])
     @action_logging
@@ -2826,11 +2826,8 @@ class AddDagView(AirflowBaseView):
         return make_response(('METHOD_NOT_ALLOWED', 403))
 
     @expose("/dag_download/<string:filename>", methods=['GET', 'POST'])
-    def download(self, filename):    # for downloading the file passed in the filename
-        from airflow.configuration import AIRFLOW_HOME
-        add_to_dir = AIRFLOW_HOME + '/dags'
-
-        path_file = os.path.join(add_to_dir,filename)
+    def download(self, filename):
+        path_file = self.get_dag_file_path(filename)
         return send_file(path_file, as_attachment=True)
 
 
