@@ -47,7 +47,7 @@
 {% block content %}
   <h3>DAGs Code Editor - {{filename}}</h3>
   <div class="col-md-8 col-sm-8 padding-sm codeEditorDiv">
-    <ul class="nav nav-tabs" id="codeEditorTab">
+    <!-- <ul class="nav nav-tabs" id="codeEditorTab"> -->
       <div class="pull-right hidden" id="editCodeAnchor">
         <a class="btn btn-primary" data-toggle="tab" href="#code-content">
           <i class="fa fa-arrow-left" aria-hidden="true"></i>
@@ -59,8 +59,7 @@
         </button>
       </div>
       <a class="btn btn-primary pull-right" data-toggle="tab" href="#review-content" id="reviewCodeAnchor">Review</a>
-    </ul>
-
+    <!-- </ul> -->
     <div class="tab-content">
       <div id="code-content" class="tab-pane fade in active codeTab">
         <h3>Edit Code</h3>
@@ -74,10 +73,10 @@
   </div>
   <div class="col-md-4 col-sm-4 codebricksDiv padding-sm" style="background-color: #d4d7dd; border-radius: 0.5rem;">
     <div class="row">
-      <div class="col-sm-6"><h5>Codebricks</h5></div>
+      <div class="col-sm-6"><h5>Obelisk code bricks</h5></div>
       <div class="col-sm-6">
-        <a class="btn btn-info pull-right" data-toggle="modal" data-target="#addSnippet">
-          Add codebrick
+        <a class="btn btn-info pull-right" style="margin: 1em;" data-toggle="modal" data-target="#addSnippet">
+          Add code brick
         </a>
       </div>
     </div>

@@ -2716,7 +2716,7 @@ class AddDagView(AirflowBaseView):
     # TODO: Add access control decorators.
 
     # regex for validating filenames while adding new ones
-    regex_valid_filenames = re.compile('^[a-z0-9_.@()-]+\.py$')
+    regex_valid_filenames = re.compile('^[A-Za-z0-9_.@()-]+\.py$')
 
     def get_dag_file_path(self, filename):
         return os.path.join(settings.DAGS_FOLDER, filename)
