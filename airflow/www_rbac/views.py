@@ -2718,6 +2718,16 @@ class AddDagView(AirflowBaseView):
     # regex for validating filenames while adding new ones
     regex_valid_filenames = re.compile('^[A-Za-z0-9_@()-]+$')
 
+    template_dag_file_path = os.path.join(app.root_path, *['..', 'config_templates', 'default_dag_template.py'])
+    dag_file_template = ''
+    try:
+        with open(template_dag_file_path, 'r') as f:
+            dag_file_template = f.read()
+    except Exception:
+        pass
+
+
+
     def get_dag_file_path(self, filename):
         return os.path.join(settings.DAGS_FOLDER, filename)
 
@@ -2775,10 +2785,16 @@ class AddDagView(AirflowBaseView):
             elif filename:
                 if self.regex_valid_filenames.match(filename):
                     filename = '.'.join([filename, 'py'])
-                    Path(self.get_dag_file_path(filename)).touch(exist_ok=True)
-                    AirflowBaseView.audit_logging('empty_dag_added',
-                                                  filename,
-                                                  request.environ['REMOTE_ADDR'])
+                    try:
+                        # don't overwrite existing files
+                        Path(self.get_dag_file_path(filename)).touch(exist_ok=False)
+                        with open(self.get_dag_file_path(filename), 'w') as new_dag:
+                            new_dag.write(self.dag_file_template)
+                            AirflowBaseView.audit_logging('empty_dag_added',
+                                                          filename,
+                                                          request.environ['REMOTE_ADDR'])
+                    except FileExistsError:
+                        pass
                     return redirect(url_for('AddDagView.editdag', filename=filename))
                 else:
                     flash('Invalid DAG name, DAG not created.', 'error')

@@ -123,7 +123,7 @@
         "{{file}}",
       {% endfor %}
     ];
-    if( files.includes(filename) ) return true;
+    if( files.includes(filename + '.py') ) return true;
     return false;
   }
 
@@ -135,7 +135,7 @@
       input.setCustomValidity('Not a valid DAG name.');
     }
     if (fileExists(input.value)) {
-      input.setCustomValidity('File already exists.');
+      input.setCustomValidity('DAG already exists.');
     }
   }
 </script>
