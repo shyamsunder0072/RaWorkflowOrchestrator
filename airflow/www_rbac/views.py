@@ -2716,7 +2716,7 @@ class AddDagView(AirflowBaseView):
     # TODO: Add access control decorators.
 
     # regex for validating filenames while adding new ones
-    regex_valid_filenames = re.compile('^[A-Za-z0-9_.@()-]+\.py$')
+    regex_valid_filenames = re.compile('^[A-Za-z0-9_@()-]+$')
 
     def get_dag_file_path(self, filename):
         return os.path.join(settings.DAGS_FOLDER, filename)
@@ -2760,7 +2760,7 @@ class AddDagView(AirflowBaseView):
                 files_uploaded = 0
                 for upload in request.files.getlist("file"):
                     filename = upload.filename
-                    if self.regex_valid_filenames.match(filename):
+                    if self.regex_valid_filenames.match(os.path.splitext(filename)[0]):
                         destination = self.get_dag_file_path(filename)
                         upload.save(destination)
                         AirflowBaseView.audit_logging('dag_added',
@@ -2774,13 +2774,17 @@ class AddDagView(AirflowBaseView):
 
             elif filename:
                 if self.regex_valid_filenames.match(filename):
+                    filename = '.'.join([filename, 'py'])
                     Path(self.get_dag_file_path(filename)).touch(exist_ok=True)
                     AirflowBaseView.audit_logging('empty_dag_added',
                                                   filename,
                                                   request.environ['REMOTE_ADDR'])
                     return redirect(url_for('AddDagView.editdag', filename=filename))
                 else:
-                    flash('Invalid filename, file not created.', 'error')
+                    flash('Invalid DAG name, DAG not created.', 'error')
+            # the below redirect is to avoid form resubmission messages when
+            # we refresh the page in the browser.
+            return redirect(url_for('AddDagView.add_dag'))
         file_data = AirflowBaseView.get_details(dags_dir, ".py")
         return self.render_template('airflow/add_dag.html', title=title, file_data=file_data)
 
@@ -2788,6 +2792,8 @@ class AddDagView(AirflowBaseView):
     @action_logging
     def editdag(self, filename):
         fullpath = self.get_dag_file_path(filename)
+        if not Path(fullpath).exists() and self.regex_valid_filenames.match(os.path.splitext(filename)[0]):
+            return make_response(('DAG not found', 404))
         if request.method == 'POST':
             code = request.form['code']
             with open(fullpath, 'w') as code_file:

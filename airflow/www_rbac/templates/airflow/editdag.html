@@ -37,6 +37,7 @@
   .dropdown-submenu.pull-left{float:none;}.dropdown-submenu.pull-left>.dropdown-menu{left:-100%;margin-left:10px;-webkit-border-radius:6px 0 6px 6px;-moz-border-radius:6px 0 6px 6px;border-radius:6px 0 6px 6px;}
 </style>
 <link rel="stylesheet" href="{{ url_for_asset('codemirror/codemirrorlib/codemirror.css') }}" />
+<link rel="stylesheet" href="{{ url_for_asset('codemirror/theme/solarized.css') }}" />
 <link rel=stylesheet href="{{url_for_asset('codemirror/addon/merge/merge.css')}}">
 {% endblock %}
 
@@ -45,7 +46,7 @@
 {% endblock %}
 
 {% block content %}
-  <h3>DAGs Code Editor - {{filename}}</h3>
+  <h3>{{filename}}</h3>
   <div class="col-md-8 col-sm-8 padding-sm codeEditorDiv">
     <!-- <ul class="nav nav-tabs" id="codeEditorTab"> -->
       <div class="pull-right hidden" id="editCodeAnchor">
@@ -58,7 +59,7 @@
           <i class="fa fa-floppy-o" aria-hidden="true"></i>
         </button>
       </div>
-      <a class="btn btn-primary pull-right" data-toggle="tab" href="#review-content" id="reviewCodeAnchor">Review</a>
+      <a class="btn btn-primary pull-right" data-toggle="tab" href="#review-content" id="reviewCodeAnchor">Review and Save</a>
     <!-- </ul> -->
     <div class="tab-content">
       <div id="code-content" class="tab-pane fade in active codeTab">
@@ -73,10 +74,12 @@
   </div>
   <div class="col-md-4 col-sm-4 codebricksDiv padding-sm" style="background-color: #d4d7dd; border-radius: 0.5rem;">
     <div class="row">
-      <div class="col-sm-6"><h5>Obelisk code bricks</h5></div>
+      <div class="col-sm-6">
+        <h3 data-toggle="tooltip" title="Add pre-built code recipes (prebuilt task and sub-DAG) in your current DAG code">Obelisk Code Bricks</h3>
+      </div>
       <div class="col-sm-6">
         <a class="btn btn-info pull-right" style="margin: 1em;" data-toggle="modal" data-target="#addSnippet">
-          Add code brick
+          Add a new code brick
         </a>
       </div>
     </div>
@@ -93,7 +96,7 @@
         <div id="codebrick-{{loop.index}}" class="collapse">
           <span>
             <p>{{snippets[title]['description']}}</p>
-            <button class="btn btn-success pull-right" onclick="insertSnip({{loop.index}})">
+            <button class="btn btn-success pull-right codebrick-insert-btn" onclick="insertSnip({{loop.index}})">
               INSERT
             </button>
             <br>
@@ -147,9 +150,18 @@
 <script src="{{ url_for_asset('codemirror/codemirrorlib/codemirror.js') }}"></script>
 <script src="{{ url_for_asset('codemirror/mode/python/python.js') }}"></script>
 <script src="{{ url_for_asset('codemirror/addon/merge/merge.js') }}"></script>
+<script src="{{ url_for_asset('codemirror/addon/selection/active-line.js') }}"></script>
 <script type="text/javascript">
 
   var codeEditor, diffEditor, snippetEditor;
+  const theme = 'solarized light';
+  const editorConfigs = {
+    lineNumbers: true,
+    smartIndent: true,
+    mode: 'python',
+    styleActiveLine: true,
+    theme: theme,
+  };
   function compareChanges() {
     var target = document.getElementById('code-2');
     target.innerHTML = '';
@@ -160,15 +172,20 @@
       lineNumbers: true,
       mode: 'python',
       highlightDifferences: true,
+      collapseIdentical: true
     });
     diffEditor.edit.setOption('readOnly', true);
+    diffEditor.edit.setOption('theme', theme);
+    diffEditor.right.orig.setOption('theme', theme);
     diffEditor.edit.on('change', function (_cm, change) {
       codeEditor.setValue(_cm.getValue());
     });
   }
 
   function insertSnip(index) {
-    var text = $("#codebrick-code-"+index).text();
+    var text = $('#codebrick-code-'+index).text();
+    // adding a new line at the end of snippet.
+    text += '\n';
     var doc = codeEditor.getDoc();
     var cursor = doc.getCursor();
     doc.replaceRange(text, cursor);
@@ -177,18 +194,32 @@
 
   $(document).ready(function() {
     var myTextArea = document.getElementById('code');
-    codeEditor = CodeMirror.fromTextArea(myTextArea, { lineNumbers:true, smartIndent: true, mode: 'python' });
+    codeEditor = CodeMirror.fromTextArea(myTextArea, editorConfigs);
     jQuery.noConflict();
     $('a[data-toggle="tab"]').on('shown.bs.tab', function (e) {
       compareChanges();
     });
 
+    $('[data-toggle="tooltip"]').tooltip();
+
     $('#addSnippet').on('shown.bs.modal', function (e) {
       if(!snippetEditor){
         var snipArea = document.getElementById('snippetInput');
-        snippetEditor = CodeMirror.fromTextArea(snipArea, { lineNumbers:true, smartIndent: true, mode: 'python' });
+        snippetEditor = CodeMirror.fromTextArea(snipArea, editorConfigs);
       }
     })
+
+    var $codeBrickList = $('#codebrickList');
+    $codeBrickList.on('show.bs.collapse','.collapse', function() {
+        $codeBrickList.find('.collapse.in').collapse('hide');
+    });
+
+    $("[data-toggle='collapse']").click(function(event) {
+        // console.log(event);
+        if (event.target.classList.contains('codebrick-insert-btn')) {
+          event.stopPropagation();
+        }
+    });
 
 
     // WARNING: DO NOT TOUCH.

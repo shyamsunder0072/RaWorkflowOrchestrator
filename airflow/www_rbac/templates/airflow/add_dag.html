@@ -20,9 +20,9 @@
       <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
         <input type="file" name="file" id="cout-file-picker" class="inputfile" multiple style="display: none;" accept=".py"/>
         <button type="button" class="btn btn-primary pull-right margin-left-md" data-toggle="modal" data-target="#newFile">
-          Create a new file
+          Create new DAG
         </button>
-        <label for="cout-file-picker" class="btn btn-success pull-right">Upload files</label>
+        <label for="cout-file-picker" class="btn btn-success pull-right">Upload DAG file(s)</label>
     </form>
   </div>
   <br><br>
@@ -77,15 +77,15 @@
     <div class="modal-content">
       <div class="modal-header">
         <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-        <h4 class="modal-title" id="myModalLabel">Create a new file</h4>
+        <h4 class="modal-title" id="myModalLabel">Create new DAG</h4>
       </div>
       <form id="newFile" method="POST" action="{{ url_for('AddDagView.add_dag') }}">
         <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
         <div class="modal-body">
         <div class="form-group">
-          <label for="filename">Filename</label>
+          <label for="filename">Enter DAG name</label>
           <input type="text" name="filename" class="form-control" oninput="checkFilename(this)" required>
-          <p class="help-block">Only valid filenames ending with <code>.py</code> are accepted.</p>
+          <p class="help-block">DAG name can contain characters <code>A-Z, a-z, 0-9, _, -</code>. No need to put <code>.py</code> in the end.</p>
         </div>
       </div>
       <div class="modal-footer">
@@ -128,11 +128,11 @@
   }
 
   function checkFilename(input) {
-    var validFilename = /^[A-Za-z0-9_.@()-]+\.py$/i.test(input.value);
+    var validFilename = /^[A-Za-z0-9_@()-]+$/i.test(input.value);
     if (validFilename) {
       input.setCustomValidity('');
     } else {
-      input.setCustomValidity('Not a valid filename.');
+      input.setCustomValidity('Not a valid DAG name.');
     }
     if (fileExists(input.value)) {
       input.setCustomValidity('File already exists.');
