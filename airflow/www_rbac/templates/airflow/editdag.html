@@ -17,7 +17,7 @@
   .margin-top-lg { margin-top: 2em; }
   .padding-sm { padding: .5em; }
   #codebrickList{
-    max-height: 380px;
+    height: 380px;
     margin-bottom: 10px;
     overflow:scroll;
     -webkit-overflow-scrolling: touch;
@@ -98,11 +98,9 @@
       </a>
       {% endfor %}
     </ul>
-    <div class="text-center">
-      <a class="btn btn-info" data-toggle="modal" data-target="#addSnippet">
-        Add a new code brick
-      </a>
-    </div>
+    <a class="btn btn-warning" style="width: 100%; margin-top: 1em;" data-toggle="modal" data-target="#addSnippet">
+      Add a new code brick
+    </a>
   </div>
   <div class="modal fade" id="addSnippet" tabindex="-1" role="dialog" aria-hidden="true">
     <div class="modal-dialog">
