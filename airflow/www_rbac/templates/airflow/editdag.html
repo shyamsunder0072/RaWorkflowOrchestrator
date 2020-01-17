@@ -17,7 +17,7 @@
   .margin-top-lg { margin-top: 2em; }
   .padding-sm { padding: .5em; }
   #codebrickList{
-    max-height: 500px;
+    max-height: 380px;
     margin-bottom: 10px;
     overflow:scroll;
     -webkit-overflow-scrolling: touch;
@@ -29,16 +29,11 @@
   .hover-cursor-pointer:hover {
     cursor: pointer;
   }
-  .dropdown-submenu{position:relative;}
-  .dropdown-submenu>.dropdown-menu{top:0;left:100%;margin-top:-6px;margin-left:-1px;-webkit-border-radius:0 6px 6px 6px;-moz-border-radius:0 6px 6px 6px;border-radius:0 6px 6px 6px;}
-  .dropdown-submenu:hover>.dropdown-menu{display:block;}
-  .dropdown-submenu>a:after{display:block;content:" ";float:right;width:0;height:0;border-color:transparent;border-style:solid;border-width:5px 0 5px 5px;border-left-color:#cccccc;margin-top:5px;margin-right:-10px;}
-  .dropdown-submenu:hover>a:after{border-left-color:#ffffff;}
-  .dropdown-submenu.pull-left{float:none;}.dropdown-submenu.pull-left>.dropdown-menu{left:-100%;margin-left:10px;-webkit-border-radius:6px 0 6px 6px;-moz-border-radius:6px 0 6px 6px;border-radius:6px 0 6px 6px;}
 </style>
 <link rel="stylesheet" href="{{ url_for_asset('codemirror/codemirrorlib/codemirror.css') }}" />
-<link rel="stylesheet" href="{{ url_for_asset('codemirror/theme/solarized.css') }}" />
+<link rel="stylesheet" href="{{ url_for_asset('codemirror/theme/idea.css') }}" />
 <link rel=stylesheet href="{{url_for_asset('codemirror/addon/merge/merge.css')}}">
+<link rel=stylesheet href="{{url_for_asset('codemirror/addon/fold/foldgutter.css')}}">
 {% endblock %}
 
 {% block head_js %}
@@ -46,11 +41,12 @@
 {% endblock %}
 
 {% block content %}
+<div style="margin-top: -1em;">
   <h3>{{filename}}</h3>
   <div class="col-md-8 col-sm-8 padding-sm codeEditorDiv">
     <!-- <ul class="nav nav-tabs" id="codeEditorTab"> -->
       <div class="pull-right hidden" id="editCodeAnchor">
-        <a class="btn btn-primary" data-toggle="tab" href="#code-content">
+        <a class="btn btn-primary" id="backToEditButton" data-toggle="tab" href="#code-content">
           <i class="fa fa-arrow-left" aria-hidden="true"></i>
           Back to edit mode
         </a>
@@ -59,11 +55,11 @@
           <i class="fa fa-floppy-o" aria-hidden="true"></i>
         </button>
       </div>
-      <a class="btn btn-primary pull-right" data-toggle="tab" href="#review-content" id="reviewCodeAnchor">Review and Save</a>
+      <a class="btn btn-primary pull-right" data-toggle="tab" href="#review-content" id="reviewCodeAnchor">Review & Save</a>
     <!-- </ul> -->
     <div class="tab-content">
       <div id="code-content" class="tab-pane fade in active codeTab">
-        <h3>Edit Code</h3>
+        <h4>Edit Code</h4>
           <textarea id="code" name="code" wrap="hard">{{code}}</textarea>
       </div>
       <div id="review-content" class="tab-pane fade">
@@ -73,15 +69,11 @@
     </div>
   </div>
   <div class="col-md-4 col-sm-4 codebricksDiv padding-sm" style="background-color: #d4d7dd; border-radius: 0.5rem;">
-    <div class="row">
-      <div class="col-sm-6">
-        <h3 data-toggle="tooltip" title="Add pre-built code recipes (prebuilt task and sub-DAG) in your current DAG code">Obelisk Code Bricks</h3>
-      </div>
-      <div class="col-sm-6">
-        <a class="btn btn-info pull-right" style="margin: 1em;" data-toggle="modal" data-target="#addSnippet">
-          Add a new code brick
-        </a>
-      </div>
+    <div data-toggle="tooltip" title="Add pre-built code recipes (prebuilt task and sub-DAG) in your current DAG code">
+      <!-- <span class="glyphicon glyphicon-info-sign pull-right" aria-hidden="true" style="margin-top: 0.5em; margin-right: 5em;"></span> -->
+      <h3>
+        Obelisk Code Bricks
+      </h3>
     </div>
 
     <div class="input-group">
@@ -96,7 +88,7 @@
         <div id="codebrick-{{loop.index}}" class="collapse">
           <span>
             <p>{{snippets[title]['description']}}</p>
-            <button class="btn btn-success pull-right codebrick-insert-btn" onclick="insertSnip({{loop.index}})">
+            <button class="btn btn-success pull-right codebrick-insert-btn" onclick="insertSnip(this, '{{loop.index}}')">
               INSERT
             </button>
             <br>
@@ -106,6 +98,11 @@
       </a>
       {% endfor %}
     </ul>
+    <div class="text-center">
+      <a class="btn btn-info" data-toggle="modal" data-target="#addSnippet">
+        Add a new code brick
+      </a>
+    </div>
   </div>
   <div class="modal fade" id="addSnippet" tabindex="-1" role="dialog" aria-hidden="true">
     <div class="modal-dialog">
@@ -138,6 +135,7 @@
       </div>
     </div>
   </div>
+</div>
 
 <!-- old code -->
 <textarea id="oldCode" hidden>{{code}}</textarea>
@@ -150,18 +148,32 @@
 <script src="{{ url_for_asset('codemirror/codemirrorlib/codemirror.js') }}"></script>
 <script src="{{ url_for_asset('codemirror/mode/python/python.js') }}"></script>
 <script src="{{ url_for_asset('codemirror/addon/merge/merge.js') }}"></script>
+<script src="{{ url_for_asset('codemirror/addon/fold/foldcode.js') }}"></script>
+<script src="{{ url_for_asset('codemirror/addon/fold/foldgutter.js') }}"></script>
+<script src="{{ url_for_asset('codemirror/addon/fold/indent-fold.js') }}"></script>
 <script src="{{ url_for_asset('codemirror/addon/selection/active-line.js') }}"></script>
 <script type="text/javascript">
 
   var codeEditor, diffEditor, snippetEditor;
-  const theme = 'solarized light';
-  const editorConfigs = {
+  const theme = 'idea';
+  var editorConfigs = {
     lineNumbers: true,
     smartIndent: true,
     mode: 'python',
     styleActiveLine: true,
+    autofocus: true,
     theme: theme,
+    foldGutter: true,
+    gutters: ["CodeMirror-linenumbers", "CodeMirror-foldgutter"],
   };
+
+  function focusCodeEditor(timeout) {
+    setTimeout(function () {
+      console.log('focusing .....')
+      codeEditor.focus();
+    }, timeout);
+  }
+
   function compareChanges() {
     var target = document.getElementById('code-2');
     target.innerHTML = '';
@@ -172,29 +184,38 @@
       lineNumbers: true,
       mode: 'python',
       highlightDifferences: true,
-      collapseIdentical: true
+      collapseIdentical: true,
+      foldGutter: true,
+      gutters: ["CodeMirror-linenumbers", "CodeMirror-foldgutter"],
+      theme: theme,
     });
     diffEditor.edit.setOption('readOnly', true);
-    diffEditor.edit.setOption('theme', theme);
-    diffEditor.right.orig.setOption('theme', theme);
     diffEditor.edit.on('change', function (_cm, change) {
-      codeEditor.setValue(_cm.getValue());
+        console.log(_cm, change, _cm.getValue());
+        codeEditor.setValue(_cm.getValue());
+        codeEditor.refresh();
     });
   }
 
-  function insertSnip(index) {
+  function insertSnip(btn, index) {
     var text = $('#codebrick-code-'+index).text();
     // adding a new line at the end of snippet.
     text += '\n';
     var doc = codeEditor.getDoc();
     var cursor = doc.getCursor();
     doc.replaceRange(text, cursor);
-    compareChanges();
+    // codeEditor.focus() doesn't work without setTimeout !!
+    focusCodeEditor(200);
+
+    // disable the button when snippet is inserted. The button will be enabled
+    // after the codebrick div is toggled again.
+    $(btn).addClass('disabled');
   }
 
   $(document).ready(function() {
     var myTextArea = document.getElementById('code');
     codeEditor = CodeMirror.fromTextArea(myTextArea, editorConfigs);
+
     jQuery.noConflict();
     $('a[data-toggle="tab"]').on('shown.bs.tab', function (e) {
       compareChanges();
@@ -212,10 +233,12 @@
     var $codeBrickList = $('#codebrickList');
     $codeBrickList.on('show.bs.collapse','.collapse', function() {
         $codeBrickList.find('.collapse.in').collapse('hide');
+
+        // enable all insert codebrick btns when the div is toggled.
+        $('.codebrick-insert-btn').removeClass('disabled');
     });
 
     $("[data-toggle='collapse']").click(function(event) {
-        // console.log(event);
         if (event.target.classList.contains('codebrick-insert-btn')) {
           event.stopPropagation();
         }
@@ -259,13 +282,12 @@
     });
   });
 
-    /**
-   * sends a request to the specified url from a form. this will change the window location.
-   * @param {string} path the path to send the post request to
-   * @param {object} params the paramiters to add to the url
-   * @param {string} [method=post] the method to use on the form
-   */
-
+  /**
+ * sends a request to the specified url from a form. this will change the window location.
+ * @param {string} path the path to send the post request to
+ * @param {object} params the paramiters to add to the url
+ * @param {string} [method=post] the method to use on the form
+ */
   function post(path, params, method = 'post') {
     // The rest of this code assumes you are not using a library.
     // It can be made less wordy if you use one.
