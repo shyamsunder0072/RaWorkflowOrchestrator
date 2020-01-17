@@ -169,7 +169,6 @@
 
   function focusCodeEditor(timeout) {
     setTimeout(function () {
-      console.log('focusing .....')
       codeEditor.focus();
     }, timeout);
   }
@@ -191,7 +190,6 @@
     });
     diffEditor.edit.setOption('readOnly', true);
     diffEditor.edit.on('change', function (_cm, change) {
-        console.log(_cm, change, _cm.getValue());
         codeEditor.setValue(_cm.getValue());
         codeEditor.refresh();
     });
