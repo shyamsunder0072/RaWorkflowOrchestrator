@@ -5,215 +5,142 @@
 
 {% block head_css %}
 {{ super() }}
-
 <style>
-  * {
-  box-sizing: border-box;
-}
-
-.inputfile {
-  width: 0.1px;
-  height: 0.1px;
-  opacity: 0;
-  overflow: hidden;
-  position: absolute;
-  z-index: -1;
-}
-
-.inputfile + label {
-    color: white;
-    background-color: #4CAF50;
-    display: inline-block;
-    border-radius: 4px;
-    float: right;
-}
-
-.inputfile:focus + label,
-.inputfile + label:hover {
-    background-color: #006400;
-}
-.inputfile + label {
-  cursor: pointer; /* "hand" cursor */
-}
-
-.file_pick_label {
-  padding: 10px 10px 10px 10px;
-  color: white;
-  margin-left: 100px;
-}
-
-input[type=submit] {
-  /*background-color: #4CAF50;*/
-  color: white;
-  /*padding: 12px 20px;*/
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  margin-left: 10px;
-  margin-top: 10px;
-  text-align: center;
-  text-decoration: none;
-  display: inline-block;
-  font-size: small;
-
-}
-
-input[type=submit]:hover {
-  background-color: #45a049;
-}
-
-.couture-button {
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  float: right;
-  text-align: center;
-  text-decoration: none;
-  display: inline-block;
-  margin-left: 5px;
-  margin-top: 10px;
-}
-
-.couture-button-delete {
-  border: none;
-  padding: inherit;
-  cursor: pointer;
-  margin-left: 2px;
-  float: right;
-  background: none;
-}
-
-.couture-container {
-  border-radius: 5px;
-  padding: 20px;
-}
-
-.couture-col-25 {
-  float: left;
-  width: 25%;
-  margin-top: 6px;
-}
-
-.couture-col-75 {
-  float: right;
-  width: 75%;
-  margin-top: 6px;
-  display : table;
-}
-
-/* Clear floats after the columns */
-.couture-row:after {
-  content: "";
-  display: table;
-  clear: both;
-}
-
-/* Responsive layout - when the screen is less than 600px wide, make the two columns stack on top of each other instead of next to each other */
-@media screen and (max-width: 600px) {
-  .couture-col-25, .couture-col-75, input[type=submit] {
-    width: 100%;
-    margin-top: 0;
-    display : table;
-  }
-}
-
-.couture_table_text{
-  color:#2e6da4;
-  text-align: left;
-  text-decoration: none;
-  font-size: 14px;
-}
-
-.table-bordered>tbody>tr>td {
-    border-collapse: collapse;
-    border: none;
-}
-
-.table>tbody>tr>td {
-    padding: 8px;
-    line-height: 1.42857143;
-    vertical-align: middle;
-    border-top: 1px solid #ddd;
-    }
-
-.text-center {
-    text-align: right;
-}
-
+  .margin-left-md { margin-left: 1em; }
+  .margin-top-md { margin-top: 1em; }
 </style>
 {% endblock %}
 
-{% block body %}
+{% block content %}
 {{ super() }}
-<div class="couture-container">
-  <form id="upload-form" action="" method="post" enctype="multipart/form-data">
-    <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
-    <div id ="container-upload">
-      <div class = "couture-row">
-        <div class="couture-col-25">
-          <h3 style="margin-top:-2%">DAGs</h3>
-        </div>
-        <div>
-          <input type="file" name="file" id="cout-file-picker" class="inputfile" multiple/>
-          <label for="cout-file-picker" class="file_pick_label">Choose a file</label>
-        </div>
-      </div>
-      <table class="table table-striped table-bordered">
-        <tbody>
-        <div id ="container-upload">
-          {%for i in file_data%}
-          <tr>
-            <td class="couture_table_text" class="text-center">
-              <a href="{{ url_for('AddDagView.editdag', filename = i ) }}">
-                <label class="couture-label" name="{{i}}">{{i}}</label>
-              </a>
-            </td>
-            <td width="15%" id="modified_time" class="text-center">{{file_data[i]['time']}}</td>
-            <td width="10%" id="size" class="text-center">{{file_data[i]['size']}}</td>
-            <td width="5%"> <div class="text-center">
-              <a href="{{ url_for('AddDagView.download', filename= i) }}">
-                <i class="fa fa-download" style="font-size:20px;color:blue;line-height: inherit;"></i>
+<div class="container">
+  <div>
+    <h2 class="margin-top-md">DAGs</h2>
+    <form id="upload-form" action="" method="post" enctype="multipart/form-data">
+      <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
+        <input type="file" name="file" id="cout-file-picker" class="inputfile" multiple style="display: none;" accept=".py"/>
+        <button type="button" class="btn btn-primary pull-right margin-left-md" data-toggle="modal" data-target="#newFile">
+          Create new DAG
+        </button>
+        <label for="cout-file-picker" class="btn btn-success pull-right">Upload DAG file(s)</label>
+    </form>
+  </div>
+  <br><br>
+  <div class="input-group">
+    <span class="input-group-addon">Search file: </span>
+    <input type="text" class="form-control" placeholder="filename.py" id="fileSearch">
+  </div>
+  <br>
+  <div class="table-responsive">
+    <table class="table table-bordered table-hover" id="filesTable">
+      <thead>
+        <tr class="table-head">
+          <th colspan="10">Filename</th>
+          <th colspan="5">Last modified</th>
+          <th colspan="2">Size</th>
+          <th colspan="4">Links</th>
+        </tr>
+      </thead>
+      <tbody>
+      <div>
+        {%for i in file_data%}
+        <tr>
+          <td class="couture_table_text" class="text-center" colspan="10">
+            <a href="{{ url_for('AddDagView.editdag', filename = i ) }}">
+              {{i}}
+            </a>
+          </td>
+          <td colspan="5">{{file_data[i]['time']}}</td>
+          <td colspan="2">{{file_data[i]['size']}}</td>
+          <td colspan="2">
+            <div>
+              <a href="{{ url_for('AddDagView.download', filename=i) }}">
+                <i class="fa fa-cloud-download fa-lg" data-toggle="tooltip" title="Download"></i>
               </a>
             </div>
             </td>
-            <td width="2%" class="button-in-table">
-              <button onclick="javascript:function_delete_DAG('{{i}}')" class="couture-button-delete">
-                <i class="glyphicon glyphicon-remove-circle" style="color:red" aria-hidden="true"></i></button>
-            </td>
-          </tr>
-          {% endfor %}
+          <td colspan="2">
+            <a href="{{ url_for('AddDagView.add_dag', delete=i) }}" onclick="return confirm('Are you sure to delete {{i}} ?')">
+              <i class="fa fa-trash fa-lg" style="color:red" aria-hidden="true" data-toggle="tooltip" title="Delete File"></i>
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </div>
+      </tbody>
+    </table>
+  </div>
+</div>
+<!-- Modal for Adding a file -->
+<div class="modal fade" id="newFile" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+        <h4 class="modal-title" id="myModalLabel">Create new DAG</h4>
+      </div>
+      <form id="newFile" method="POST" action="{{ url_for('AddDagView.add_dag') }}">
+        <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
+        <div class="modal-body">
+        <div class="form-group">
+          <label for="filename">Enter DAG name</label>
+          <input type="text" name="filename" class="form-control" oninput="checkFilename(this)" required>
+          <p class="help-block">DAG name can contain characters <code>A-Z, a-z, 0-9, _, -</code>. No need to put <code>.py</code> in the end.</p>
         </div>
-        </tbody>
-      </table>
+        <div class="form-group">
+          <input type="checkbox" name="insert-template-content" checked> Insert starter content in file.
+          <!-- <label for="insert-template-content">Insert starter content in file.</label> -->
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+        <button type="submit" class="btn btn-primary">Create</button>
+      </div>
+      </form><form action=""></form>
     </div>
-  </form>
+  </div>
 </div>
-<!-- Template begins-->
-<div class="couture-container" id="newfield_for_delete_DAG" style="display:none">
-  <input name="option_title_delete_DAG" id="for_delete_DAG" type="hidden" placeholder="Enter name">
-</div>
-<!-- Template ends -->
 {% endblock %}
 {% block tail_js %}
 {{ super() }}
 <!-- </body> -->
 <script type="text/javascript">
 
-document.getElementById('cout-file-picker').onchange = function() {
-  document.getElementById('upload-form').submit();
-}
+  $(document).ready(function () {
+    document.getElementById('cout-file-picker').onchange = function() {
+      document.getElementById('upload-form').submit();
+    };
+    $('[data-toggle="tooltip"]').tooltip();
 
-function function_delete_DAG(option)
-{
-  let del = confirm("Are you sure you want to delete?");
-  if(del) {
-    document.getElementById("for_delete_DAG").value = option;
-    var div1 = document.createElement('div');
-    div1.innerHTML = document.getElementById('newfield_for_delete_DAG').innerHTML;
-    document.getElementById('container-upload').appendChild(div1);
+    $("#fileSearch").on("keyup", function() {
+      var value = $(this).val().toLowerCase();
+      $("#filesTable tr").filter(function() {
+        if ( !$(this).hasClass('table-head'))
+          $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1);
+      });
+    });
+  })
+
+  function fileExists(filename) {
+    const files = [
+      {% for file in file_data %}
+        "{{file}}",
+      {% endfor %}
+    ];
+    if( files.includes(filename + '.py') ) return true;
+    return false;
   }
-}
 
-
+  function checkFilename(input) {
+    var validFilename = /^[A-Za-z0-9_@()-]+$/i.test(input.value);
+    if (validFilename) {
+      input.setCustomValidity('');
+    } else {
+      input.setCustomValidity('Not a valid DAG name.');
+    }
+    if (fileExists(input.value)) {
+      input.setCustomValidity('DAG already exists.');
+    }
+  }
 </script>
 {% endblock %}

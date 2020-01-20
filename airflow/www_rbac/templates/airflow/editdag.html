@@ -14,15 +14,26 @@
   .CodeMirror-merge-gap {
     height: 500px !important;
   }
-  .dropdown-submenu{position:relative;}
-  .dropdown-submenu>.dropdown-menu{top:0;left:100%;margin-top:-6px;margin-left:-1px;-webkit-border-radius:0 6px 6px 6px;-moz-border-radius:0 6px 6px 6px;border-radius:0 6px 6px 6px;}
-  .dropdown-submenu:hover>.dropdown-menu{display:block;}
-  .dropdown-submenu>a:after{display:block;content:" ";float:right;width:0;height:0;border-color:transparent;border-style:solid;border-width:5px 0 5px 5px;border-left-color:#cccccc;margin-top:5px;margin-right:-10px;}
-  .dropdown-submenu:hover>a:after{border-left-color:#ffffff;}
-  .dropdown-submenu.pull-left{float:none;}.dropdown-submenu.pull-left>.dropdown-menu{left:-100%;margin-left:10px;-webkit-border-radius:6px 0 6px 6px;-moz-border-radius:6px 0 6px 6px;border-radius:6px 0 6px 6px;}
+  .margin-top-lg { margin-top: 2em; }
+  .padding-sm { padding: .5em; }
+  #codebrickList{
+    height: 380px;
+    margin-bottom: 10px;
+    overflow:scroll;
+    -webkit-overflow-scrolling: touch;
+  }
+  .disabledDiv {
+    pointer-events: none;
+    opacity: 0.4;
+  }
+  .hover-cursor-pointer:hover {
+    cursor: pointer;
+  }
 </style>
 <link rel="stylesheet" href="{{ url_for_asset('codemirror/codemirrorlib/codemirror.css') }}" />
+<link rel="stylesheet" href="{{ url_for_asset('codemirror/theme/idea.css') }}" />
 <link rel=stylesheet href="{{url_for_asset('codemirror/addon/merge/merge.css')}}">
+<link rel=stylesheet href="{{url_for_asset('codemirror/addon/fold/foldgutter.css')}}">
 {% endblock %}
 
 {% block head_js %}
@@ -30,55 +41,73 @@
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-  <h3>DAGs Code Editor - {{filename}}</h3>
-  <button class="btn btn-primary pull-right" onclick="submitCode()">Save Code</button>
-  <ul class="nav nav-tabs" id="codeEditorTab">
-    <li class="active"><a data-toggle="tab" href="#code-content">Code</a></li>
-    <li><a data-toggle="tab" href="#review-content">Review</a></li>
-    <li class="dropdown">
-      <a href="#" class="dropdown-toggle" data-toggle="dropdown" id="snippetsDropdown">Snippets <b class="caret"></b></a>
-      <ul class="dropdown-menu">
-        {% for title in snippets %}
-          <li class=dropdown-submenu>
-            <a href="#">{{title}}</a>
-            <ul class="dropdown-menu">
-              <li>
-                <div style="margin: 0.5em;">
-                  <button class="btn btn-success pull-right padding-x-md"  onclick="insertSnip(this)">Insert snippet</button>
-                  <label class="label label-default">Description</label>
-                  <p>{{snippets[title]['description']}}</p>
-                  <textarea cols="100" rows="10" class="snip-textarea {{title}}" readonly>{{snippets[title]['snippet']}}</textarea>
-                </div>
-              </li>
-            </ul>
-          </li>
-        {% endfor %}
-        <li>
-          <a data-toggle="modal" data-target="#addSnippet">
-            Add code snippet &emsp;
-          </a>
-        </li>
-      </ul>
-    </li>
-  </ul>
+<div style="margin-top: -1em;">
+  <h3>{{filename}}</h3>
+  <div class="col-md-8 col-sm-8 padding-sm codeEditorDiv">
+    <!-- <ul class="nav nav-tabs" id="codeEditorTab"> -->
+      <div class="pull-right hidden" id="editCodeAnchor">
+        <a class="btn btn-primary" id="backToEditButton" data-toggle="tab" href="#code-content">
+          <i class="fa fa-arrow-left" aria-hidden="true"></i>
+          Back to edit mode
+        </a>
+        <button class="btn btn-primary" onclick="submitCode()">
+          Save Code
+          <i class="fa fa-floppy-o" aria-hidden="true"></i>
+        </button>
+      </div>
+      <a class="btn btn-primary pull-right" data-toggle="tab" href="#review-content" id="reviewCodeAnchor">Review & Save</a>
+    <!-- </ul> -->
+    <div class="tab-content">
+      <div id="code-content" class="tab-pane fade in active codeTab">
+        <h4>Edit Code</h4>
+          <textarea id="code" name="code" wrap="hard">{{code}}</textarea>
+      </div>
+      <div id="review-content" class="tab-pane fade">
+        <h4>Review Changes</h4>
+        <div class="div-2" id="code-2"></div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4 col-sm-4 codebricksDiv padding-sm" style="background-color: #d4d7dd; border-radius: 0.5rem;">
+    <div data-toggle="tooltip" title="Add pre-built code recipes (prebuilt task and sub-DAG) in your current DAG code">
+      <!-- <span class="glyphicon glyphicon-info-sign pull-right" aria-hidden="true" style="margin-top: 0.5em; margin-right: 5em;"></span> -->
+      <h3>
+        Obelisk Code Bricks
+      </h3>
+    </div>
 
-  <div class="tab-content">
-    <div id="code-content" class="tab-pane fade in active codeTab">
-      <h3>Edit Code</h3>
-        <textarea id="code" name="code" wrap="hard">{{code}}</textarea>
+    <div class="input-group">
+      <span class="input-group-addon"><i class="fa fa-search" aria-hidden="true"></i></span>
+      <input type="text" class="form-control" id="codebrickSearch">
     </div>
-    <div id="review-content" class="tab-pane fade">
-      <h3>Review Changes</h3>
-      <div class="div-2" id="code-2"></div>
-    </div>
+    <br>
+    <ul class="list-group" id="codebrickList">
+      {% for title in snippets %}
+      <a class="list-group-item" data-toggle="collapse" data-parent="#codebrickList" href="#codebrick-{{loop.index}}">
+        <strong>{{ title }}</strong>
+        <div id="codebrick-{{loop.index}}" class="collapse">
+          <span>
+            <p>{{snippets[title]['description']}}</p>
+            <button class="btn btn-success pull-right codebrick-insert-btn" onclick="insertSnip(this, '{{loop.index}}')">
+              INSERT
+            </button>
+            <br>
+            <pre class="margin-top-lg" id="codebrick-code-{{loop.index}}" style="background-color: #ffffff;">{{snippets[title]['snippet']}}</pre>
+          </span>
+        </div>
+      </a>
+      {% endfor %}
+    </ul>
+    <a class="btn btn-warning" style="width: 100%; margin-top: 1em;" data-toggle="modal" data-target="#addSnippet">
+      Add a new code brick
+    </a>
   </div>
   <div class="modal fade" id="addSnippet" tabindex="-1" role="dialog" aria-hidden="true">
     <div class="modal-dialog">
       <div class="modal-content">
         <div class="modal-header">
           <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
-          <h4 class="modal-title">Add a snippet to snippets repo.</h4>
+          <h4 class="modal-title">Add a codebrick to codebrick repo.</h4>
         </div>
         <form role="form" id="snippetForm" method="POST" action="{{ url_for('AddDagView.save_snippet', filename=filename) }}">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
@@ -92,7 +121,7 @@
                 <textarea class="form-control" name="description" rows="5"></textarea>
               </div>
               <div class="form-group">
-                <label for="snippet">Snippet</label>
+                <label for="snippet">Codebrick</label>
                 <textarea class="form-control" name="snippet" id="snippetInput"></textarea>
               </div>
           </div>
@@ -116,10 +145,42 @@
 <script src="{{ url_for_asset('diff_match_patch.js') }}"></script>
 <script src="{{ url_for_asset('codemirror/codemirrorlib/codemirror.js') }}"></script>
 <script src="{{ url_for_asset('codemirror/mode/python/python.js') }}"></script>
+<script src="{{ url_for_asset('codemirror/addon/search/searchcursor.js') }}"></script>
+<script src="{{ url_for_asset('codemirror/addon/search/search.js') }}"></script>
+<script src="{{ url_for_asset('codemirror/addon/dialog/dialog.js') }}"></script>
+<script src="{{ url_for_asset('codemirror/addon/edit/matchbrackets.js') }}"></script>
+<script src="{{ url_for_asset('codemirror/addon/edit/closebrackets.js') }}"></script>
+<script src="{{ url_for_asset('codemirror/addon/comment/comment.js') }}"></script>
+<script src="{{ url_for_asset('codemirror/addon/wrap/hardwrap.js') }}"></script>
+<script src="{{ url_for_asset('codemirror/addon/fold/brace-fold.js') }}"></script>
 <script src="{{ url_for_asset('codemirror/addon/merge/merge.js') }}"></script>
+<script src="{{ url_for_asset('codemirror/addon/fold/foldcode.js') }}"></script>
+<script src="{{ url_for_asset('codemirror/addon/fold/foldgutter.js') }}"></script>
+<script src="{{ url_for_asset('codemirror/addon/fold/indent-fold.js') }}"></script>
+<script src="{{ url_for_asset('codemirror/addon/selection/active-line.js') }}"></script>
+<script src="{{ url_for_asset('codemirror/keymap/sublime.js') }}"></script>
 <script type="text/javascript">
 
   var codeEditor, diffEditor, snippetEditor;
+  const theme = 'idea', keymap = 'sublime';
+  var editorConfigs = {
+    lineNumbers: true,
+    smartIndent: true,
+    mode: 'python',
+    styleActiveLine: true,
+    autofocus: true,
+    theme: theme,
+    foldGutter: true,
+    gutters: ["CodeMirror-linenumbers", "CodeMirror-foldgutter"],
+    keyMap: keymap
+  };
+
+  function focusCodeEditor(timeout) {
+    setTimeout(function () {
+      codeEditor.focus();
+    }, timeout);
+  }
+
   function compareChanges() {
     var target = document.getElementById('code-2');
     target.innerHTML = '';
@@ -130,62 +191,112 @@
       lineNumbers: true,
       mode: 'python',
       highlightDifferences: true,
+      collapseIdentical: true,
+      foldGutter: true,
+      gutters: ["CodeMirror-linenumbers", "CodeMirror-foldgutter"],
+      theme: theme,
+      keyMap: keymap,
     });
     diffEditor.edit.setOption('readOnly', true);
     diffEditor.edit.on('change', function (_cm, change) {
-      codeEditor.setValue(_cm.getValue());
+        codeEditor.setValue(_cm.getValue());
+        codeEditor.refresh();
     });
   }
 
-  function insertSnip(el) {
-    var text = $("textarea", $(el).parent()).val();
+  function insertSnip(btn, index) {
+    var text = $('#codebrick-code-'+index).text();
+    // adding a new line at the end of snippet.
+    text += '\n';
     var doc = codeEditor.getDoc();
     var cursor = doc.getCursor();
     doc.replaceRange(text, cursor);
-    compareChanges();
+    // codeEditor.focus() doesn't work without setTimeout !!
+    focusCodeEditor(200);
+
+    // disable the button when snippet is inserted. The button will be enabled
+    // after the codebrick div is toggled again.
+    $(btn).addClass('disabled');
   }
 
   $(document).ready(function() {
     var myTextArea = document.getElementById('code');
-    codeEditor = CodeMirror.fromTextArea(myTextArea, { lineNumbers:true, smartIndent: true, mode: 'python' });
+    codeEditor = CodeMirror.fromTextArea(myTextArea, editorConfigs);
+
     jQuery.noConflict();
     $('a[data-toggle="tab"]').on('shown.bs.tab', function (e) {
       compareChanges();
     });
 
+    $('[data-toggle="tooltip"]').tooltip();
+
     $('#addSnippet').on('shown.bs.modal', function (e) {
       if(!snippetEditor){
         var snipArea = document.getElementById('snippetInput');
-        snippetEditor = CodeMirror.fromTextArea(snipArea, { lineNumbers:true, smartIndent: true, mode: 'python' });
+        snippetEditor = CodeMirror.fromTextArea(snipArea, editorConfigs);
       }
     })
 
+    var $codeBrickList = $('#codebrickList');
+    $codeBrickList.on('show.bs.collapse','.collapse', function() {
+        $codeBrickList.find('.collapse.in').collapse('hide');
+
+        // enable all insert codebrick btns when the div is toggled.
+        $('.codebrick-insert-btn').removeClass('disabled');
+    });
+
+    $("[data-toggle='collapse']").click(function(event) {
+        if (event.target.classList.contains('codebrick-insert-btn')) {
+          event.stopPropagation();
+        }
+    });
+
+
+    // WARNING: DO NOT TOUCH.
+    // this method adds and removes classes based on which tab is active.
     $('a[data-toggle="tab"]').on('shown.bs.tab', function (e) {
       var target = $(e.target).attr("href") // activated tab
       switch (target) {
         case '#review-content':
-          $('#snippetsDropdown').addClass('disabled');
-          $('#snippetsDropdown').text('Snippets (Not available in review mode.)')
+          $('.codebricksDiv').addClass('hidden');
+          $('.codeEditorDiv').removeClass('col-md-8 col-sm-8');
+          $('.codeEditorDiv').addClass('col-md-12 col-sm-12');
+          $('#reviewCodeAnchor').addClass('hidden');
+          $('#editCodeAnchor').removeClass('hidden');
           break;
         case '#code-content':
-          $('#snippetsDropdown').html('Snippets <b class="caret"></b>')
-          $('#snippetsDropdown').removeClass('disabled');
+          $('.codebricksDiv').removeClass('hidden');
+          $('.codeEditorDiv').removeClass('col-md-12 col-sm-12');
+          $('.codeEditorDiv').addClass('col-md-8 col-sm-8');
+          $('#reviewCodeAnchor').removeClass('hidden');
+          $('#editCodeAnchor').addClass('hidden');
+          codeEditor.refresh();
           break;
         default:
-          $('#snippetsDropdown').html('Snippets <b class="caret"></b>')
-          $('#snippetsDropdown').removeClass('disabled');
+          $('.codebricksDiv').removeClass('hidden');
+          $('.codeEditorDiv').removeClass('col-md-12 col-sm-12');
+          $('.codeEditorDiv').addClass('col-md-8 col-sm-8');
+          $('#reviewCodeAnchor').removeClass('hidden');
+          $('#editCodeAnchor').addClass('hidden');
+          codeEditor.refresh();
           break;
       }
     });
+
+    $("#codebrickSearch").on("keyup", function() {
+      var value = $(this).val().toLowerCase();
+      $("#codebrickList a").filter(function() {
+          $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1);
+      });
+    });
   });
 
-    /**
-   * sends a request to the specified url from a form. this will change the window location.
-   * @param {string} path the path to send the post request to
-   * @param {object} params the paramiters to add to the url
-   * @param {string} [method=post] the method to use on the form
-   */
-
+  /**
+ * sends a request to the specified url from a form. this will change the window location.
+ * @param {string} path the path to send the post request to
+ * @param {object} params the paramiters to add to the url
+ * @param {string} [method=post] the method to use on the form
+ */
   function post(path, params, method = 'post') {
     // The rest of this code assumes you are not using a library.
     // It can be made less wordy if you use one.

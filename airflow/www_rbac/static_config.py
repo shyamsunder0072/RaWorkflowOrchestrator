@@ -53,7 +53,10 @@ def configure_manifest_files(app):
     def get_asset_url(filename):
         if app.debug:
             parse_manifest_json()
-        return url_for('static', filename=manifest.get(filename, ''))
+        file = manifest.get(filename, '')
+        if file:
+            return url_for('static', filename=file)
+        raise FileNotFoundError(filename + ' not found.')
 
     parse_manifest_json()
 
