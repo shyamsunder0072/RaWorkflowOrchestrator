@@ -87,6 +87,10 @@
           <input type="text" name="filename" class="form-control" oninput="checkFilename(this)" required>
           <p class="help-block">DAG name can contain characters <code>A-Z, a-z, 0-9, _, -</code>. No need to put <code>.py</code> in the end.</p>
         </div>
+        <div class="form-group">
+          <input type="checkbox" name="insert-template-content" checked>
+          <label for="insert-template-content">Insert starter content in file.</label>
+        </div>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>

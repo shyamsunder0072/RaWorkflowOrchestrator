@@ -2788,11 +2788,12 @@ class AddDagView(AirflowBaseView):
                     try:
                         # don't overwrite existing files
                         Path(self.get_dag_file_path(filename)).touch(exist_ok=False)
-                        with open(self.get_dag_file_path(filename), 'w') as new_dag:
-                            new_dag.write(self.dag_file_template)
-                            AirflowBaseView.audit_logging('empty_dag_added',
-                                                          filename,
-                                                          request.environ['REMOTE_ADDR'])
+                        if request.form.get('insert-template-content', None):
+                            with open(self.get_dag_file_path(filename), 'w') as new_dag:
+                                new_dag.write(self.dag_file_template)
+                                AirflowBaseView.audit_logging('empty_dag_added',
+                                                              filename,
+                                                              request.environ['REMOTE_ADDR'])
                     except FileExistsError:
                         pass
                     return redirect(url_for('AddDagView.editdag', filename=filename))
