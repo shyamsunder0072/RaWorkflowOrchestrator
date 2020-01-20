@@ -150,8 +150,8 @@ class TestVariableView(unittest.TestCase):
         (self.session.query(Var)
             .filter(Var.key == self.variable['key'])
             .update({
-            'val': 'failed_value_not_encrypted'
-        }, synchronize_session=False))
+                'val': 'failed_value_not_encrypted'
+            }, synchronize_session=False))
         self.session.commit()
 
         # retrieve Variables page, should not fail and contain the Invalid
@@ -938,6 +938,7 @@ class HelpersTest(unittest.TestCase):
         self.assertNotIn('<a&1>', html)
         self.assertNotIn('<b2>', html)
 
+
 class TestConnectionModelView(unittest.TestCase):
 
     CREATE_ENDPOINT = '/admin/connection/new/?url=/admin/connection/'
@@ -990,6 +991,7 @@ class TestConnectionModelView(unittest.TestCase):
             self.session.query(models.Connection).filter(models.Connection.conn_id == self.CONN_ID).count(),
             0
         )
+
 
 if __name__ == '__main__':
     unittest.main()
