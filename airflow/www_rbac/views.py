@@ -2310,7 +2310,10 @@ class HadoopConfView(AirflowBaseView):
                 name = p.find('name').text
                 value = p.find('value').text
                 values_get[name] = value  # storing all the name and value pairs in values_get dictionary
-            return self.render_template('airflow/hadoop_conn_file.html', Section=rootname, Configurations=values_get, Filename=filename)
+            return self.render_template('airflow/hadoop_conn_file.html',
+                                        Section=rootname,
+                                        Configurations=values_get,
+                                        Filename=filename)
 
         if request.method == 'POST':
             xml_file = os.path.join(UPLOAD_FOLDER, filename)
@@ -2332,14 +2335,15 @@ class HadoopConfView(AirflowBaseView):
             try:   # for adding new properties in config file
                 opttitleconfig = request.form['option_title_config']
                 optvalueconfig = request.form['option_value_config']
-                if len(opttitleconfig) != 0 and len(optvalueconfig) != 0:  # for not adding empty fields in file
+                # for not adding empty fields in file
+                if len(opttitleconfig) != 0 and len(optvalueconfig) != 0:
                     prop = ET.Element("property")
                     root.append(prop)
                     nm = ET.SubElement(prop, "name")
                     nm.text = request.form['option_title_config']
                     val = ET.SubElement(prop, "value")
                     val.text = request.form['option_value_config']
-            except:
+            except Exception:
                 print("Sorry ! No field found ")
 
             try:
@@ -2350,7 +2354,7 @@ class HadoopConfView(AirflowBaseView):
                         root.remove(p)
                     else:
                         print("no such field exists in config now.")
-            except:
+            except Exception:
                 print("Sorry ! No field found in delete in config")
 
             tree.write(xml_file)  # writing all the updated changes to the fields
@@ -2367,7 +2371,10 @@ class HadoopConfView(AirflowBaseView):
                 value = pr.find('value').text
                 newvalues[name] = value
 
-            return self.render_template('airflow/hadoop_conn_file.html', Section=newroot_name, Configurations=newvalues, Filename=filename)
+            return self.render_template('airflow/hadoop_conn_file.html',
+                                        Section=newroot_name,
+                                        Configurations=newvalues,
+                                        Filename=filename)
 
     @expose("/hadoop_file_download/<string:filename>", methods=['GET', 'POST'])
     def download(self, filename):     # for downloading the file passed in the filename
@@ -2451,9 +2458,13 @@ class SparkDepView(AirflowBaseView):
                 len_py = AirflowBaseView.get_len_py(file_data)
                 len_jar = AirflowBaseView.get_len_jar(file_data)
 
-                return self.render_template('airflow/spark_dependencies.html', title=title, file_data=file_data, len_jar=len_jar, len_py=len_py)
+                return self.render_template('airflow/spark_dependencies.html',
+                                            title=title,
+                                            file_data=file_data,
+                                            len_jar=len_jar,
+                                            len_py=len_py)
 
-            except:
+            except Exception:
                 print("Sorry ! No file in xml for delete")
 
             target = os.path.join(add_to_dir)  # destination to save files
@@ -2463,16 +2474,17 @@ class SparkDepView(AirflowBaseView):
             try:
                 for f in request.files.getlist("file"):   # for saving a file
                     filename = f.filename
-                    if filename.endswith(".py") or filename.endswith(".egg") or filename.endswith(".zip") or filename.endswith(".jar"):
+                    if filename.endswith((".py", ".egg", ".zip", ".jar",)):
                         destination = "/".join([target, filename])
                         f.save(destination)
                         AirflowBaseView.audit_logging("spark_dependency_added",
                                                       filename, request.environ['REMOTE_ADDR'])
                         flash(
-                            'File Uploaded!! To include this file for spark job, select it from spark configuration.', "success")
+                            'File Uploaded!! To include this file for spark job, select it from spark configuration.', "success")  # noqa
                     else:
-                        flash('Supported format for spark dependencies are .jar, .zip, .egg, or .py!!', "error")
-            except:
+                        flash('Supported format for spark dependencies are .jar, .zip, .egg, or .py!!',
+                              "error")
+            except Exception:
                 print("No file selected!")
 
             # calling get_details without any extension
@@ -2480,7 +2492,11 @@ class SparkDepView(AirflowBaseView):
             len_py = AirflowBaseView.get_len_py(file_data)
             len_jar = AirflowBaseView.get_len_jar(file_data)
 
-            return self.render_template('airflow/spark_dependencies.html', title=title, file_data=file_data, len_jar=len_jar, len_py=len_py)
+            return self.render_template('airflow/spark_dependencies.html',
+                                        title=title,
+                                        file_data=file_data,
+                                        len_jar=len_jar,
+                                        len_py=len_py)
 
         else:
             # calling get_details without any extension
@@ -2488,7 +2504,11 @@ class SparkDepView(AirflowBaseView):
             len_py = AirflowBaseView.get_len_py(file_data)
             len_jar = AirflowBaseView.get_len_jar(file_data)
 
-            return self.render_template('airflow/spark_dependencies.html', title=title, file_data=file_data, len_jar=len_jar, len_py=len_py)
+            return self.render_template('airflow/spark_dependencies.html',
+                                        title=title,
+                                        file_data=file_data,
+                                        len_jar=len_jar,
+                                        len_py=len_py)
 
     @expose("/spark_dep_download/<string:filename>", methods=['GET', 'POST'])
     def download(self, filename):  # for downloading the file passed in the filename
@@ -2504,7 +2524,9 @@ class HelpView(AirflowBaseView):
     @has_access
     def help(self):
         try:
-            return send_file('templates/airflow/Couture_AI_Workflow_Orchestrator.pdf', 'application/pdf', as_attachment=False)
+            return send_file('templates/airflow/Couture_AI_Workflow_Orchestrator.pdf',
+                             'application/pdf',
+                             as_attachment=False)
         except Exception as e:
             return str(e)
 
@@ -2522,7 +2544,7 @@ class KeyTabView(AirflowBaseView):
     @has_access
     @action_logging
     def update_keytab(self):
-        title = "KeyTab"
+        # title = "KeyTab"
         from airflow.configuration import AIRFLOW_HOME
         add_to_dir = AIRFLOW_HOME + '/keytab'
         file_name = AIRFLOW_HOME + '/keytab/keytab.conf'
@@ -2562,14 +2584,14 @@ class KeyTabView(AirflowBaseView):
                     config.set('arguments', i, keytab_files)
 
             try:
-                opttitleargsdel = request.form['option_title_args_delete']  # for arguments section
                 if config.has_option('arguments', request.form[
                         'option_title_args_delete']):  # if there is option in the file, then delete
+                    # deleting from the config file
                     config.remove_option('arguments',
-                                         request.form['option_title_args_delete'])  # deleting from the config file
+                                         request.form['option_title_args_delete'])
                 else:
                     print("no such field exists in args now.")
-            except:
+            except Exception:
                 print("Sorry ! No field found in delete in args")
 
             try:  # for deleting the keytab files from the folder
@@ -2593,8 +2615,11 @@ class KeyTabView(AirflowBaseView):
                                 file_data[file_name] = temp_dict
                 len_keytab = len(file_data)
 
-                return self.render_template('airflow/keytab.html', file_data=file_data, len_keytab=len_keytab, Files=all_files)
-            except:
+                return self.render_template('airflow/keytab.html',
+                                            file_data=file_data,
+                                            len_keytab=len_keytab,
+                                            Files=all_files)
+            except Exception:
                 print("Sorry ! No file to delete")
 
             target = os.path.join(add_to_dir)
@@ -2610,7 +2635,7 @@ class KeyTabView(AirflowBaseView):
                     AirflowBaseView.audit_logging("keytab_added", filename, request.environ['REMOTE_ADDR'])
                     flash('File Uploaded!!',
                           "success")
-            except:
+            except Exception:
                 print("No file selected!")
 
             # calling get_details without any extension
@@ -2629,7 +2654,10 @@ class KeyTabView(AirflowBaseView):
             with open(conf_path, 'w') as configfile:
                 config.write(configfile)
 
-            return self.render_template('airflow/keytab.html', file_data=file_data, len_keytab=len_keytab, Arguments=newargs,
+            return self.render_template('airflow/keytab.html',
+                                        file_data=file_data,
+                                        len_keytab=len_keytab,
+                                        Arguments=newargs,
                                         Files=all_files)
 
         else:
@@ -2641,7 +2669,10 @@ class KeyTabView(AirflowBaseView):
                 for file in f:
                     if file.endswith(".keytab"):
                         all_files.append(file)
-            return self.render_template('airflow/keytab.html', file_data=file_data, Arguments=args, len_keytab=len_keytab,
+            return self.render_template('airflow/keytab.html',
+                                        file_data=file_data,
+                                        Arguments=args,
+                                        len_keytab=len_keytab,
                                         Files=all_files)
 
     @expose("/keytab_download/<string:filename>", methods=['GET', 'POST'])
@@ -2691,8 +2722,12 @@ class CodeArtifactView(AirflowBaseView):
                                 file_data[file_name] = temp_dict
                 len_jar = AirflowBaseView.get_len_jar(file_data)
                 len_py = AirflowBaseView.get_len_py(file_data)
-                return self.render_template('airflow/code_artifact.html', title=title, len_jar=len_jar, len_py=len_py, file_data=file_data)
-            except:
+                return self.render_template('airflow/code_artifact.html',
+                                            title=title,
+                                            len_jar=len_jar,
+                                            len_py=len_py,
+                                            file_data=file_data)
+            except Exception:
                 print("Sorry ! No file in spark for delete")
 
             target = os.path.join(add_to_dir)
@@ -2702,7 +2737,7 @@ class CodeArtifactView(AirflowBaseView):
             try:
                 for f in request.files.getlist("file"):   # for saving a file
                     filename = f.filename
-                    if filename.endswith(".py") or filename.endswith(".egg") or filename.endswith(".zip") or filename.endswith(".jar"):
+                    if filename.endswith((".py", ".egg", ".zip", ".jar")):
                         destination = "/".join([target, filename])
                         f.save(destination)
                         AirflowBaseView.audit_logging(
@@ -2710,7 +2745,7 @@ class CodeArtifactView(AirflowBaseView):
                         flash('File Uploaded!!', "success")
                     else:
                         flash('Supported format for code artifacts are .jar, .py or .r!!', "error")
-            except:
+            except Exception:
                 print("No file selected!")
 
             file_data = {}
@@ -2719,7 +2754,11 @@ class CodeArtifactView(AirflowBaseView):
             len_jar = AirflowBaseView.get_len_jar(file_data)
             len_py = AirflowBaseView.get_len_py(file_data)
 
-            return self.render_template('airflow/code_artifact.html', title=title, len_jar=len_jar, len_py=len_py, file_data=file_data)
+            return self.render_template('airflow/code_artifact.html',
+                                        title=title,
+                                        len_jar=len_jar,
+                                        len_py=len_py,
+                                        file_data=file_data)
         else:
             file_data = {}
             # calling get_details without any extension
@@ -2727,7 +2766,11 @@ class CodeArtifactView(AirflowBaseView):
             len_jar = AirflowBaseView.get_len_jar(file_data)
             len_py = AirflowBaseView.get_len_py(file_data)
 
-            return self.render_template('airflow/code_artifact.html', title=title, len_jar=len_jar, len_py=len_py, file_data=file_data)
+            return self.render_template('airflow/code_artifact.html',
+                                        title=title,
+                                        len_jar=len_jar,
+                                        len_py=len_py,
+                                        file_data=file_data)
 
     @expose("/artifact_download/<string:filename>", methods=['GET', 'POST'])
     def download(self, filename):        # for downloading the file passed in the filename

@@ -35,14 +35,13 @@ class SkippableDagOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
-        python_callable=None,
-        skip_dag=False,
-        *args, **kwargs):
+            self,
+            python_callable=None,
+            skip_dag=False,
+            *args, **kwargs):
         super(SkippableDagOperator, self).__init__(retries=0, *args, **kwargs)
         self.python_callable = python_callable
         self.skip_dag = skip_dag
-
 
     def execute(self, context):
         execution_date = context['execution_date']
@@ -63,7 +62,7 @@ class SkippableDagOperator(BaseOperator):
 
         if self.skip_dag:
             self.log.info("Skipped this, moving on")
-            #self.__setstate__(State.SUCCESS)
+            # self.__setstate__(State.SUCCESS)
         else:
             run_id = 'dagrun__' + exe_date
 
@@ -87,11 +86,12 @@ class SkippableDagOperator(BaseOperator):
                 t.get_state
             )
 
+
 class DagOperator(SkippableDagOperator):
 
     ui_color = '#d575ff'
     @apply_defaults
     def __init__(
-        self,
-        *args, **kwargs):
+            self,
+            *args, **kwargs):
         super(DagOperator, self).__init__(*args, **kwargs)

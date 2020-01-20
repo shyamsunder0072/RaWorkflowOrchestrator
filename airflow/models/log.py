@@ -45,7 +45,7 @@ class Log(Base):
         Index('idx_log_dag', dag_id),
     )
 
-    def __init__(self, event, task_instance, owner=None, extra=None, source_ip=None,  **kwargs):
+    def __init__(self, event, task_instance, owner=None, extra=None, source_ip=None, **kwargs):
         self.dttm = timezone.utcnow()
         self.event = event
         self.extra = extra

@@ -1,15 +1,16 @@
-from flask_appbuilder.security.views import AuthView
-from flask_login import login_user, logout_user
+from flask import flash, g, redirect, request
 from flask_appbuilder import expose
-from flask import (
-    redirect, request, Markup, Response, render_template,
-    make_response, flash, jsonify, send_file, url_for, g)
+from flask_appbuilder._compat import as_unicode
 from flask_appbuilder.security.forms import LoginForm_db
+from flask_appbuilder.security.views import AuthView
+from flask_login import login_user
+
 from airflow.models import Log
 from airflow.utils.db import create_session
-from flask_appbuilder._compat import as_unicode
 
-#Customized couture login page
+# Customized couture login page
+
+
 class CoutureAuthView(AuthView):
     login_template = 'appbuilder/general/security/login_db.html'
 
@@ -40,6 +41,7 @@ class CoutureAuthView(AuthView):
                                     title=self.title,
                                     form=form,
                                     appbuilder=self.appbuilder)
+
 
 class CoutureAuthLDAPView(AuthView):
     login_template = 'appbuilder/general/security/login_ldap.html'
