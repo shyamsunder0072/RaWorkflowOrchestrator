@@ -145,15 +145,24 @@
 <script src="{{ url_for_asset('diff_match_patch.js') }}"></script>
 <script src="{{ url_for_asset('codemirror/codemirrorlib/codemirror.js') }}"></script>
 <script src="{{ url_for_asset('codemirror/mode/python/python.js') }}"></script>
+<script src="{{ url_for_asset('codemirror/addon/search/searchcursor.js') }}"></script>
+<script src="{{ url_for_asset('codemirror/addon/search/search.js') }}"></script>
+<script src="{{ url_for_asset('codemirror/addon/dialog/dialog.js') }}"></script>
+<script src="{{ url_for_asset('codemirror/addon/edit/matchbrackets.js') }}"></script>
+<script src="{{ url_for_asset('codemirror/addon/edit/closebrackets.js') }}"></script>
+<script src="{{ url_for_asset('codemirror/addon/comment/comment.js') }}"></script>
+<script src="{{ url_for_asset('codemirror/addon/wrap/hardwrap.js') }}"></script>
+<script src="{{ url_for_asset('codemirror/addon/fold/brace-fold.js') }}"></script>
 <script src="{{ url_for_asset('codemirror/addon/merge/merge.js') }}"></script>
 <script src="{{ url_for_asset('codemirror/addon/fold/foldcode.js') }}"></script>
 <script src="{{ url_for_asset('codemirror/addon/fold/foldgutter.js') }}"></script>
 <script src="{{ url_for_asset('codemirror/addon/fold/indent-fold.js') }}"></script>
 <script src="{{ url_for_asset('codemirror/addon/selection/active-line.js') }}"></script>
+<script src="{{ url_for_asset('codemirror/keymap/sublime.js') }}"></script>
 <script type="text/javascript">
 
   var codeEditor, diffEditor, snippetEditor;
-  const theme = 'idea';
+  const theme = 'idea', keymap = 'sublime';
   var editorConfigs = {
     lineNumbers: true,
     smartIndent: true,
@@ -163,6 +172,7 @@
     theme: theme,
     foldGutter: true,
     gutters: ["CodeMirror-linenumbers", "CodeMirror-foldgutter"],
+    keyMap: keymap
   };
 
   function focusCodeEditor(timeout) {
@@ -185,6 +195,7 @@
       foldGutter: true,
       gutters: ["CodeMirror-linenumbers", "CodeMirror-foldgutter"],
       theme: theme,
+      keyMap: keymap,
     });
     diffEditor.edit.setOption('readOnly', true);
     diffEditor.edit.on('change', function (_cm, change) {
@@ -259,6 +270,7 @@
           $('.codeEditorDiv').addClass('col-md-8 col-sm-8');
           $('#reviewCodeAnchor').removeClass('hidden');
           $('#editCodeAnchor').addClass('hidden');
+          codeEditor.refresh();
           break;
         default:
           $('.codebricksDiv').removeClass('hidden');
@@ -266,6 +278,7 @@
           $('.codeEditorDiv').addClass('col-md-8 col-sm-8');
           $('#reviewCodeAnchor').removeClass('hidden');
           $('#editCodeAnchor').addClass('hidden');
+          codeEditor.refresh();
           break;
       }
     });
