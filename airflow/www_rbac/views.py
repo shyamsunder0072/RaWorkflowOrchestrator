@@ -2940,7 +2940,7 @@ class AddDagView(AirflowBaseView):
         return dict()
 
     def snippet_title_to_file(self, title):
-        return title.replace(' ', '-') + '.py'
+        return title.replace(' ', '_') + '.py'
 
     def save_snippets(self, metadata, new_snippet):
         """Save a new snippet in the repo
