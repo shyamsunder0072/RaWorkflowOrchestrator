@@ -182,7 +182,7 @@ class AirflowBaseView(BaseView):
         s = round(size_bytes / p, 2)
         return "%s %s" % (s, size_name[i])
 
-    def get_details(dir_path, file_extension):
+    def get_details(self, dir_path, file_extension):
         ''' Takes the path and file extension, returns size and last modified time of files
         inside the path.
         '''
@@ -2061,6 +2061,114 @@ class ConfigurationView(AirflowBaseView):
                 table=table)
 
 
+class FileUploadBaseView(AirflowBaseView):
+    '''Generic View for File Upload.'''
+    __base_url = ''
+
+    # NOTE: You can update the below attributes when subclassing this view.
+    # set template name while using this generic view.
+
+    template_name = None
+    accept_multiple_file_uploads = True
+    accepted_file_extensions = ()
+    fs_path = None   # the path in filesystem where the files should be saved.
+
+    urls_map = {
+        'list_view': "/".join(['base_url', 'list']),
+        'upload_view': "/".join(['base_url', 'upload']),
+        'download_view': "/".join(['base_url', 'download', '<string:filename>']),
+        'destroy_view': "/".join(['base_url', 'destroy', '<string:filename>'])
+    }
+
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        cls.__base_url = cls.__name__
+        base_url = cls.__name__
+        if not hasattr(cls.list_view, '_urls'):
+            cls.list_view._urls = []
+        if not hasattr(cls.upload_view, '_urls'):
+            cls.upload_view._urls = []
+        if not hasattr(cls.download_view, '_urls'):
+            cls.download_view._urls = []
+        if not hasattr(cls.destroy_view, '_urls'):
+            cls.destroy_view._urls = []
+
+        cls.list_view._urls.append((cls.urls_map['list_view'].replace('base_url', base_url), ['GET']))
+        cls.upload_view._urls.append((cls.urls_map['upload_view'].replace('base_url', base_url), ['POST']))
+        cls.download_view._urls.append((cls.urls_map['download_view'].replace('base_url', base_url), ['GET']))
+        cls.destroy_view._urls.append((cls.urls_map['destroy_view'].replace('base_url', base_url), ['GET']))
+
+    @classmethod
+    def get_base_url(cls):
+        return cls.__base_url
+
+    # def expose_url(methods):
+    #     """
+    #         Use this decorator to expose views on your view classes.
+
+    #         :param url:
+    #             Relative URL for the view
+    #         :param methods:
+    #             Allowed HTTP methods. By default only GET is allowed.
+    #     """
+
+    #     def wrap(f):
+    #         if not hasattr(f, "_urls"):
+    #             f._urls = []
+    #         base_url = f.__class__
+    #         print('**********************')
+    #         print('**********************')
+    #         print('**********************')
+    #         print('**********************')
+    #         print('**********************')
+    #         print('**********************')
+    #         print('**********************')
+    #         print('**********************')
+    #         print('**********************')
+    #         print('**********************')
+
+    #         print(f)
+    #         print(inspect.stack())
+    #         print('**********************')
+    #         f._urls.append((urls_map[f.__name__].replace('base_url', base_url),
+    #                         methods))
+    #         return f
+
+    #     return wrap
+
+    # @expose_url(methods=['GET'])
+    @has_access
+    @action_logging
+    def list_view(self):
+        if self.fs_path is None:
+            raise Exception('self.fs_path not set. Please set it to appropriate value')
+        files = self.get_details(self.fs_path, self.accepted_file_extensions)
+        print(files)
+        return render_template(
+            self.template_name,
+            files=files,
+            accepted_file_extensions=self.accepted_file_extensions
+        )
+
+    # @expose_url(methods=['POST'])
+    @has_access
+    @action_logging
+    def upload_view(self):
+        pass
+
+    # @expose_url(methods=['GET'])
+    @has_access
+    @action_logging
+    def download_view(self):
+        pass
+
+    # @expose_url(methods=['GET'])
+    @has_access
+    @action_logging
+    def destroy_view(self):
+        pass
+
+
 class SparkConfView(AirflowBaseView):
     @expose('/couture_config', methods=['GET', 'POST'])
     @has_access
@@ -2241,7 +2349,7 @@ class HadoopConfView(AirflowBaseView):
 
         file_data = {}
         # calling get_details with the extension as .xml
-        file_data = AirflowBaseView.get_details(UPLOAD_FOLDER, ".xml")
+        file_data = self.get_details(UPLOAD_FOLDER, ".xml")
 
         if request.method == 'POST':
             try:    # for deleting the xml files from the folder
@@ -2287,11 +2395,11 @@ class HadoopConfView(AirflowBaseView):
                 if flag:
                     flash('File uploaded!!', "success")
 
-                file_data = AirflowBaseView.get_details(UPLOAD_FOLDER, ".xml")
+                file_data = self.get_details(UPLOAD_FOLDER, ".xml")
                 return self.render_template('airflow/hadoop_conn_file_list.html', file_data=file_data)
 
         else:
-            file_data = AirflowBaseView.get_details(UPLOAD_FOLDER, ".xml")
+            file_data = self.get_details(UPLOAD_FOLDER, ".xml")
             return self.render_template('airflow/hadoop_conn_file_list.html', file_data=file_data)
 
     @expose("/hadoop_conn_file/<string:filename>", methods=['GET', 'POST'])
@@ -2310,7 +2418,10 @@ class HadoopConfView(AirflowBaseView):
                 name = p.find('name').text
                 value = p.find('value').text
                 values_get[name] = value  # storing all the name and value pairs in values_get dictionary
-            return self.render_template('airflow/hadoop_conn_file.html', Section=rootname, Configurations=values_get, Filename=filename)
+            return self.render_template('airflow/hadoop_conn_file.html',
+                                        Section=rootname,
+                                        Configurations=values_get,
+                                        Filename=filename)
 
         if request.method == 'POST':
             xml_file = os.path.join(UPLOAD_FOLDER, filename)
@@ -2332,14 +2443,15 @@ class HadoopConfView(AirflowBaseView):
             try:   # for adding new properties in config file
                 opttitleconfig = request.form['option_title_config']
                 optvalueconfig = request.form['option_value_config']
-                if len(opttitleconfig) != 0 and len(optvalueconfig) != 0:  # for not adding empty fields in file
+                # for not adding empty fields in file
+                if len(opttitleconfig) != 0 and len(optvalueconfig) != 0:
                     prop = ET.Element("property")
                     root.append(prop)
                     nm = ET.SubElement(prop, "name")
                     nm.text = request.form['option_title_config']
                     val = ET.SubElement(prop, "value")
                     val.text = request.form['option_value_config']
-            except:
+            except Exception:
                 print("Sorry ! No field found ")
 
             try:
@@ -2350,7 +2462,7 @@ class HadoopConfView(AirflowBaseView):
                         root.remove(p)
                     else:
                         print("no such field exists in config now.")
-            except:
+            except Exception:
                 print("Sorry ! No field found in delete in config")
 
             tree.write(xml_file)  # writing all the updated changes to the fields
@@ -2367,7 +2479,10 @@ class HadoopConfView(AirflowBaseView):
                 value = pr.find('value').text
                 newvalues[name] = value
 
-            return self.render_template('airflow/hadoop_conn_file.html', Section=newroot_name, Configurations=newvalues, Filename=filename)
+            return self.render_template('airflow/hadoop_conn_file.html',
+                                        Section=newroot_name,
+                                        Configurations=newvalues,
+                                        Filename=filename)
 
     @expose("/hadoop_file_download/<string:filename>", methods=['GET', 'POST'])
     def download(self, filename):     # for downloading the file passed in the filename
@@ -2451,9 +2566,13 @@ class SparkDepView(AirflowBaseView):
                 len_py = AirflowBaseView.get_len_py(file_data)
                 len_jar = AirflowBaseView.get_len_jar(file_data)
 
-                return self.render_template('airflow/spark_dependencies.html', title=title, file_data=file_data, len_jar=len_jar, len_py=len_py)
+                return self.render_template('airflow/spark_dependencies.html',
+                                            title=title,
+                                            file_data=file_data,
+                                            len_jar=len_jar,
+                                            len_py=len_py)
 
-            except:
+            except Exception:
                 print("Sorry ! No file in xml for delete")
 
             target = os.path.join(add_to_dir)  # destination to save files
@@ -2463,32 +2582,41 @@ class SparkDepView(AirflowBaseView):
             try:
                 for f in request.files.getlist("file"):   # for saving a file
                     filename = f.filename
-                    if filename.endswith(".py") or filename.endswith(".egg") or filename.endswith(".zip") or filename.endswith(".jar"):
+                    if filename.endswith((".py", ".egg", ".zip", ".jar",)):
                         destination = "/".join([target, filename])
                         f.save(destination)
                         AirflowBaseView.audit_logging("spark_dependency_added",
                                                       filename, request.environ['REMOTE_ADDR'])
                         flash(
-                            'File Uploaded!! To include this file for spark job, select it from spark configuration.', "success")
+                            'File Uploaded!! To include this file for spark job, select it from spark configuration.', "success")  # noqa
                     else:
-                        flash('Supported format for spark dependencies are .jar, .zip, .egg, or .py!!', "error")
-            except:
+                        flash('Supported format for spark dependencies are .jar, .zip, .egg, or .py!!',
+                              "error")
+            except Exception:
                 print("No file selected!")
 
             # calling get_details without any extension
-            file_data = AirflowBaseView.get_details(add_to_dir, "")
+            file_data = self.get_details(add_to_dir, "")
             len_py = AirflowBaseView.get_len_py(file_data)
             len_jar = AirflowBaseView.get_len_jar(file_data)
 
-            return self.render_template('airflow/spark_dependencies.html', title=title, file_data=file_data, len_jar=len_jar, len_py=len_py)
+            return self.render_template('airflow/spark_dependencies.html',
+                                        title=title,
+                                        file_data=file_data,
+                                        len_jar=len_jar,
+                                        len_py=len_py)
 
         else:
             # calling get_details without any extension
-            file_data = AirflowBaseView.get_details(add_to_dir, "")
+            file_data = self.get_details(add_to_dir, "")
             len_py = AirflowBaseView.get_len_py(file_data)
             len_jar = AirflowBaseView.get_len_jar(file_data)
 
-            return self.render_template('airflow/spark_dependencies.html', title=title, file_data=file_data, len_jar=len_jar, len_py=len_py)
+            return self.render_template('airflow/spark_dependencies.html',
+                                        title=title,
+                                        file_data=file_data,
+                                        len_jar=len_jar,
+                                        len_py=len_py)
 
     @expose("/spark_dep_download/<string:filename>", methods=['GET', 'POST'])
     def download(self, filename):  # for downloading the file passed in the filename
@@ -2504,7 +2632,9 @@ class HelpView(AirflowBaseView):
     @has_access
     def help(self):
         try:
-            return send_file('templates/airflow/Couture_AI_Workflow_Orchestrator.pdf', 'application/pdf', as_attachment=False)
+            return send_file('templates/airflow/Couture_AI_Workflow_Orchestrator.pdf',
+                             'application/pdf',
+                             as_attachment=False)
         except Exception as e:
             return str(e)
 
@@ -2522,7 +2652,7 @@ class KeyTabView(AirflowBaseView):
     @has_access
     @action_logging
     def update_keytab(self):
-        title = "KeyTab"
+        # title = "KeyTab"
         from airflow.configuration import AIRFLOW_HOME
         add_to_dir = AIRFLOW_HOME + '/keytab'
         file_name = AIRFLOW_HOME + '/keytab/keytab.conf'
@@ -2562,14 +2692,14 @@ class KeyTabView(AirflowBaseView):
                     config.set('arguments', i, keytab_files)
 
             try:
-                opttitleargsdel = request.form['option_title_args_delete']  # for arguments section
                 if config.has_option('arguments', request.form[
                         'option_title_args_delete']):  # if there is option in the file, then delete
+                    # deleting from the config file
                     config.remove_option('arguments',
-                                         request.form['option_title_args_delete'])  # deleting from the config file
+                                         request.form['option_title_args_delete'])
                 else:
                     print("no such field exists in args now.")
-            except:
+            except Exception:
                 print("Sorry ! No field found in delete in args")
 
             try:  # for deleting the keytab files from the folder
@@ -2593,8 +2723,11 @@ class KeyTabView(AirflowBaseView):
                                 file_data[file_name] = temp_dict
                 len_keytab = len(file_data)
 
-                return self.render_template('airflow/keytab.html', file_data=file_data, len_keytab=len_keytab, Files=all_files)
-            except:
+                return self.render_template('airflow/keytab.html',
+                                            file_data=file_data,
+                                            len_keytab=len_keytab,
+                                            Files=all_files)
+            except Exception:
                 print("Sorry ! No file to delete")
 
             target = os.path.join(add_to_dir)
@@ -2610,11 +2743,11 @@ class KeyTabView(AirflowBaseView):
                     AirflowBaseView.audit_logging("keytab_added", filename, request.environ['REMOTE_ADDR'])
                     flash('File Uploaded!!',
                           "success")
-            except:
+            except Exception:
                 print("No file selected!")
 
             # calling get_details without any extension
-            file_data = AirflowBaseView.get_details(add_to_dir, ".keytab")
+            file_data = self.get_details(add_to_dir, ".keytab")
             len_keytab = len(file_data)
 
             file_name = AIRFLOW_HOME + '/keytab/keytab.conf'
@@ -2629,19 +2762,25 @@ class KeyTabView(AirflowBaseView):
             with open(conf_path, 'w') as configfile:
                 config.write(configfile)
 
-            return self.render_template('airflow/keytab.html', file_data=file_data, len_keytab=len_keytab, Arguments=newargs,
+            return self.render_template('airflow/keytab.html',
+                                        file_data=file_data,
+                                        len_keytab=len_keytab,
+                                        Arguments=newargs,
                                         Files=all_files)
 
         else:
             # calling get_details without any extension
-            file_data = AirflowBaseView.get_details(add_to_dir, ".keytab")
+            file_data = self.get_details(add_to_dir, ".keytab")
             len_keytab = len(file_data)
             all_files = []
             for r, d, f in os.walk(add_to_dir):
                 for file in f:
                     if file.endswith(".keytab"):
                         all_files.append(file)
-            return self.render_template('airflow/keytab.html', file_data=file_data, Arguments=args, len_keytab=len_keytab,
+            return self.render_template('airflow/keytab.html',
+                                        file_data=file_data,
+                                        Arguments=args,
+                                        len_keytab=len_keytab,
                                         Files=all_files)
 
     @expose("/keytab_download/<string:filename>", methods=['GET', 'POST'])
@@ -2691,8 +2830,12 @@ class CodeArtifactView(AirflowBaseView):
                                 file_data[file_name] = temp_dict
                 len_jar = AirflowBaseView.get_len_jar(file_data)
                 len_py = AirflowBaseView.get_len_py(file_data)
-                return self.render_template('airflow/code_artifact.html', title=title, len_jar=len_jar, len_py=len_py, file_data=file_data)
-            except:
+                return self.render_template('airflow/code_artifact.html',
+                                            title=title,
+                                            len_jar=len_jar,
+                                            len_py=len_py,
+                                            file_data=file_data)
+            except Exception:
                 print("Sorry ! No file in spark for delete")
 
             target = os.path.join(add_to_dir)
@@ -2702,7 +2845,7 @@ class CodeArtifactView(AirflowBaseView):
             try:
                 for f in request.files.getlist("file"):   # for saving a file
                     filename = f.filename
-                    if filename.endswith(".py") or filename.endswith(".egg") or filename.endswith(".zip") or filename.endswith(".jar"):
+                    if filename.endswith((".py", ".egg", ".zip", ".jar")):
                         destination = "/".join([target, filename])
                         f.save(destination)
                         AirflowBaseView.audit_logging(
@@ -2710,24 +2853,32 @@ class CodeArtifactView(AirflowBaseView):
                         flash('File Uploaded!!', "success")
                     else:
                         flash('Supported format for code artifacts are .jar, .py or .r!!', "error")
-            except:
+            except Exception:
                 print("No file selected!")
 
             file_data = {}
             # calling get_details without any extension
-            file_data = AirflowBaseView.get_details(add_to_dir, "")
+            file_data = self.get_details(add_to_dir, "")
             len_jar = AirflowBaseView.get_len_jar(file_data)
             len_py = AirflowBaseView.get_len_py(file_data)
 
-            return self.render_template('airflow/code_artifact.html', title=title, len_jar=len_jar, len_py=len_py, file_data=file_data)
+            return self.render_template('airflow/code_artifact.html',
+                                        title=title,
+                                        len_jar=len_jar,
+                                        len_py=len_py,
+                                        file_data=file_data)
         else:
             file_data = {}
             # calling get_details without any extension
-            file_data = AirflowBaseView.get_details(add_to_dir, "")
+            file_data = self.get_details(add_to_dir, "")
             len_jar = AirflowBaseView.get_len_jar(file_data)
             len_py = AirflowBaseView.get_len_py(file_data)
 
-            return self.render_template('airflow/code_artifact.html', title=title, len_jar=len_jar, len_py=len_py, file_data=file_data)
+            return self.render_template('airflow/code_artifact.html',
+                                        title=title,
+                                        len_jar=len_jar,
+                                        len_py=len_py,
+                                        file_data=file_data)
 
     @expose("/artifact_download/<string:filename>", methods=['GET', 'POST'])
     def download(self, filename):        # for downloading the file passed in the filename
@@ -2743,6 +2894,7 @@ class AddDagView(AirflowBaseView):
 
     # regex for validating filenames while adding new ones
     regex_valid_filenames = re.compile('^[A-Za-z0-9_@()-]+$')
+    regex_valid_snippetnames = re.compile('^[\sA-Za-z0-9_@()-]+$')
 
     template_dag_file_path = os.path.join(
         app.root_path, *['..', 'config_templates', 'default_dag_template.py'])
@@ -2756,15 +2908,59 @@ class AddDagView(AirflowBaseView):
     def get_dag_file_path(self, filename):
         return os.path.join(settings.DAGS_FOLDER, filename)
 
-    def get_snippet_file_path(self):
+    def get_snippet_metadata_path(self):
         return os.path.join(AIRFLOW_HOME, *['repo', 'dag-snippets.json'])
 
+    def get_snippet_file_path(self, title):
+        filename = self.snippet_title_to_file(title)
+        return os.path.join(AIRFLOW_HOME, *['repo', filename])
+
+    def get_snippets_metadata(self):
+        snippets_path = self.get_snippet_metadata_path()
+        with open(snippets_path) as f:
+            return json.load(f)
+
     def get_snippets(self):
-        snippets_path = self.get_snippet_file_path()
+        snippets_path = self.get_snippet_metadata_path()
         if Path(snippets_path).exists():
-            with open(snippets_path) as f:
-                return json.load(f)
+            metadata = self.get_snippets_metadata()
+            # print(metadata)
+            for title in metadata.keys():
+                try:
+                    with open(self.get_snippet_file_path(title)) as codefile:
+                        snippet = codefile.read()
+                except Exception as e:
+                    # print(e)
+                    snippet = ''
+                metadata[title] = {
+                    'description': metadata[title],
+                    'snippet': snippet
+                }
+            return metadata
         return dict()
+
+    def snippet_title_to_file(self, title):
+        return title.replace(' ', '-') + '.py'
+
+    def save_snippets(self, metadata, new_snippet):
+        """Save a new snippet in the repo
+
+        Arguments:
+            metadata {dict} -- with keys `title` and `description` of new snippet
+            new_snippet {str} -- code of new snippet.
+        """
+        snippets = self.get_snippets_metadata()
+
+        snippets[metadata['title']] = metadata['description']
+
+        snippets_path = self.get_snippet_metadata_path()
+        with open(snippets_path, 'w') as f:
+            json.dump(snippets, f)
+
+        print(self.get_snippet_file_path(metadata['title']))
+        with open(self.get_snippet_file_path(metadata['title']), 'w') as f:
+            print('ehererer')
+            f.write(new_snippet)
 
     @expose('/add_dag', methods=['GET', 'POST'])
     @action_logging
@@ -2830,7 +3026,7 @@ class AddDagView(AirflowBaseView):
             # the below redirect is to avoid form resubmission messages when
             # we refresh the page in the browser.
             return redirect(url_for('AddDagView.add_dag'))
-        file_data = AirflowBaseView.get_details(dags_dir, ".py")
+        file_data = self.get_details(dags_dir, ".py")
         return self.render_template('airflow/add_dag.html', title=title, file_data=file_data)
 
     @expose("/editdag/<string:filename>", methods=['GET', 'POST'])
@@ -2856,25 +3052,25 @@ class AddDagView(AirflowBaseView):
     @expose("/save_snippet/<string:filename>", methods=['POST'])
     @has_access
     def save_snippet(self, filename):
-        snippet_file_path = self.get_snippet_file_path()
+        snippet_file_path = self.get_snippet_metadata_path()
 
         # creating a path to tasks_folder (works for python >= 3.5)
         Path(snippet_file_path).parent.mkdir(parents=True, exist_ok=True)
 
         if request.method == 'POST':
-            if Path(snippet_file_path).exists():
-                with open(snippet_file_path) as f:
-                    snippets = json.load(f)
-            else:
-                snippets = {}
+            # snippets = self.get_snippets()
 
-            snippets[request.form['title']] = {
-                'description': request.form['description'],
-                'snippet': request.form['snippet']
+            metadata = {
+                'title': request.form['title'],
+                'description': request.form['description']
             }
-
-            with open(snippet_file_path, 'w') as f:
-                json.dump(snippets, f)
+            new_snippet = request.form['snippet']
+            print("*************")
+            print(new_snippet)
+            print("*************")
+            self.save_snippets(metadata, new_snippet)
+            # with open(snippet_file_path, 'w') as f:
+            #     json.dump(snippets, f)
 
             return redirect(url_for('AddDagView.editdag', filename=filename))
         return make_response(('METHOD_NOT_ALLOWED', 403))

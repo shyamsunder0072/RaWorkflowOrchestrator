@@ -18,6 +18,7 @@
 # under the License.
 #
 
+from flask_appbuilder.security.manager import BaseSecurityManager
 from flask import g
 from flask_appbuilder.security.sqla import models as sqla_models
 from flask_appbuilder.security.sqla.manager import SecurityManager
@@ -184,11 +185,12 @@ EXISTING_ROLES = {
     'Developer',
 }
 
-from flask_appbuilder.security.manager import BaseSecurityManager
+
 class CoutureSecurity(BaseSecurityManager):
     from airflow.www_rbac.index import CoutureAuthView, CoutureAuthLDAPView
     BaseSecurityManager.authdbview = CoutureAuthView
     BaseSecurityManager.authldapview = CoutureAuthLDAPView
+
 
 class AirflowSecurityManager(SecurityManager, LoggingMixin):
 

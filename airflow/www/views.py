@@ -340,12 +340,12 @@ def get_date_time_num_runs_dag_runs_form_data(request, session, dag):
     DR = models.DagRun
     drs = (
         session.query(DR)
-            .filter(
+        .filter(
             DR.dag_id == dag.dag_id,
             DR.execution_date <= base_date)
-            .order_by(desc(DR.execution_date))
-            .limit(num_runs)
-            .all()
+        .order_by(desc(DR.execution_date))
+        .limit(num_runs)
+        .all()
     )
     dr_choices = []
     dr_state = None
@@ -447,15 +447,15 @@ class Airflow(BaseView):
         if not payload['error'] and len(df) == 0:
             payload['error'] += "Empty result set. "
         elif (
-            not payload['error'] and
-            chart.sql_layout == 'series' and
-            chart.chart_type != "datatable" and
-            len(df.columns) < 3):
+                not payload['error'] and
+                chart.sql_layout == 'series' and
+                chart.chart_type != "datatable" and
+                len(df.columns) < 3):
             payload['error'] += "SQL needs to return at least 3 columns. "
         elif (
-            not payload['error'] and
-            chart.sql_layout == 'columns' and
-            len(df.columns) < 2):
+                not payload['error'] and
+                chart.sql_layout == 'columns' and
+                len(df.columns) < 2):
             payload['error'] += "SQL needs to return at least 2 columns. "
         elif not payload['error']:
             import numpy as np
@@ -615,13 +615,13 @@ class Airflow(BaseView):
         # If no dag_run is active, return task instances from most recent dag_run.
         LastTI = (
             session.query(TI.dag_id.label('dag_id'), TI.state.label('state'))
-                .join(LastDagRun, and_(
+            .join(LastDagRun, and_(
                 LastDagRun.c.dag_id == TI.dag_id,
                 LastDagRun.c.execution_date == TI.execution_date))
         )
         RunningTI = (
             session.query(TI.dag_id.label('dag_id'), TI.state.label('state'))
-                .join(RunningDagRun, and_(
+            .join(RunningDagRun, and_(
                 RunningDagRun.c.dag_id == TI.dag_id,
                 RunningDagRun.c.execution_date == TI.execution_date))
         )
@@ -629,7 +629,7 @@ class Airflow(BaseView):
         UnionTI = union_all(LastTI, RunningTI).alias('union_ti')
         qry = (
             session.query(UnionTI.c.dag_id, UnionTI.c.state, sqla.func.count())
-                .group_by(UnionTI.c.dag_id, UnionTI.c.state)
+            .group_by(UnionTI.c.dag_id, UnionTI.c.state)
         )
 
         data = {}
@@ -848,7 +848,7 @@ class Airflow(BaseView):
                              attachment_filename=attachment_filename)
         except AttributeError as e:
             error_message = ["Task log handler {} does not support read logs.\n{}\n"
-                                 .format(task_log_reader, str(e))]
+                             .format(task_log_reader, str(e))]
             metadata['end_of_log'] = True
             return jsonify(message=error_message, error=True, metadata=metadata)
 
@@ -950,10 +950,10 @@ class Airflow(BaseView):
             <br/>
             If this task instance does not start soon please contact your Airflow """
                    """administrator for assistance."""
-                .format(
-                "- This task instance already ran and had its state changed "
-                "manually (e.g. cleared in the UI)<br/>"
-                if ti.state == State.NONE else "")))]
+                   .format(
+                       "- This task instance already ran and had its state changed "
+                       "manually (e.g. cleared in the UI)<br/>"
+                       if ti.state == State.NONE else "")))]
 
         # Use the scheduler's context to figure out which dependencies are not met
         dep_context = DepContext(SCHEDULER_DEPS)
@@ -1449,12 +1449,12 @@ class Airflow(BaseView):
         DR = models.DagRun
         dag_runs = (
             session.query(DR)
-                .filter(
+            .filter(
                 DR.dag_id == dag.dag_id,
                 DR.execution_date <= base_date)
-                .order_by(DR.execution_date.desc())
-                .limit(num_runs)
-                .all()
+            .order_by(DR.execution_date.desc())
+            .limit(num_runs)
+            .all()
         )
         dag_runs = {
             dr.execution_date: alchemy_to_dict(dr) for dr in dag_runs}
@@ -1498,7 +1498,7 @@ class Airflow(BaseView):
 
             def set_duration(tid):
                 if isinstance(tid, dict) and tid.get("state") == State.RUNNING \
-                    and tid["start_date"] is not None:
+                        and tid["start_date"] is not None:
                     d = timezone.utcnow() - pendulum.parse(tid["start_date"])
                     tid["duration"] = d.total_seconds()
                 return tid
@@ -1688,13 +1688,13 @@ class Airflow(BaseView):
         TF = models.TaskFail
         ti_fails = (
             session
-                .query(TF)
-                .filter(
+            .query(TF)
+            .filter(
                 TF.dag_id == dag.dag_id,
                 TF.execution_date >= min_date,
                 TF.execution_date <= base_date,
                 TF.task_id.in_([t.task_id for t in dag.tasks]))
-                .all()
+            .all()
         )
 
         fails_totals = defaultdict(int)
@@ -1972,11 +1972,11 @@ class Airflow(BaseView):
         TF = models.TaskFail
         ti_fails = list(itertools.chain(*[(
             session
-                .query(TF)
-                .filter(TF.dag_id == ti.dag_id,
-                        TF.task_id == ti.task_id,
-                        TF.execution_date == ti.execution_date)
-                .all()
+            .query(TF)
+            .filter(TF.dag_id == ti.dag_id,
+                    TF.task_id == ti.task_id,
+                    TF.execution_date == ti.execution_date)
+            .all()
         ) for ti in tis]))
 
         # determine bars to show in the gantt chart
@@ -3130,7 +3130,8 @@ class SparkConfView(wwwutils.SuperUserMixin, BaseView):
         config.optionxform = str
         conf_path = AIRFLOW_HOME + '/couture-spark.conf'
         config.read(filenames=conf_path)
-        args = collections.OrderedDict(config.items('arguments'))  # orderedDictionary used so that the order displayed is same as in file
+        # orderedDictionary used so that the order displayed is same as in file
+        args = collections.OrderedDict(config.items('arguments'))
         configs = collections.OrderedDict(config.items('configurations'))  # dictionary created
         title = "Couture Spark Configuration"
 
@@ -3147,27 +3148,33 @@ class SparkConfView(wwwutils.SuperUserMixin, BaseView):
                 opt_value = request.form['option_value']
                 if len(opt_title) != 0 and len(opt_value) != 0:  # for not adding empty fields in file
                     config.set('arguments', opt_title, opt_value)  # adding the new name and value in file
-            except:
+            except Exception:
                 print("Sorry ! No field found ")
 
             try:
                 opt_title_config = request.form['option_title_config']
                 opt_value_config = request.form['option_value_config']
-                if len(opt_title_config) != 0 and len(opt_value_config) != 0:  # for not adding empty fields in file
-                    config.set('configurations', opt_title_config, opt_value_config)  # adding the new name and value in file
-            except:
+                # for not adding empty fields in file
+                if len(opt_title_config) != 0 and len(opt_value_config) != 0:
+                    # adding the new name and value in file
+                    config.set('configurations', opt_title_config, opt_value_config)
+            except Exception:
                 print("Sorry ! No field found ")
 
             try:
-                if config.has_option('arguments', request.form['option_title_args_delete']):  # if there is option in the file, then delete
-                    config.remove_option('arguments', request.form['option_title_args_delete'])  # deleting from the config file
-            except:
+                # if there is option in the file, then delete
+                if config.has_option('arguments', request.form['option_title_args_delete']):
+                    # deleting from the config file
+                    config.remove_option('arguments', request.form['option_title_args_delete'])
+            except Exception:
                 print("Sorry ! No field found in delete in args")
 
             try:
-                if config.has_option('configurations', request.form['option_title_config_delete']):  # if there is option in the file, then delete
-                    config.remove_option('configurations', request.form['option_title_config_delete'])   # deleting from the config file
-            except:
+                # if there is option in the file, then delete
+                if config.has_option('configurations', request.form['option_title_config_delete']):
+                    # deleting from the config file
+                    config.remove_option('configurations', request.form['option_title_config_delete'])
+            except Exception:
                 print("Sorry ! No field found in delete in config")
 
             # writing all the changes to the file
@@ -3177,10 +3184,17 @@ class SparkConfView(wwwutils.SuperUserMixin, BaseView):
             new_args = collections.OrderedDict(config.items('arguments'))
             new_config = collections.OrderedDict(config.items('configurations'))
             return self.render(
-                'airflow/couture_config.html', title=title, Arguments=new_args, Configurations=new_config)
+                'airflow/couture_config.html',
+                title=title,
+                Arguments=new_args,
+                Configurations=new_config)
         else:
             return self.render(
-                'airflow/couture_config.html', title=title, len=len(args), Arguments=args, Configurations=configs)
+                'airflow/couture_config.html',
+                title=title,
+                len=len(args),
+                Arguments=args,
+                Configurations=configs)
 
 
 class UploadArtifactView(wwwutils.SuperUserMixin, BaseView):
@@ -3201,7 +3215,7 @@ class UploadArtifactView(wwwutils.SuperUserMixin, BaseView):
                     destination = "/".join([target, filename])
                     f.save(destination)
                     flash('File Uploaded!')
-            except:
+            except Exception:
                 flash('No file selected!')
 
             files = []
@@ -3216,7 +3230,8 @@ class UploadArtifactView(wwwutils.SuperUserMixin, BaseView):
             for r, d, f in os.walk(add_to_dir):
                 for file in f:
                     files.append(file)
-            return self.render_template('airflow/spark_dependencies.html',title=title, Files=files)
+            return self.render_template('airflow/spark_dependencies.html', title=title, Files=files)
+
 
 class AddDagView(wwwutils.SuperUserMixin, BaseView):
     @expose('/', methods=['GET', 'POST'])
@@ -3236,7 +3251,7 @@ class AddDagView(wwwutils.SuperUserMixin, BaseView):
                     destination = "/".join([target, filename])
                     f.save(destination)
                     flash('File Uploaded!')
-            except:
+            except Exception:
                 flash('No file selected!')
 
             files = []
@@ -3251,7 +3266,8 @@ class AddDagView(wwwutils.SuperUserMixin, BaseView):
             for r, d, f in os.walk(add_to_dir):
                 for file in f:
                     files.append(file)
-            return self.render_template('airflow/add_dag.html',title=title, Files=files)
+            return self.render_template('airflow/add_dag.html', title=title, Files=files)
+
 
 class DagModelView(wwwutils.SuperUserMixin, ModelView):
     column_list = ('dag_id', 'owners')

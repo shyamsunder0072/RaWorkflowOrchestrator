@@ -34,7 +34,8 @@ from flask_wtf import FlaskForm
 
 from wtforms import validators
 from wtforms.fields import (IntegerField, SelectField, TextAreaField, PasswordField,
-                            StringField, DateTimeField, BooleanField)
+                            StringField, DateTimeField, BooleanField, FileField)
+from wtforms.widgets import FileInput
 
 
 class DateTimeForm(FlaskForm):
@@ -153,3 +154,11 @@ class ConnectionForm(DynamicForm):
     extra__grpc__scopes = StringField(
         lazy_gettext('Scopes (comma separated)'),
         widget=BS3TextFieldWidget())
+
+
+class GenericFileUploadForm(DynamicForm):
+    files = FileField(('Upload File'), widget=FileInput(multiple=False))
+
+
+class GenericMultipleFileUploadForm(DynamicForm):
+    files = FileField(('Upload Files'), widget=FileInput(multiple=True))

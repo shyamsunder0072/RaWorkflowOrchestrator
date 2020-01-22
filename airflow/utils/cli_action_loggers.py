@@ -26,8 +26,6 @@ from __future__ import absolute_import
 import logging
 from typing import List, Callable
 
-from airflow.utils.db import create_session
-
 
 def register_pre_exec_callback(action_logger):
     """
@@ -97,10 +95,11 @@ def default_action_log(log, **_):
     """
     """
     Disabled CLI logging as of now
-    
+
     with create_session() as session:
         session.add(log)
     """
+
 
 __pre_exec_callbacks = []  # type: List[Callable]
 __post_exec_callbacks = []  # type: List[Callable]

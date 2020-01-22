@@ -176,6 +176,7 @@ class TestConnectionModelView(TestBase):
                                follow_redirects=True)
         self.assertEqual(200, resp.status_code)
 
+
 class TestVariableModelView(TestBase):
     def setUp(self):
         super(TestVariableModelView, self).setUp()

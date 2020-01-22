@@ -5,6 +5,7 @@ from airflow.models import DagRun, DagBag
 from airflow.utils import timezone
 from airflow.utils.state import State
 
+
 def _run_dag(
     dag_id,
     dag_bag,
@@ -47,7 +48,6 @@ def _run_dag(
     dags_to_trigger = list()
     dags_to_trigger.append(dag)
 
-    from airflow.jobs import BackfillJob
     from airflow.executors import get_default_executor
 
     executor = get_default_executor()
@@ -66,8 +66,14 @@ def _run_dag(
             dags_to_trigger.extend(dag.subdags)
 
     dag.run(
-        start_date=execution_date, end_date=execution_date, mark_success=False, executor=executor, donot_pickle=True, ignore_first_depends_on_past=True, verbose=True, rerun_failed_tasks=True)
-
+        start_date=execution_date,
+        end_date=execution_date,
+        mark_success=False,
+        executor=executor,
+        donot_pickle=True,
+        ignore_first_depends_on_past=True,
+        verbose=True,
+        rerun_failed_tasks=True)
 
     return runs
 
