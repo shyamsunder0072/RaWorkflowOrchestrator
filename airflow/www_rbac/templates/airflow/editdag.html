@@ -9,15 +9,15 @@
   .CodeMirror {
     font-size: 14px;
     border: 1px solid #eee;
-    height: 500px !important;
+    height: 600px !important;
   }
   .CodeMirror-merge-gap {
-    height: 500px !important;
+    height: 600px !important;
   }
   .margin-top-lg { margin-top: 2em; }
   .padding-sm { padding: .5em; }
   #codebrickList{
-    height: 380px;
+    height: 480px;
     margin-bottom: 10px;
     overflow:scroll;
     -webkit-overflow-scrolling: touch;
@@ -87,7 +87,10 @@
         <strong>{{ title }}</strong>
         <div id="codebrick-{{loop.index}}" class="collapse">
           <span>
-            <p>{{snippets[title]['description']}}</p>
+            <i>
+              <pre>{{snippets[title]['description']}}</pre>
+            </i>
+
             <button class="btn btn-success pull-right codebrick-insert-btn" onclick="insertSnip(this, '{{loop.index}}')">
               INSERT
             </button>
