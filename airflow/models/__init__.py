@@ -18,7 +18,7 @@
 # under the License.
 """Airflow models"""
 from airflow.models.base import Base, ID_LEN  # noqa: F401
-from airflow.models.baseoperator import BaseOperator  # noqa: F401
+from airflow.models.baseoperator import BaseOperator, BaseOperatorLink  # noqa: F401
 from airflow.models.connection import Connection  # noqa: F401
 from airflow.models.dag import DAG, DagModel  # noqa: F401
 from airflow.models.dagbag import DagBag  # noqa: F401

@@ -22,6 +22,7 @@ from airflow.configuration import conf
 from airflow.contrib.kubernetes.pod import Pod, Resources
 from airflow.contrib.kubernetes.secret import Secret
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.version import version as airflow_version
 
 
 class WorkerConfiguration(LoggingMixin):
@@ -68,6 +69,9 @@ class WorkerConfiguration(LoggingMixin):
         }, {
             'name': 'GIT_SYNC_ONE_TIME',
             'value': 'true'
+        }, {
+            'name': 'GIT_SYNC_REV',
+            'value': self.kube_config.git_sync_rev
         }]
         if self.kube_config.git_user:
             init_environment.append({
@@ -373,6 +377,8 @@ class WorkerConfiguration(LoggingMixin):
                 'task_id': task_id,
                 'execution_date': execution_date,
                 'try_number': str(try_number),
+                'airflow_version': airflow_version.replace('+', '-'),
+                'kubernetes_executor': 'True',
             }),
             envs=self._get_environment(),
             secrets=self._get_secrets(),

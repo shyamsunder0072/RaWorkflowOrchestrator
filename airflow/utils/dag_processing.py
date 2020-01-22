@@ -50,6 +50,7 @@ from airflow.dag.base_dag import BaseDag, BaseDagBag
 from airflow.exceptions import AirflowException
 from airflow.settings import Stats
 from airflow.models import errors
+from airflow.settings import STORE_SERIALIZED_DAGS
 from airflow.utils import timezone
 from airflow.utils.helpers import reap_process_group
 from airflow.utils.db import provide_session
@@ -64,15 +65,14 @@ class SimpleDag(BaseDag):
     """
     A simplified representation of a DAG that contains all attributes
     required for instantiating and scheduling its associated tasks.
+
+    :param dag: the DAG
+    :type dag: airflow.models.DAG
+    :param pickle_id: ID associated with the pickled version of this DAG.
+    :type pickle_id: unicode
     """
 
     def __init__(self, dag, pickle_id=None):
-        """
-        :param dag: the DAG
-        :type dag: airflow.models.DAG
-        :param pickle_id: ID associated with the pickled version of this DAG.
-        :type pickle_id: unicode
-        """
         self._dag_id = dag.dag_id
         self._task_ids = [task.task_id for task in dag.tasks]
         self._full_filepath = dag.full_filepath
@@ -347,7 +347,7 @@ def list_py_file_paths(directory, safe_mode=conf.getboolean('core', 'DAG_DISCOVE
             # We want patterns defined in a parent folder's .airflowignore to
             # apply to subdirs too
             for d in dirs:
-                patterns_by_dir[os.path.join(root, d)] = patterns
+                patterns_by_dir[os.path.join(root, d)] = list(patterns)
 
             for f in files:
                 try:
@@ -716,8 +716,23 @@ class DagFileProcessorManager(LoggingMixin):
     processors finish, more are launched. The files are processed over and
     over again, but no more often than the specified interval.
 
-    :type _file_path_queue: list[unicode]
-    :type _processors: dict[unicode, AbstractDagFileProcessor]
+    :param dag_directory: Directory where DAG definitions are kept. All
+        files in file_paths should be under this directory
+    :type dag_directory: unicode
+    :param file_paths: list of file paths that contain DAG definitions
+    :type file_paths: list[unicode]
+    :param max_runs: The number of times to parse and schedule each file. -1
+        for unlimited.
+    :type max_runs: int
+    :param processor_factory: function that creates processors for DAG
+        definition files. Arguments are (dag_definition_path)
+    :type processor_factory: (unicode, unicode, list) -> (AbstractDagFileProcessor)
+    :param processor_timeout: How long to wait before timing out a DAG file processor
+    :type processor_timeout: timedelta
+    :param signal_conn: connection to communicate signal with processor agent.
+    :type signal_conn: airflow.models.connection.Connection
+    :param async_mode: whether to start the manager in async mode
+    :type async_mode: bool
     """
 
     def __init__(self,
@@ -728,25 +743,6 @@ class DagFileProcessorManager(LoggingMixin):
                  processor_timeout,
                  signal_conn,
                  async_mode=True):
-        """
-        :param dag_directory: Directory where DAG definitions are kept. All
-            files in file_paths should be under this directory
-        :type dag_directory: unicode
-        :param file_paths: list of file paths that contain DAG definitions
-        :type file_paths: list[unicode]
-        :param max_runs: The number of times to parse and schedule each file. -1
-            for unlimited.
-        :type max_runs: int
-        :param processor_factory: function that creates processors for DAG
-            definition files. Arguments are (dag_definition_path)
-        :type processor_factory: (unicode, unicode, list) -> (AbstractDagFileProcessor)
-        :param processor_timeout: How long to wait before timing out a DAG file processor
-        :type processor_timeout: timedelta
-        :param signal_conn: connection to communicate signal with processor agent.
-        :type signal_conn: airflow.models.connection.Connection
-        :param async_mode: whether to start the manager in async mode
-        :type async_mode: bool
-        """
         self._file_paths = file_paths
         self._file_path_queue = []
         self._dag_directory = dag_directory
@@ -757,8 +753,10 @@ class DagFileProcessorManager(LoggingMixin):
 
         self._parallelism = conf.getint('scheduler', 'max_threads')
         if 'sqlite' in conf.get('core', 'sql_alchemy_conn') and self._parallelism > 1:
-            self.log.error("Cannot use more than 1 thread when using sqlite. "
-                           "Setting parallelism to 1")
+            self.log.warning(
+                "Because we cannot use more than 1 thread (max_threads = {}) "
+                "when using sqlite. So we set parallelism to 1.".format(self._parallelism)
+            )
             self._parallelism = 1
 
         # Parse and schedule each file no faster than this interval.
@@ -816,6 +814,9 @@ class DagFileProcessorManager(LoggingMixin):
         we can get parallelism and isolation from potentially harmful
         user code.
         """
+
+        # Start a new process group
+        os.setpgid(0, 0)
 
         self.log.info("Processing files using up to %s processes at a time ", self._parallelism)
         self.log.info("Process each file at most once every %s seconds", self._file_process_interval)
@@ -918,6 +919,12 @@ class DagFileProcessorManager(LoggingMixin):
                 self.clear_nonexistent_import_errors()
             except Exception:
                 self.log.exception("Error removing old import errors")
+
+            if STORE_SERIALIZED_DAGS:
+                from airflow.models.serialized_dag import SerializedDagModel
+                from airflow.models.dag import DagModel
+                SerializedDagModel.remove_deleted_dags(self._file_paths)
+                DagModel.deactivate_deleted_dags(self._file_paths)
 
     def _print_stat(self):
         """
@@ -1318,7 +1325,7 @@ class DagFileProcessorManager(LoggingMixin):
         for file_path, processor in self._processors.items():
             duration = now - processor.start_time
             if duration > self._processor_timeout:
-                self.log.info(
+                self.log.error(
                     "Processor for %s with PID %s started at %s has timed out, "
                     "killing it.",
                     processor.file_path, processor.pid, processor.start_time.isoformat())

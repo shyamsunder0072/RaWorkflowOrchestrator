@@ -19,6 +19,7 @@
 #
 # Bash sanity settings (error on exit, complain for undefined vars, error when pipe fails)
 set -euo pipefail
+
 MY_DIR=$(cd "$(dirname "$0")" || exit 1; pwd)
 
 if [[ ${AIRFLOW_CI_VERBOSE:="false"} == "true" ]]; then
@@ -32,6 +33,8 @@ in_container_basic_sanity_check
 
 in_container_script_start
 
+TRAVIS=${TRAVIS:=}
+
 AIRFLOW_SOURCES=$(cd "${MY_DIR}/../../.." || exit 1; pwd)
 
 PYTHON_VERSION=${PYTHON_VERSION:=3.6}
@@ -39,6 +42,8 @@ ENV=${ENV:=docker}
 BACKEND=${BACKEND:=sqlite}
 KUBERNETES_VERSION=${KUBERNETES_VERSION:=""}
 KUBERNETES_MODE=${KUBERNETES_MODE:=""}
+
+export PYTHONPATH="${AIRFLOW_SOURCES}"
 
 export AIRFLOW_HOME=${AIRFLOW_HOME:=${HOME}}
 
@@ -104,7 +109,7 @@ if [[ ! -d "${AIRFLOW_SOURCES}/airflow/www_rbac/static/dist" ]]; then
 fi
 
 export HADOOP_DISTRO="${HADOOP_DISTRO:="cdh"}"
-export HADOOP_HOME="${HADOOP_HOME:="/tmp/hadoop-cdh"}"
+export HADOOP_HOME="${HADOOP_HOME:="/opt/hadoop-cdh"}"
 
 if [[ ${AIRFLOW_CI_VERBOSE} == "true" ]]; then
     echo
@@ -113,9 +118,6 @@ if [[ ${AIRFLOW_CI_VERBOSE} == "true" ]]; then
 fi
 
 export AIRFLOW__CORE__DAGS_FOLDER="${AIRFLOW_SOURCES}/tests/dags"
-
-# add test/test_utils to PYTHONPATH (TODO: Do we need it?)
-export PYTHONPATH=${PYTHONPATH:-${AIRFLOW_SOURCES}/tests/test_utils}
 
 # Added to have run-tests on path
 export PATH=${PATH}:${AIRFLOW_SOURCES}
@@ -132,11 +134,6 @@ if [[ ! -h /home/travis/build/apache/airflow ]]; then
   sudo ln -s "${AIRFLOW_SOURCES}" /home/travis/build/apache/airflow
 fi
 
-# Fix file permissions
-if [[ -d "${HOME}/.minikube" ]]; then
-    sudo chown -R "${AIRFLOW_USER}.${AIRFLOW_USER}" "${HOME}/.kube" "${HOME}/.minikube"
-fi
-
 # Cleanup the logs, tmp when entering the environment
 sudo rm -rf "${AIRFLOW_SOURCES}"/logs/*
 sudo rm -rf "${AIRFLOW_SOURCES}"/tmp/*
@@ -145,7 +142,7 @@ mkdir -p "${AIRFLOW_SOURCES}"/tmp/
 
 if [[ "${ENV}" == "docker" ]]; then
     # Start MiniCluster
-    java -cp "/tmp/minicluster-1.1-SNAPSHOT/*" com.ing.minicluster.MiniCluster \
+    java -cp "/opt/minicluster-1.1-SNAPSHOT/*" com.ing.minicluster.MiniCluster \
         >"${AIRFLOW_HOME}/logs/minicluster.log" 2>&1 &
 
     # Set up ssh keys
@@ -224,50 +221,37 @@ if [[ "${RUN_TESTS}" == "false" ]]; then
     fi
 fi
 
-if [[ ${#ARGS} == 0 ]]; then
-    ARGS=("--with-coverage"
-          "--cover-erase"
-          "--cover-html"
-          "--cover-package=airflow"
-          "--cover-html-dir=airflow/www_rbac/static/coverage"
-          "--with-ignore-docstrings"
-          "--rednose"
-          "--with-xunit"
-          "--xunit-file=${XUNIT_FILE}"
-          "--with-timer"
-          "-v"
-          "--logging-level=INFO")
-    echo
-    echo "Running ALL Tests"
-    echo
-else
-    echo
-    echo "Running tests with ${ARGS[*]}"
-    echo
-fi
 set -u
 
 KUBERNETES_VERSION=${KUBERNETES_VERSION:=""}
 
+if [[ "${TRAVIS}" == "true" ]]; then
+    TRAVIS_ARGS=(
+        "--junitxml=${XUNIT_FILE}"
+        "--verbosity=0"
+        "--durations=100"
+        "--cov=airflow/"
+        "--cov-config=.coveragerc"
+        "--cov-report=html:airflow/www_rbac/static/coverage/"
+        "--pythonwarnings=ignore::DeprecationWarning"
+        "--pythonwarnings=ignore::PendingDeprecationWarning"
+        )
+else
+    TRAVIS_ARGS=()
+fi
+
+
 if [[ -z "${KUBERNETES_VERSION}" ]]; then
-    echo
-    echo "Running CI tests with ${ARGS[*]}"
-    echo
+    ARGS=("${TRAVIS_ARGS[@]}" "tests/")
     "${MY_DIR}/run_ci_tests.sh" "${ARGS[@]}"
 else
-    export KUBERNETES_VERSION
-    export MINIKUBE_IP
-    # This script runs inside a container, the path of the kubernetes certificate
-    # is /home/travis/.minikube/client.crt but the user in the container is `root`
-    # TODO: Check this. This should be made travis-independent :D
-    if [[ ! -d /home/travis ]]; then
-        sudo mkdir -p /home/travis
-    fi
-    sudo ln -s /root/.minikube /home/travis/.minikube
-    echo
-    echo "Running CI tests with ${ARGS[*]}"
-    echo
-    "${MY_DIR}/run_ci_tests.sh" tests.contrib.minikube "${ARGS[@]}"
+    export SKIP_INIT_DB=true
+    echo "Set up Kubernetes cluster for tests"
+    "${MY_DIR}/../kubernetes/setup_kubernetes.sh"
+    "${MY_DIR}/../kubernetes/app/deploy_app.sh" -d "${KUBERNETES_MODE}"
+
+    ARGS=("${TRAVIS_ARGS[@]}" "tests/integration/kubernetes")
+    "${MY_DIR}/run_ci_tests.sh" "${ARGS[@]}"
 fi
 
 in_container_script_end

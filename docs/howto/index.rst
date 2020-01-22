@@ -32,12 +32,10 @@ configuring an Airflow environment.
     set-config
     initialize-database
     operator/index
+    custom-operator
     connection/index
     secure-connections
     write-logs
-    executor/use-celery
-    executor/use-dask
-    executor/use-mesos
     run-behind-proxy
     run-with-systemd
     run-with-upstart

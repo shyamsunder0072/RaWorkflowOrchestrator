@@ -175,7 +175,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                      'deploy_mode': None,
                      'spark_home': None,
                      'spark_binary': self._spark_binary or "spark-submit",
-                     'namespace': 'default'}
+                     'namespace': None}
 
         try:
             # Master can be local, yarn, spark://HOST:PORT, mesos://HOST:PORT and
@@ -193,7 +193,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             conn_data['spark_home'] = extra.get('spark-home', None)
             conn_data['spark_binary'] = self._spark_binary or  \
                 extra.get('spark-binary', "spark-submit")
-            conn_data['namespace'] = extra.get('namespace', 'default')
+            conn_data['namespace'] = extra.get('namespace')
         except AirflowException:
             self.log.info(
                 "Could not load connection string %s, defaulting to %s",
@@ -220,13 +220,14 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
     def _build_spark_submit_command(self, application):
         """
         Construct the spark-submit command to execute.
+
         :param application: command to append to the spark-submit command
         :type application: str
         :return: full command to be executed
         """
         connection_cmd = self._get_spark_binary_path()
 
-        # The url ot the spark master
+        # The url of the spark master
         connection_cmd += ["--master", self._connection['master']]
 
         if self._conf:
@@ -235,6 +236,8 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         if self._env_vars and (self._is_kubernetes or self._is_yarn):
             if self._is_yarn:
                 tmpl = "spark.yarn.appMasterEnv.{}={}"
+                # Allow dynamic setting of hadoop/yarn configuration environments
+                self._env = self._env_vars
             else:
                 tmpl = "spark.kubernetes.driverEnv.{}={}"
             for key in self._env_vars:
@@ -246,7 +249,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         elif self._env_vars and self._connection['deploy_mode'] == "cluster":
             raise AirflowException(
                 "SparkSubmitHook env_vars is not supported in standalone-cluster mode.")
-        if self._is_kubernetes:
+        if self._is_kubernetes and self._connection['namespace']:
             connection_cmd += ["--conf", "spark.kubernetes.namespace={}".format(
                 self._connection['namespace'])]
         if self._files:

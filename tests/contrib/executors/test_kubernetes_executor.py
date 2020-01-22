@@ -37,6 +37,7 @@ try:
     from airflow.exceptions import AirflowConfigException
     from airflow.contrib.kubernetes.secret import Secret
     from airflow.utils.state import State
+    from airflow.version import version as airflow_version
 except ImportError:
     AirflowKubernetesScheduler = None  # type: ignore
 
@@ -424,6 +425,34 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
         self.assertIn(password_env, pod.init_containers[0]["env"],
                       'The password env for git credentials did not get into the init container')
 
+    def test_make_pod_git_sync_rev(self):
+        # Tests the pod created with git_sync_credentials_secret will get into the init container
+        self.kube_config.git_sync_rev = 'sampletag'
+        self.kube_config.dags_volume_claim = None
+        self.kube_config.dags_volume_host = None
+        self.kube_config.dags_in_image = None
+        self.kube_config.worker_fs_group = None
+        self.kube_config.git_dags_folder_mount_point = 'dags'
+        self.kube_config.git_sync_dest = 'repo'
+        self.kube_config.git_subpath = 'path'
+
+        worker_config = WorkerConfiguration(self.kube_config)
+        kube_executor_config = KubernetesExecutorConfig(annotations=[],
+                                                        volumes=[],
+                                                        volume_mounts=[])
+
+        pod = worker_config.make_pod("default", str(uuid.uuid4()), "test_pod_id", "test_dag_id",
+                                     "test_task_id", str(datetime.utcnow()), 1, "bash -c 'ls /'",
+                                     kube_executor_config)
+
+        rev_env = {
+            'name': 'GIT_SYNC_REV',
+            'value': self.kube_config.git_sync_rev
+        }
+
+        self.assertIn(rev_env, pod.init_containers[0]["env"],
+                      'The git_sync_rev env did not get into the init container')
+
     def test_init_environment_using_git_sync_run_as_user_empty(self):
         # Tests if git_syn_run_as_user is none, then no securityContext created in init container
 
@@ -459,6 +488,30 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
                                      kube_executor_config)
 
         self.assertEqual(0, pod.security_context['runAsUser'])
+
+    def test_make_pod_assert_labels(self):
+        # Tests the pod created has all the expected labels set
+        self.kube_config.dags_folder = 'dags'
+
+        worker_config = WorkerConfiguration(self.kube_config)
+        kube_executor_config = KubernetesExecutorConfig(annotations=[],
+                                                        volumes=[],
+
+                                                        volume_mounts=[])
+        pod = worker_config.make_pod("default", "sample-uuid", "test_pod_id", "test_dag_id",
+                                     "test_task_id", "2019-11-21 11:08:22.920875", 1, "bash -c 'ls /'",
+                                     kube_executor_config)
+        expected_labels = {
+            'airflow-worker': 'sample-uuid',
+            'airflow_version': airflow_version.replace('+', '-'),
+            'dag_id': 'test_dag_id',
+            'execution_date': '2019-11-21 11:08:22.920875',
+            'kubernetes_executor': 'True',
+            'my_label': 'label_id',
+            'task_id': 'test_task_id',
+            'try_number': '1'
+        }
+        self.assertEqual(pod.labels, expected_labels)
 
     def test_make_pod_git_sync_ssh_without_known_hosts(self):
         # Tests the pod created with git-sync SSH authentication option is correct without known hosts
@@ -705,7 +758,7 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
         self.assertEqual({
             'my_label': 'label_id',
             'dag_id': 'override_dag_id',
-            'my_kube_executor_label': 'kubernetes'
+            'my_kube_executor_label': 'kubernetes',
         }, labels)
 
 

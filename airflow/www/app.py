@@ -29,7 +29,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.middleware.dispatcher import DispatcherMiddleware
 
 import airflow
-from airflow import models, LoggingMixin
+from airflow import models, version, LoggingMixin
 from airflow.configuration import conf
 from airflow.models.connection import Connection
 from airflow.settings import Session
@@ -48,12 +48,12 @@ def create_app(config=None, testing=False):
     if conf.getboolean('webserver', 'ENABLE_PROXY_FIX'):
         app.wsgi_app = ProxyFix(
             app.wsgi_app,
-            num_proxies=None,
-            x_for=1,
-            x_proto=1,
-            x_host=1,
-            x_port=1,
-            x_prefix=1
+            num_proxies=conf.get("webserver", "PROXY_FIX_NUM_PROXIES", fallback=None),
+            x_for=conf.get("webserver", "PROXY_FIX_X_FOR", fallback=1),
+            x_proto=conf.get("webserver", "PROXY_FIX_X_PROTO", fallback=1),
+            x_host=conf.get("webserver", "PROXY_FIX_X_HOST", fallback=1),
+            x_port=conf.get("webserver", "PROXY_FIX_X_PORT", fallback=1),
+            x_prefix=conf.get("webserver", "PROXY_FIX_X_PREFIX", fallback=1)
         )
     app.secret_key = conf.get('webserver', 'SECRET_KEY')
     app.config['LOGIN_DISABLED'] = not conf.getboolean(
@@ -126,9 +126,14 @@ def create_app(config=None, testing=False):
         av(vs.XComView(
             models.XCom, Session, name="XComs", category="Admin"))
 
+        if "dev" in version.version:
+            airflow_doc_site = "https://airflow.readthedocs.io/en/latest"
+        else:
+            airflow_doc_site = 'https://airflow.apache.org/docs/{}'.format(version.version)
+
         admin.add_link(base.MenuLink(
             category='Docs', name='Documentation',
-            url='https://airflow.apache.org/'))
+            url=airflow_doc_site))
         admin.add_link(
             base.MenuLink(category='Docs',
                           name='GitHub',

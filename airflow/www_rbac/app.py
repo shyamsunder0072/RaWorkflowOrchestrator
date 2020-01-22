@@ -30,7 +30,7 @@ from six.moves.urllib.parse import urlparse
 from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.middleware.dispatcher import DispatcherMiddleware
 
-from airflow import settings
+from airflow import settings, version
 from airflow.configuration import conf
 from airflow.logging_config import configure_logging
 from airflow.www_rbac.static_config import configure_manifest_files
@@ -47,12 +47,12 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
     if conf.getboolean('webserver', 'ENABLE_PROXY_FIX'):
         app.wsgi_app = ProxyFix(
             app.wsgi_app,
-            num_proxies=None,
-            x_for=1,
-            x_proto=1,
-            x_host=1,
-            x_port=1,
-            x_prefix=1
+            num_proxies=conf.get("webserver", "PROXY_FIX_NUM_PROXIES", fallback=None),
+            x_for=conf.get("webserver", "PROXY_FIX_X_FOR", fallback=1),
+            x_proto=conf.get("webserver", "PROXY_FIX_X_PROTO", fallback=1),
+            x_host=conf.get("webserver", "PROXY_FIX_X_HOST", fallback=1),
+            x_port=conf.get("webserver", "PROXY_FIX_X_PORT", fallback=1),
+            x_prefix=conf.get("webserver", "PROXY_FIX_X_PREFIX", fallback=1)
         )
     app.secret_key = conf.get('webserver', 'SECRET_KEY')
 
@@ -86,7 +86,6 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
     configure_manifest_files(app)
 
     with app.app_context():
-
         from airflow.www_rbac.security import AirflowSecurityManager
         security_manager_class = app.config.get('SECURITY_MANAGER_CLASS') or \
             AirflowSecurityManager
@@ -104,10 +103,11 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
 
         def init_views(appbuilder):
             from airflow.www_rbac import views
+            # Remove the session from scoped_session registry to avoid
+            # reusing a session with a disconnected connection
+            appbuilder.session.remove()
             appbuilder.add_view_no_menu(views.Airflow())
             appbuilder.add_view_no_menu(views.DagModelView())
-            appbuilder.add_view_no_menu(views.ConfigurationView())
-            appbuilder.add_view_no_menu(views.VersionView())
             appbuilder.add_view(views.DagRunModelView,
                                 "DAG Runs",
                                 category="Browse",
@@ -124,8 +124,8 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
             appbuilder.add_view(views.TaskInstanceModelView,
                                 "Task Instances",
                                 category="Browse")
-            appbuilder.add_link("Configurations",
-                                href='/configuration',
+            appbuilder.add_view(views.ConfigurationView,
+                                "Configurations",
                                 category="Admin",
                                 category_icon="fa-user")
             appbuilder.add_view(views.ConnectionModelView,
@@ -140,15 +140,21 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
             appbuilder.add_view(views.XComModelView,
                                 "XComs",
                                 category="Admin")
+
+            if "dev" in version.version:
+                airflow_doc_site = "https://airflow.readthedocs.io/en/latest"
+            else:
+                airflow_doc_site = 'https://airflow.apache.org/docs/{}'.format(version.version)
+
             appbuilder.add_link("Documentation",
-                                href='https://airflow.apache.org/',
+                                href=airflow_doc_site,
                                 category="Docs",
                                 category_icon="fa-cube")
             appbuilder.add_link("GitHub",
                                 href='https://github.com/apache/airflow',
                                 category="Docs")
-            appbuilder.add_link('Version',
-                                href='/version',
+            appbuilder.add_view(views.VersionView,
+                                'Version',
                                 category='About',
                                 category_icon='fa-th')
 
@@ -186,8 +192,9 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
         init_views(appbuilder)
         init_plugin_blueprints(app)
 
-        security_manager = appbuilder.sm
-        security_manager.sync_roles()
+        if conf.getboolean('webserver', 'UPDATE_FAB_PERMS'):
+            security_manager = appbuilder.sm
+            security_manager.sync_roles()
 
         from airflow.www_rbac.api.experimental import endpoints as e
         # required for testing purposes otherwise the module retains
