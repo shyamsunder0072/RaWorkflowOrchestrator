@@ -148,11 +148,11 @@ def create_app(config=None, session=None, testing=False, app_name="Workflow"):
                                 category="Admin",
                                 category_icon="fa-user")
             appbuilder.add_link("Hadoop Configuration",
-                                href='/hadoop_conn_file_list',
+                                href='/HadoopConfView/list',
                                 category="Admin",
                                 category_icon="fa-user")
             appbuilder.add_link("Spark Dependencies",
-                                href='/spark_dependencies',
+                                href='/SparkDepView/list',
                                 category="Admin",
                                 category_icon="fa-user")
             appbuilder.add_link("LDAP Configuration",

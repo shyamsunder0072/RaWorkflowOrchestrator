@@ -105,6 +105,10 @@ DAGS_FOLDER = None
 PLUGINS_FOLDER = None
 LOGGING_CLASS_PATH = None
 
+# CONSTANTS ADDED BY US
+SPARK_DEPENDENCIES_FOLDER = None
+HADOOP_CONFIG_FOLDER = None
+
 engine = None
 Session = None
 
@@ -140,8 +144,13 @@ def configure_vars():
     global SQL_ALCHEMY_CONN
     global DAGS_FOLDER
     global PLUGINS_FOLDER
+    global SPARK_DEPENDENCIES_FOLDER
+    global HADOOP_CONFIG_FOLDER
     SQL_ALCHEMY_CONN = conf.get('core', 'SQL_ALCHEMY_CONN')
     DAGS_FOLDER = os.path.expanduser(conf.get('core', 'DAGS_FOLDER'))
+
+    SPARK_DEPENDENCIES_FOLDER = os.path.join(AIRFLOW_HOME, *[os.pardir, 'jars'])
+    HADOOP_CONFIG_FOLDER = os.path.join(AIRFLOW_HOME, *[os.pardir, 'setup', 'hadoop_conn'])
 
     PLUGINS_FOLDER = conf.get(
         'core',

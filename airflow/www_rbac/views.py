@@ -2068,105 +2068,204 @@ class FileUploadBaseView(AirflowBaseView):
     # NOTE: You can update the below attributes when subclassing this view.
     # set template name while using this generic view.
 
-    template_name = None
-    accept_multiple_file_uploads = True
+    template_name = 'airflow/file_upload_base.html'
     accepted_file_extensions = ()
     fs_path = None   # the path in filesystem where the files should be saved.
+    title = None
+    files_editable = False
 
+    # TODO: Update URL map a/c to http verbs instead of using path.
+    # For ex: GET base_url/list should be GET base_url/
+    # POST base_url/upload should be POST base_url/
+    # GET base_url/download/filename should be GET base_url/filename
+    # GET base_url/destroy/filename should be DELETE base_url/filename
     urls_map = {
         'list_view': "/".join(['base_url', 'list']),
         'upload_view': "/".join(['base_url', 'upload']),
         'download_view': "/".join(['base_url', 'download', '<string:filename>']),
-        'destroy_view': "/".join(['base_url', 'destroy', '<string:filename>'])
+        'destroy_view': "/".join(['base_url', 'destroy', '<string:filename>']),
+        'edit_view': "/".join(['base_url', 'edit', '<string:filename>']),
     }
 
-    def __init_subclass__(cls, **kwargs):
-        super().__init_subclass__(**kwargs)
-        cls.__base_url = cls.__name__
-        base_url = cls.__name__
-        if not hasattr(cls.list_view, '_urls'):
-            cls.list_view._urls = []
-        if not hasattr(cls.upload_view, '_urls'):
-            cls.upload_view._urls = []
-        if not hasattr(cls.download_view, '_urls'):
-            cls.download_view._urls = []
-        if not hasattr(cls.destroy_view, '_urls'):
-            cls.destroy_view._urls = []
+    def __init__(self, *args, **kwargs):
+        base_url = self.__class__.__name__
+        self.__class__.list_view = copy.deepcopy(self.__class__.list_view)
+        self.__class__.upload_view = copy.deepcopy(self.__class__.upload_view)
+        self.__class__.download_view = copy.deepcopy(self.__class__.download_view)
+        self.__class__.destroy_view = copy.deepcopy(self.__class__.destroy_view)
+        self.__class__.edit_view = copy.deepcopy(self.__class__.edit_view)
+        self.__class__.list_view._urls = []
+        self.__class__.upload_view._urls = []
+        self.__class__.download_view._urls = []
+        self.__class__.destroy_view._urls = []
+        self.__class__.edit_view._urls = []
+        super().__init__(*args, **kwargs)
 
-        cls.list_view._urls.append((cls.urls_map['list_view'].replace('base_url', base_url), ['GET']))
-        cls.upload_view._urls.append((cls.urls_map['upload_view'].replace('base_url', base_url), ['POST']))
-        cls.download_view._urls.append((cls.urls_map['download_view'].replace('base_url', base_url), ['GET']))
-        cls.destroy_view._urls.append((cls.urls_map['destroy_view'].replace('base_url', base_url), ['GET']))
+        self.__class__.list_view._urls.append(
+            (self.urls_map['list_view'].replace('base_url', base_url), ['GET']))
+        self.__class__.upload_view._urls.append(
+            (self.urls_map['upload_view'].replace('base_url', base_url), ['POST']))
+        self.__class__.download_view._urls.append(
+            (self.urls_map['download_view'].replace('base_url', base_url), ['GET']))
+        self.__class__.destroy_view._urls.append(
+            (self.urls_map['destroy_view'].replace('base_url', base_url), ['GET']))
+        self.__class__.edit_view._urls.append(
+            (self.urls_map['edit_view'].replace('base_url', base_url), ['GET', 'POST']))
+
+        if self.fs_path:
+            os.makedirs(self.fs_path, exist_ok=True)
 
     @classmethod
     def get_base_url(cls):
         return cls.__base_url
 
-    # def expose_url(methods):
-    #     """
-    #         Use this decorator to expose views on your view classes.
+    def get_file_path(self, filename):
+        self.check_attr_is_set(self.fs_path)
+        return os.path.join(self.fs_path, filename)
 
-    #         :param url:
-    #             Relative URL for the view
-    #         :param methods:
-    #             Allowed HTTP methods. By default only GET is allowed.
-    #     """
+    def check_attr_is_set(self, *args):
+        # TODO: Refactor this to raise more appropriate error messages.
+        for attr in args:
+            if not attr:
+                raise Exception('All arguments not set. Please set them to appropriate value')
 
-    #     def wrap(f):
-    #         if not hasattr(f, "_urls"):
-    #             f._urls = []
-    #         base_url = f.__class__
-    #         print('**********************')
-    #         print('**********************')
-    #         print('**********************')
-    #         print('**********************')
-    #         print('**********************')
-    #         print('**********************')
-    #         print('**********************')
-    #         print('**********************')
-    #         print('**********************')
-    #         print('**********************')
+    def on_save_complete(self):
+        '''Called when all files uploaded are saved'''
+        pass
 
-    #         print(f)
-    #         print(inspect.stack())
-    #         print('**********************')
-    #         f._urls.append((urls_map[f.__name__].replace('base_url', base_url),
-    #                         methods))
-    #         return f
-
-    #     return wrap
-
-    # @expose_url(methods=['GET'])
     @has_access
     @action_logging
     def list_view(self):
-        if self.fs_path is None:
-            raise Exception('self.fs_path not set. Please set it to appropriate value')
+        self.check_attr_is_set(self.fs_path, self.accepted_file_extensions)
+
         files = self.get_details(self.fs_path, self.accepted_file_extensions)
-        print(files)
-        return render_template(
+        return self.render_template(
             self.template_name,
             files=files,
-            accepted_file_extensions=self.accepted_file_extensions
+            view=self.__class__.__name__,
+            accepted_file_extensions=self.accepted_file_extensions,
+            title=self.title,
+            files_editable=self.files_editable
         )
 
-    # @expose_url(methods=['POST'])
     @has_access
     @action_logging
     def upload_view(self):
-        pass
+        list_files = request.files.getlist("file")
+        files_uploaded = 0
+        for upload in list_files:
+            filename = upload.filename
+            if filename.endswith(self.accepted_file_extensions):
+                destination = self.get_file_path(filename)
+                upload.save(destination)
+                AirflowBaseView.audit_logging("spark_dependency_added",
+                                              filename, request.environ['REMOTE_ADDR'])
+                files_uploaded += 1
+            else:
+                flash('File, ' + filename + ' not allowed', 'error')
+        if files_uploaded:
+            flash(str(files_uploaded) + ' files uploaded!!', 'success')
+        self.on_save_complete()
+        return redirect(url_for(self.__class__.__name__ + '.list_view'))
 
-    # @expose_url(methods=['GET'])
     @has_access
     @action_logging
-    def download_view(self):
-        pass
+    def edit_view(self, filename):
+        '''When `self.files_editable` is set to True, you should override this view'''
+        return make_response(('BAD_REQUEST', 400))
+        # raise NotImplementedError('Please implement this in your subclass to be able to edit files.')
 
-    # @expose_url(methods=['GET'])
     @has_access
     @action_logging
-    def destroy_view(self):
-        pass
+    def download_view(self, filename):
+        file_path = self.get_file_path(filename)
+        return send_file(file_path, as_attachment=True, conditional=True)
+
+    @has_access
+    @action_logging
+    def destroy_view(self, filename):
+        file = Path(self.get_file_path(filename))
+        if file.exists():
+            file.unlink()
+            flash('File ' + filename + ' successfully deleted.', category='warning')
+        else:
+            flash('File ' + filename + ' not found.', category='error')
+        return redirect(url_for(self.__class__.__name__ + '.list_view'))
+
+
+class SparkDepView(FileUploadBaseView):
+    fs_path = settings.SPARK_DEPENDENCIES_FOLDER
+    accepted_file_extensions = ('.jar', '.egg', '.zip', '.py')
+    title = 'Spark Dependencies'
+
+    def on_save_complete(self):
+        flash('To include the file(s) for spark job, select them from spark configuration.', 'success')
+
+
+class HadoopConfView(FileUploadBaseView):
+    fs_path = settings.HADOOP_CONFIG_FOLDER
+    accepted_file_extensions = ('.xml', )
+    title = 'Hadoop Configuration Files'
+    files_editable = True
+
+    @has_access
+    @action_logging
+    def edit_view(self, filename):
+        from lxml import etree as ET
+        UPLOAD_FOLDER = self.fs_path
+        if request.method == 'GET':
+            xml_file = os.path.join(UPLOAD_FOLDER, filename)
+            tree = ET.parse(xml_file)
+            root = tree.getroot()
+            rootname = root.tag
+
+            values_get = {}
+            for p in root.iter('property'):
+                name = p.find('name').text
+                value = p.find('value').text
+                values_get[name] = value  # storing all the name and value pairs in values_get dictionary
+            return self.render_template('airflow/hadoop_conn_file.html',
+                                        Section=rootname,
+                                        Configurations=values_get,
+                                        Filename=filename)
+
+        if request.method == 'POST':
+            xml_file = os.path.join(UPLOAD_FOLDER, filename)
+            tree = ET.parse(xml_file)
+            root = tree.getroot()
+
+            values = {}
+            for p in root.iter('property'):
+                name = p.find('name').text
+                value = p.find('value').text
+                values[name] = value  # storing all the name and value pairs in values_get dictionary
+
+            for prop in root.iter('property'):
+                name = prop.find('name').text
+                value = prop.find('value').text
+                new_value = request.form[name]  # extracting updated values from the form
+                prop.find('value').text = str(new_value)  # for saving edit changes in file
+
+            for key in request.form:
+                if key.startswith('new-config-key-') and request.form[key]:
+                    key_no = key.split('-')[-1]
+                    prop = ET.Element("property")
+                    root.append(prop)
+                    nm = ET.SubElement(prop, "name")
+                    nm.text = request.form[key]
+                    val = ET.SubElement(prop, "value")
+                    val.text = request.form['new-config-value-' + key_no]
+
+            del_name = request.form.get('option_title_config_delete')  # for deleting a property from file
+            if del_name:
+                for p in root.iter('property'):
+                    n = p.find('name').text
+                    if n == del_name:
+                        root.remove(p)
+
+            tree.write(xml_file)  # writing all the updated changes to the fields
+
+            return redirect(url_for('HadoopConfView.edit_view', filename=filename))
 
 
 class SparkConfView(AirflowBaseView):
@@ -2336,163 +2435,6 @@ class SparkConfView(AirflowBaseView):
                 kt_Files=kt_files)
 
 
-class HadoopConfView(AirflowBaseView):
-    @expose('/hadoop_conn_file_list', methods=['GET', 'POST'])
-    @has_access
-    @action_logging
-    def hadoop_conn_file_list(self):
-        import configparser as CP
-        from airflow.configuration import AIRFLOW_HOME
-        config = CP.ConfigParser()
-        config.optionxform = str
-        UPLOAD_FOLDER = AIRFLOW_HOME + '/../setup/hadoop_conn'
-
-        file_data = {}
-        # calling get_details with the extension as .xml
-        file_data = self.get_details(UPLOAD_FOLDER, ".xml")
-
-        if request.method == 'POST':
-            try:    # for deleting the xml files from the folder
-                del_filename = request.form['option_title_delete']
-                file_data = {}
-                for r, d, f in os.walk(UPLOAD_FOLDER):
-                    for file_name in f:
-                        if file_name.endswith(".xml"):
-                            if file_name == del_filename:
-                                # removing  the file from the folder
-                                os.remove(os.path.join(UPLOAD_FOLDER, file_name))
-                                AirflowBaseView.audit_logging("hadoop_file_deleted", file_name,
-                                                              request.environ['REMOTE_ADDR'])
-                                flash('File Deleted!!', "warning")
-                            else:
-                                filePath = os.path.join(UPLOAD_FOLDER, file_name)
-                                if(os.path.exists(filePath)):
-                                    fileStatsObj = os.stat(filePath)
-                                    modificationTime = time.ctime(fileStatsObj[stat.ST_MTIME])
-                                    size = os.stat(filePath).st_size
-                                    size = AirflowBaseView.convert_size(size)
-                                    temp_dict = {'time': modificationTime.split(' ', 1)[1], 'size': size}
-                                    file_data[file_name] = temp_dict
-                return self.render_template('airflow/hadoop_conn_file_list.html', file_data=file_data)
-            except Exception:
-                print("Sorry ! No file in xml for delete")
-
-            target = os.path.join(UPLOAD_FOLDER)  # destination for uploading
-
-            list_files = request.files.getlist("file")
-            if len(list_files) > 0:
-                flag = False
-                for upload in request.files.getlist("file"):
-                    filename = upload.filename
-                    if filename.endswith('.xml'):  # for allowing only xml files to be uploaded
-                        flag = True
-                        destination = "/".join([target, filename])
-                        upload.save(destination)
-                        AirflowBaseView.audit_logging(
-                            "hadoop_file_added", filename, request.environ['REMOTE_ADDR'])
-                    else:
-                        flash('Only XML files are supported!!', "error")
-                if flag:
-                    flash('File uploaded!!', "success")
-
-                file_data = self.get_details(UPLOAD_FOLDER, ".xml")
-                return self.render_template('airflow/hadoop_conn_file_list.html', file_data=file_data)
-
-        else:
-            file_data = self.get_details(UPLOAD_FOLDER, ".xml")
-            return self.render_template('airflow/hadoop_conn_file_list.html', file_data=file_data)
-
-    @expose("/hadoop_conn_file/<string:filename>", methods=['GET', 'POST'])
-    def hadoop_file_edit(self, filename):
-        from lxml import etree as ET
-        from airflow.configuration import AIRFLOW_HOME
-        UPLOAD_FOLDER = AIRFLOW_HOME + '/../setup/hadoop_conn'
-        if request.method == 'GET':
-            xml_file = os.path.join(UPLOAD_FOLDER, filename)
-            tree = ET.parse(xml_file)
-            root = tree.getroot()
-            rootname = root.tag
-
-            values_get = {}
-            for p in root.iter('property'):
-                name = p.find('name').text
-                value = p.find('value').text
-                values_get[name] = value  # storing all the name and value pairs in values_get dictionary
-            return self.render_template('airflow/hadoop_conn_file.html',
-                                        Section=rootname,
-                                        Configurations=values_get,
-                                        Filename=filename)
-
-        if request.method == 'POST':
-            xml_file = os.path.join(UPLOAD_FOLDER, filename)
-            tree = ET.parse(xml_file)
-            root = tree.getroot()
-
-            values = {}
-            for p in root.iter('property'):
-                name = p.find('name').text
-                value = p.find('value').text
-                values[name] = value  # storing all the name and value pairs in values_get dictionary
-
-            for prop in root.iter('property'):
-                name = prop.find('name').text
-                value = prop.find('value').text
-                new_value = request.form[name]  # extracting updated values from the form
-                prop.find('value').text = str(new_value)  # for saving edit changes in file
-
-            try:   # for adding new properties in config file
-                opttitleconfig = request.form['option_title_config']
-                optvalueconfig = request.form['option_value_config']
-                # for not adding empty fields in file
-                if len(opttitleconfig) != 0 and len(optvalueconfig) != 0:
-                    prop = ET.Element("property")
-                    root.append(prop)
-                    nm = ET.SubElement(prop, "name")
-                    nm.text = request.form['option_title_config']
-                    val = ET.SubElement(prop, "value")
-                    val.text = request.form['option_value_config']
-            except Exception:
-                print("Sorry ! No field found ")
-
-            try:
-                del_name = request.form['option_title_config_delete']  # for deleting a property from file
-                for p in root.iter('property'):
-                    n = p.find('name').text
-                    if n == del_name:
-                        root.remove(p)
-                    else:
-                        print("no such field exists in config now.")
-            except Exception:
-                print("Sorry ! No field found in delete in config")
-
-            tree.write(xml_file)  # writing all the updated changes to the fields
-
-            xml_newfile = os.path.join(UPLOAD_FOLDER, filename)
-            newtree = ET.parse(xml_newfile)
-            newroot = newtree.getroot()
-            newroot_name = newroot.tag
-
-            newvalues = {}
-
-            for pr in root.iter('property'):
-                name = pr.find('name').text
-                value = pr.find('value').text
-                newvalues[name] = value
-
-            return self.render_template('airflow/hadoop_conn_file.html',
-                                        Section=newroot_name,
-                                        Configurations=newvalues,
-                                        Filename=filename)
-
-    @expose("/hadoop_file_download/<string:filename>", methods=['GET', 'POST'])
-    def download(self, filename):     # for downloading the file passed in the filename
-        from airflow.configuration import AIRFLOW_HOME
-        UPLOAD_FOLDER = AIRFLOW_HOME + '/../setup/hadoop_conn'
-
-        path_file = os.path.join(UPLOAD_FOLDER, filename)
-        return send_file(path_file, as_attachment=True)
-
-
 class LdapConfView(AirflowBaseView):
     @expose('/ldap', methods=['GET', 'POST'])
     @has_access
@@ -2533,98 +2475,6 @@ class LdapConfView(AirflowBaseView):
                     'airflow/ldap.html', title=title, error=error)
 
 
-class SparkDepView(AirflowBaseView):
-    @expose('/spark_dependencies', methods=['GET', 'POST'])
-    @has_access
-    @action_logging
-    def update_artifact(self):
-        title = "Spark Dependencies"
-        from airflow.configuration import AIRFLOW_HOME
-        add_to_dir = AIRFLOW_HOME + '/../jars'
-
-        if request.method == 'POST':
-            try:    # for deleting the files from the folder
-                del_filename = request.form['option_title_delete_Artifact']
-                file_data = {}
-                for r, d, f in os.walk(add_to_dir):
-                    for file_name in f:
-                        if file_name == del_filename:
-                            os.remove(os.path.join(add_to_dir, file_name))
-                            AirflowBaseView.audit_logging(
-                                "spark_dependency_deleted", file_name, request.environ['REMOTE_ADDR'])
-                            flash('File Deleted!!', "warning")
-                        else:
-                            filePath = os.path.join(add_to_dir, file_name)
-                            if(os.path.exists(filePath)):
-                                fileStatsObj = os.stat(filePath)
-                                modificationTime = time.ctime(fileStatsObj[stat.ST_MTIME])
-                                size = os.stat(filePath).st_size
-                                size = AirflowBaseView.convert_size(size)
-                                temp_dict = {'time': modificationTime.split(' ', 1)[1], 'size': size}
-                                file_data[file_name] = temp_dict
-
-                len_py = AirflowBaseView.get_len_py(file_data)
-                len_jar = AirflowBaseView.get_len_jar(file_data)
-
-                return self.render_template('airflow/spark_dependencies.html',
-                                            title=title,
-                                            file_data=file_data,
-                                            len_jar=len_jar,
-                                            len_py=len_py)
-
-            except Exception:
-                print("Sorry ! No file in xml for delete")
-
-            target = os.path.join(add_to_dir)  # destination to save files
-            if not os.path.isdir(target):
-                os.mkdir(target)
-
-            try:
-                for f in request.files.getlist("file"):   # for saving a file
-                    filename = f.filename
-                    if filename.endswith((".py", ".egg", ".zip", ".jar",)):
-                        destination = "/".join([target, filename])
-                        f.save(destination)
-                        AirflowBaseView.audit_logging("spark_dependency_added",
-                                                      filename, request.environ['REMOTE_ADDR'])
-                        flash(
-                            'File Uploaded!! To include this file for spark job, select it from spark configuration.', "success")  # noqa
-                    else:
-                        flash('Supported format for spark dependencies are .jar, .zip, .egg, or .py!!',
-                              "error")
-            except Exception:
-                print("No file selected!")
-
-            # calling get_details without any extension
-            file_data = self.get_details(add_to_dir, "")
-            len_py = AirflowBaseView.get_len_py(file_data)
-            len_jar = AirflowBaseView.get_len_jar(file_data)
-
-            return self.render_template('airflow/spark_dependencies.html',
-                                        title=title,
-                                        file_data=file_data,
-                                        len_jar=len_jar,
-                                        len_py=len_py)
-
-        else:
-            # calling get_details without any extension
-            file_data = self.get_details(add_to_dir, "")
-            len_py = AirflowBaseView.get_len_py(file_data)
-            len_jar = AirflowBaseView.get_len_jar(file_data)
-
-            return self.render_template('airflow/spark_dependencies.html',
-                                        title=title,
-                                        file_data=file_data,
-                                        len_jar=len_jar,
-                                        len_py=len_py)
-
-    @expose("/spark_dep_download/<string:filename>", methods=['GET', 'POST'])
-    def download(self, filename):  # for downloading the file passed in the filename
-        from airflow.configuration import AIRFLOW_HOME
-        add_to_dir = AIRFLOW_HOME + '/../jars'
-
-        path_file = os.path.join(add_to_dir, filename)
-        return send_file(path_file, as_attachment=True)
 
 
 class HelpView(AirflowBaseView):
@@ -2957,9 +2807,7 @@ class AddDagView(AirflowBaseView):
         with open(snippets_path, 'w') as f:
             json.dump(snippets, f)
 
-        print(self.get_snippet_file_path(metadata['title']))
         with open(self.get_snippet_file_path(metadata['title']), 'w') as f:
-            print('ehererer')
             f.write(new_snippet)
 
     @expose('/add_dag', methods=['GET', 'POST'])
@@ -3065,9 +2913,6 @@ class AddDagView(AirflowBaseView):
                 'description': request.form['description']
             }
             new_snippet = request.form['snippet']
-            print("*************")
-            print(new_snippet)
-            print("*************")
             self.save_snippets(metadata, new_snippet)
             # with open(snippet_file_path, 'w') as f:
             #     json.dump(snippets, f)
