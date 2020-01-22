@@ -20,15 +20,16 @@
 """
 This module contains Google Datastore operators.
 """
+from typing import Optional
 
-from airflow.gcp.hooks.datastore import DatastoreHook
-from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
 from airflow.exceptions import AirflowException
+from airflow.gcp.hooks.datastore import DatastoreHook
+from airflow.gcp.hooks.gcs import GCSHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
 
-class DatastoreExportOperator(BaseOperator):
+class CloudDatastoreExportEntitiesOperator(BaseOperator):
     """
     Export entities from Google Cloud Datastore to Cloud Storage
 
@@ -59,21 +60,22 @@ class DatastoreExportOperator(BaseOperator):
         emptied prior to exports. This enables overwriting existing backups.
     :type overwrite_existing: bool
     """
+    template_fields = ['bucket', 'namespace', 'entity_filter', 'labels']
 
     @apply_defaults
-    def __init__(self,  # pylint:disable=too-many-arguments
-                 bucket,
-                 namespace=None,
-                 datastore_conn_id='google_cloud_default',
-                 cloud_storage_conn_id='google_cloud_default',
-                 delegate_to=None,
-                 entity_filter=None,
-                 labels=None,
-                 polling_interval_in_seconds=10,
-                 overwrite_existing=False,
-                 project_id=None,
+    def __init__(self,  # pylint: disable=too-many-arguments
+                 bucket: str,
+                 namespace: Optional[str] = None,
+                 datastore_conn_id: str = 'google_cloud_default',
+                 cloud_storage_conn_id: str = 'google_cloud_default',
+                 delegate_to: Optional[str] = None,
+                 entity_filter: Optional[dict] = None,
+                 labels: Optional[dict] = None,
+                 polling_interval_in_seconds: int = 10,
+                 overwrite_existing: bool = False,
+                 project_id: Optional[str] = None,
                  *args,
-                 **kwargs):
+                 **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.datastore_conn_id = datastore_conn_id
         self.cloud_storage_conn_id = cloud_storage_conn_id
@@ -92,7 +94,7 @@ class DatastoreExportOperator(BaseOperator):
         self.log.info('Exporting data to Cloud Storage bucket %s', self.bucket)
 
         if self.overwrite_existing and self.namespace:
-            gcs_hook = GoogleCloudStorageHook(self.cloud_storage_conn_id)
+            gcs_hook = GCSHook(self.cloud_storage_conn_id)
             objects = gcs_hook.list(self.bucket, prefix=self.namespace)
             for obj in objects:
                 gcs_hook.delete(self.bucket, obj)
@@ -111,11 +113,10 @@ class DatastoreExportOperator(BaseOperator):
         state = result['metadata']['common']['state']
         if state != 'SUCCESSFUL':
             raise AirflowException('Operation failed: result={}'.format(result))
-
         return result
 
 
-class DatastoreImportOperator(BaseOperator):
+class CloudDatastoreImportEntitiesOperator(BaseOperator):
     """
     Import entities from Cloud Storage to Google Cloud Datastore
 
@@ -141,22 +142,24 @@ class DatastoreImportOperator(BaseOperator):
     :type delegate_to: str
     :param polling_interval_in_seconds: number of seconds to wait before polling for
         execution status again
-    :type polling_interval_in_seconds: int
+    :type polling_interval_in_seconds: float
     """
+
+    template_fields = ['bucket', 'file', 'namespace', 'entity_filter', 'labels']
 
     @apply_defaults
     def __init__(self,
-                 bucket,
-                 file,
-                 namespace=None,
-                 entity_filter=None,
-                 labels=None,
-                 datastore_conn_id='google_cloud_default',
-                 delegate_to=None,
-                 polling_interval_in_seconds=10,
-                 project_id=None,
+                 bucket: str,
+                 file: str,
+                 namespace: Optional[str] = None,
+                 entity_filter: Optional[dict] = None,
+                 labels: Optional[dict] = None,
+                 datastore_conn_id: str = 'google_cloud_default',
+                 delegate_to: Optional[str] = None,
+                 polling_interval_in_seconds: float = 10,
+                 project_id: Optional[str] = None,
                  *args,
-                 **kwargs):
+                 **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.datastore_conn_id = datastore_conn_id
         self.delegate_to = delegate_to

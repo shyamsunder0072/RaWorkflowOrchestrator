@@ -22,14 +22,23 @@ This module is deprecated. Please use `airflow.gcp.hooks.cloud_storage_transfer_
 
 import warnings
 
-# pylint: disable=unused-import
-from airflow.gcp.hooks.cloud_storage_transfer_service import (  # noqa
-    GCPTransferServiceHook,
-    GcpTransferJobsStatus,
-    GcpTransferOperationStatus,
-)
+from airflow.gcp.hooks.cloud_storage_transfer_service import CloudDataTransferServiceHook
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.hooks.cloud_storage_transfer_service`",
-    DeprecationWarning,
+    DeprecationWarning, stacklevel=2
 )
+
+
+class GCPTransferServiceHook(CloudDataTransferServiceHook):
+    """
+    This class is deprecated. Please use `airflow.gcp.hooks.data_transfer.CloudDataTransferServiceHook`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+            Please use `airflow.gcp.hooks.data_transfer.CloudDataTransferServiceHook`.""",
+            DeprecationWarning, stacklevel=2
+        )
+        super().__init__(*args, **kwargs)

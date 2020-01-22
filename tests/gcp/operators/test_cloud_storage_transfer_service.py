@@ -22,47 +22,27 @@ from copy import deepcopy
 from datetime import date, time
 from typing import Dict
 
+import mock
+from botocore.credentials import Credentials
 from freezegun import freeze_time
 from parameterized import parameterized
-from botocore.credentials import Credentials
 
 from airflow import AirflowException
 from airflow.gcp.hooks.cloud_storage_transfer_service import (
-    FILTER_JOB_NAMES,
-    SCHEDULE_START_DATE,
-    SCHEDULE_END_DATE,
-    START_TIME_OF_DAY,
-    STATUS,
-    NAME,
-    AWS_S3_DATA_SOURCE,
-    GCS_DATA_SOURCE,
-    GCS_DATA_SINK,
-    AWS_ACCESS_KEY,
-    ACCESS_KEY_ID,
-    SECRET_ACCESS_KEY,
-    BUCKET_NAME,
-    SCHEDULE,
-    TRANSFER_SPEC,
-    HTTP_DATA_SOURCE,
-    LIST_URL,
+    ACCESS_KEY_ID, AWS_ACCESS_KEY, AWS_S3_DATA_SOURCE, BUCKET_NAME, FILTER_JOB_NAMES, GCS_DATA_SINK,
+    GCS_DATA_SOURCE, HTTP_DATA_SOURCE, LIST_URL, NAME, SCHEDULE, SCHEDULE_END_DATE, SCHEDULE_START_DATE,
+    SECRET_ACCESS_KEY, START_TIME_OF_DAY, STATUS, TRANSFER_SPEC,
 )
 from airflow.gcp.operators.cloud_storage_transfer_service import (
-    GcpTransferServiceOperationCancelOperator,
-    GcpTransferServiceOperationResumeOperator,
-    GcpTransferServiceOperationsListOperator,
-    TransferJobValidator,
-    TransferJobPreprocessor,
-    GcpTransferServiceJobCreateOperator,
-    GcpTransferServiceJobUpdateOperator,
-    GcpTransferServiceOperationGetOperator,
-    GcpTransferServiceOperationPauseOperator,
-    S3ToGoogleCloudStorageTransferOperator,
-    GoogleCloudStorageToGoogleCloudStorageTransferOperator,
-    GcpTransferServiceJobDeleteOperator,
+    CloudDataTransferServiceCancelOperationOperator, CloudDataTransferServiceCreateJobOperator,
+    CloudDataTransferServiceDeleteJobOperator, CloudDataTransferServiceGCSToGCSOperator,
+    CloudDataTransferServiceGetOperationOperator, CloudDataTransferServiceListOperationsOperator,
+    CloudDataTransferServicePauseOperationOperator, CloudDataTransferServiceResumeOperationOperator,
+    CloudDataTransferServiceS3ToGCSOperator, CloudDataTransferServiceUpdateJobOperator,
+    TransferJobPreprocessor, TransferJobValidator,
 )
-from airflow.models import TaskInstance, DAG
+from airflow.models import DAG, TaskInstance
 from airflow.utils import timezone
-from tests.compat import mock
 
 try:
     import boto3
@@ -248,12 +228,12 @@ class TestTransferJobValidator(unittest.TestCase):
 
 
 class TestGcpStorageTransferJobCreateOperator(unittest.TestCase):
-    @mock.patch('airflow.gcp.operators.cloud_storage_transfer_service.GCPTransferServiceHook')
+    @mock.patch('airflow.gcp.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook')
     def test_job_create_gcs(self, mock_hook):
         mock_hook.return_value.create_transfer_job.return_value = VALID_TRANSFER_JOB_GCS_RAW
         body = deepcopy(VALID_TRANSFER_JOB_GCS)
         del body['name']
-        op = GcpTransferServiceJobCreateOperator(body=body, task_id=TASK_ID)
+        op = CloudDataTransferServiceCreateJobOperator(body=body, task_id=TASK_ID)
         result = op.execute(None)
 
         mock_hook.assert_called_once_with(api_version='v1', gcp_conn_id='google_cloud_default')
@@ -262,7 +242,7 @@ class TestGcpStorageTransferJobCreateOperator(unittest.TestCase):
 
         self.assertEqual(result, VALID_TRANSFER_JOB_GCS_RAW)
 
-    @mock.patch('airflow.gcp.operators.cloud_storage_transfer_service.GCPTransferServiceHook')
+    @mock.patch('airflow.gcp.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook')
     @mock.patch('airflow.gcp.operators.cloud_storage_transfer_service.AwsHook')
     def test_job_create_aws(self, aws_hook, mock_hook):
         mock_hook.return_value.create_transfer_job.return_value = VALID_TRANSFER_JOB_AWS_RAW
@@ -271,7 +251,7 @@ class TestGcpStorageTransferJobCreateOperator(unittest.TestCase):
         )
         body = deepcopy(VALID_TRANSFER_JOB_AWS)
         del body['name']
-        op = GcpTransferServiceJobCreateOperator(body=body, task_id=TASK_ID)
+        op = CloudDataTransferServiceCreateJobOperator(body=body, task_id=TASK_ID)
 
         result = op.execute(None)
 
@@ -281,7 +261,7 @@ class TestGcpStorageTransferJobCreateOperator(unittest.TestCase):
 
         self.assertEqual(result, VALID_TRANSFER_JOB_AWS_RAW)
 
-    @mock.patch('airflow.gcp.operators.cloud_storage_transfer_service.GCPTransferServiceHook')
+    @mock.patch('airflow.gcp.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook')
     @mock.patch('airflow.gcp.operators.cloud_storage_transfer_service.AwsHook')
     def test_job_create_multiple(self, aws_hook, gcp_hook):
         aws_hook.return_value.get_credentials.return_value = Credentials(
@@ -290,23 +270,23 @@ class TestGcpStorageTransferJobCreateOperator(unittest.TestCase):
         gcp_hook.return_value.create_transfer_job.return_value = VALID_TRANSFER_JOB_AWS_RAW
         body = deepcopy(VALID_TRANSFER_JOB_AWS)
 
-        op = GcpTransferServiceJobCreateOperator(body=body, task_id=TASK_ID)
+        op = CloudDataTransferServiceCreateJobOperator(body=body, task_id=TASK_ID)
         result = op.execute(None)
         self.assertEqual(result, VALID_TRANSFER_JOB_AWS_RAW)
 
-        op = GcpTransferServiceJobCreateOperator(body=body, task_id=TASK_ID)
+        op = CloudDataTransferServiceCreateJobOperator(body=body, task_id=TASK_ID)
         result = op.execute(None)
         self.assertEqual(result, VALID_TRANSFER_JOB_AWS_RAW)
 
     # Setting all of the operator's input parameters as templated dag_ids
     # (could be anything else) just to test if the templating works for all
     # fields
-    @mock.patch('airflow.gcp.operators.cloud_storage_transfer_service.GCPTransferServiceHook')
+    @mock.patch('airflow.gcp.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook')
     def test_templates(self, _):
         dag_id = 'test_dag_id'
-        # pylint:disable=attribute-defined-outside-init
+        # pylint: disable=attribute-defined-outside-init
         self.dag = DAG(dag_id, default_args={'start_date': DEFAULT_DATE})
-        op = GcpTransferServiceJobCreateOperator(
+        op = CloudDataTransferServiceCreateJobOperator(
             body={"description": "{{ dag.dag_id }}"},
             gcp_conn_id='{{ dag.dag_id }}',
             aws_conn_id='{{ dag.dag_id }}',
@@ -321,12 +301,12 @@ class TestGcpStorageTransferJobCreateOperator(unittest.TestCase):
 
 
 class TestGcpStorageTransferJobUpdateOperator(unittest.TestCase):
-    @mock.patch('airflow.gcp.operators.cloud_storage_transfer_service.GCPTransferServiceHook')
+    @mock.patch('airflow.gcp.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook')
     def test_job_update(self, mock_hook):
         mock_hook.return_value.update_transfer_job.return_value = VALID_TRANSFER_JOB_GCS
         body = {'transferJob': {'description': 'example-name'}, 'updateTransferJobFieldMask': DESCRIPTION}
 
-        op = GcpTransferServiceJobUpdateOperator(job_name=JOB_NAME, body=body, task_id=TASK_ID)
+        op = CloudDataTransferServiceUpdateJobOperator(job_name=JOB_NAME, body=body, task_id=TASK_ID)
         result = op.execute(None)
 
         mock_hook.assert_called_once_with(api_version='v1', gcp_conn_id='google_cloud_default')
@@ -336,12 +316,12 @@ class TestGcpStorageTransferJobUpdateOperator(unittest.TestCase):
     # Setting all of the operator's input parameters as templated dag_ids
     # (could be anything else) just to test if the templating works for all
     # fields
-    @mock.patch('airflow.gcp.operators.cloud_storage_transfer_service.GCPTransferServiceHook')
+    @mock.patch('airflow.gcp.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook')
     def test_templates(self, _):
         dag_id = 'test_dag_id'
         args = {'start_date': DEFAULT_DATE}
-        self.dag = DAG(dag_id, default_args=args)  # pylint:disable=attribute-defined-outside-init
-        op = GcpTransferServiceJobUpdateOperator(
+        self.dag = DAG(dag_id, default_args=args)  # pylint: disable=attribute-defined-outside-init
+        op = CloudDataTransferServiceUpdateJobOperator(
             job_name='{{ dag.dag_id }}',
             body={'transferJob': {"name": "{{ dag.dag_id }}"}},
             task_id='task-id',
@@ -354,9 +334,9 @@ class TestGcpStorageTransferJobUpdateOperator(unittest.TestCase):
 
 
 class TestGcpStorageTransferJobDeleteOperator(unittest.TestCase):
-    @mock.patch('airflow.gcp.operators.cloud_storage_transfer_service.GCPTransferServiceHook')
+    @mock.patch('airflow.gcp.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook')
     def test_job_delete(self, mock_hook):
-        op = GcpTransferServiceJobDeleteOperator(
+        op = CloudDataTransferServiceDeleteJobOperator(
             job_name=JOB_NAME, project_id=GCP_PROJECT_ID, task_id='task-id'
         )
         op.execute(None)
@@ -368,12 +348,12 @@ class TestGcpStorageTransferJobDeleteOperator(unittest.TestCase):
     # Setting all of the operator's input parameters as templated dag_ids
     # (could be anything else) just to test if the templating works for all
     # fields
-    @mock.patch('airflow.gcp.operators.cloud_storage_transfer_service.GCPTransferServiceHook')
+    @mock.patch('airflow.gcp.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook')
     def test_job_delete_with_templates(self, _):
         dag_id = 'test_dag_id'
         args = {'start_date': DEFAULT_DATE}
-        self.dag = DAG(dag_id, default_args=args)  # pylint:disable=attribute-defined-outside-init
-        op = GcpTransferServiceJobDeleteOperator(
+        self.dag = DAG(dag_id, default_args=args)  # pylint: disable=attribute-defined-outside-init
+        op = CloudDataTransferServiceDeleteJobOperator(
             job_name='{{ dag.dag_id }}',
             gcp_conn_id='{{ dag.dag_id }}',
             api_version='{{ dag.dag_id }}',
@@ -386,10 +366,10 @@ class TestGcpStorageTransferJobDeleteOperator(unittest.TestCase):
         self.assertEqual(dag_id, getattr(op, 'gcp_conn_id'))
         self.assertEqual(dag_id, getattr(op, 'api_version'))
 
-    @mock.patch('airflow.gcp.operators.cloud_storage_transfer_service.GCPTransferServiceHook')
+    @mock.patch('airflow.gcp.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook')
     def test_job_delete_should_throw_ex_when_name_none(self, mock_hook):
         with self.assertRaises(AirflowException) as cm:
-            op = GcpTransferServiceJobDeleteOperator(job_name="", task_id='task-id')
+            op = CloudDataTransferServiceDeleteJobOperator(job_name="", task_id='task-id')
             op.execute(None)
         err = cm.exception
         self.assertIn("The required parameter 'job_name' is empty or None", str(err))
@@ -397,10 +377,10 @@ class TestGcpStorageTransferJobDeleteOperator(unittest.TestCase):
 
 
 class TestGpcStorageTransferOperationsGetOperator(unittest.TestCase):
-    @mock.patch('airflow.gcp.operators.cloud_storage_transfer_service.GCPTransferServiceHook')
+    @mock.patch('airflow.gcp.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook')
     def test_operation_get(self, mock_hook):
         mock_hook.return_value.get_transfer_operation.return_value = VALID_OPERATION
-        op = GcpTransferServiceOperationGetOperator(operation_name=OPERATION_NAME, task_id=TASK_ID)
+        op = CloudDataTransferServiceGetOperationOperator(operation_name=OPERATION_NAME, task_id=TASK_ID)
         result = op.execute(None)
         mock_hook.assert_called_once_with(api_version='v1', gcp_conn_id='google_cloud_default')
         mock_hook.return_value.get_transfer_operation.assert_called_once_with(operation_name=OPERATION_NAME)
@@ -409,22 +389,22 @@ class TestGpcStorageTransferOperationsGetOperator(unittest.TestCase):
     # Setting all of the operator's input parameters as templated dag_ids
     # (could be anything else) just to test if the templating works for all
     # fields
-    @mock.patch('airflow.gcp.operators.cloud_storage_transfer_service.GCPTransferServiceHook')
+    @mock.patch('airflow.gcp.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook')
     def test_operation_get_with_templates(self, _):
         dag_id = 'test_dag_id'
         args = {'start_date': DEFAULT_DATE}
-        self.dag = DAG(dag_id, default_args=args)  # pylint:disable=attribute-defined-outside-init
-        op = GcpTransferServiceOperationGetOperator(
+        self.dag = DAG(dag_id, default_args=args)  # pylint: disable=attribute-defined-outside-init
+        op = CloudDataTransferServiceGetOperationOperator(
             operation_name='{{ dag.dag_id }}', task_id='task-id', dag=self.dag
         )
         ti = TaskInstance(op, DEFAULT_DATE)
         ti.render_templates()
         self.assertEqual(dag_id, getattr(op, 'operation_name'))
 
-    @mock.patch('airflow.gcp.operators.cloud_storage_transfer_service.GCPTransferServiceHook')
+    @mock.patch('airflow.gcp.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook')
     def test_operation_get_should_throw_ex_when_operation_name_none(self, mock_hook):
         with self.assertRaises(AirflowException) as cm:
-            op = GcpTransferServiceOperationGetOperator(operation_name="", task_id=TASK_ID)
+            op = CloudDataTransferServiceGetOperationOperator(operation_name="", task_id=TASK_ID)
             op.execute(None)
         err = cm.exception
         self.assertIn("The required parameter 'operation_name' is empty or None", str(err))
@@ -432,10 +412,10 @@ class TestGpcStorageTransferOperationsGetOperator(unittest.TestCase):
 
 
 class TestGcpStorageTransferOperationListOperator(unittest.TestCase):
-    @mock.patch('airflow.gcp.operators.cloud_storage_transfer_service.GCPTransferServiceHook')
+    @mock.patch('airflow.gcp.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook')
     def test_operation_list(self, mock_hook):
         mock_hook.return_value.list_transfer_operations.return_value = [VALID_TRANSFER_JOB_GCS]
-        op = GcpTransferServiceOperationsListOperator(request_filter=TEST_FILTER, task_id=TASK_ID)
+        op = CloudDataTransferServiceListOperationsOperator(request_filter=TEST_FILTER, task_id=TASK_ID)
         result = op.execute(None)
         mock_hook.assert_called_once_with(api_version='v1', gcp_conn_id='google_cloud_default')
         mock_hook.return_value.list_transfer_operations.assert_called_once_with(request_filter=TEST_FILTER)
@@ -444,12 +424,12 @@ class TestGcpStorageTransferOperationListOperator(unittest.TestCase):
     # Setting all of the operator's input parameters as templated dag_ids
     # (could be anything else) just to test if the templating works for all
     # fields
-    @mock.patch('airflow.gcp.operators.cloud_storage_transfer_service.GCPTransferServiceHook')
+    @mock.patch('airflow.gcp.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook')
     def test_templates(self, _):
         dag_id = 'test_dag_id'
         args = {'start_date': DEFAULT_DATE}
-        self.dag = DAG(dag_id, default_args=args)  # pylint:disable=attribute-defined-outside-init
-        op = GcpTransferServiceOperationsListOperator(
+        self.dag = DAG(dag_id, default_args=args)  # pylint: disable=attribute-defined-outside-init
+        op = CloudDataTransferServiceListOperationsOperator(
             request_filter={"job_names": ['{{ dag.dag_id }}']},
             gcp_conn_id='{{ dag.dag_id }}',
             task_id='task-id',
@@ -458,17 +438,17 @@ class TestGcpStorageTransferOperationListOperator(unittest.TestCase):
         ti = TaskInstance(op, DEFAULT_DATE)
         ti.render_templates()
 
-        # pylint:disable=unsubscriptable-object
+        # pylint: disable=unsubscriptable-object
         self.assertEqual(dag_id, getattr(op, 'filter')['job_names'][0])
-        # pylint:enable=unsubscriptable-object
+        # pylint: enable=unsubscriptable-object
 
         self.assertEqual(dag_id, getattr(op, 'gcp_conn_id'))
 
 
 class TestGcpStorageTransferOperationsPauseOperator(unittest.TestCase):
-    @mock.patch('airflow.gcp.operators.cloud_storage_transfer_service.GCPTransferServiceHook')
+    @mock.patch('airflow.gcp.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook')
     def test_operation_pause(self, mock_hook):
-        op = GcpTransferServiceOperationPauseOperator(operation_name=OPERATION_NAME, task_id='task-id')
+        op = CloudDataTransferServicePauseOperationOperator(operation_name=OPERATION_NAME, task_id='task-id')
         op.execute(None)
         mock_hook.assert_called_once_with(api_version='v1', gcp_conn_id='google_cloud_default')
         mock_hook.return_value.pause_transfer_operation.assert_called_once_with(operation_name=OPERATION_NAME)
@@ -476,12 +456,12 @@ class TestGcpStorageTransferOperationsPauseOperator(unittest.TestCase):
     # Setting all of the operator's input parameters as templated dag_ids
     # (could be anything else) just to test if the templating works for all
     # fields
-    @mock.patch('airflow.gcp.operators.cloud_storage_transfer_service.GCPTransferServiceHook')
+    @mock.patch('airflow.gcp.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook')
     def test_operation_pause_with_templates(self, _):
         dag_id = 'test_dag_id'
         args = {'start_date': DEFAULT_DATE}
-        self.dag = DAG(dag_id, default_args=args)  # pylint:disable=attribute-defined-outside-init
-        op = GcpTransferServiceOperationPauseOperator(
+        self.dag = DAG(dag_id, default_args=args)  # pylint: disable=attribute-defined-outside-init
+        op = CloudDataTransferServicePauseOperationOperator(
             operation_name='{{ dag.dag_id }}',
             gcp_conn_id='{{ dag.dag_id }}',
             api_version='{{ dag.dag_id }}',
@@ -494,10 +474,10 @@ class TestGcpStorageTransferOperationsPauseOperator(unittest.TestCase):
         self.assertEqual(dag_id, getattr(op, 'gcp_conn_id'))
         self.assertEqual(dag_id, getattr(op, 'api_version'))
 
-    @mock.patch('airflow.gcp.operators.cloud_storage_transfer_service.GCPTransferServiceHook')
+    @mock.patch('airflow.gcp.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook')
     def test_operation_pause_should_throw_ex_when_name_none(self, mock_hook):
         with self.assertRaises(AirflowException) as cm:
-            op = GcpTransferServiceOperationPauseOperator(operation_name="", task_id='task-id')
+            op = CloudDataTransferServicePauseOperationOperator(operation_name="", task_id='task-id')
             op.execute(None)
         err = cm.exception
         self.assertIn("The required parameter 'operation_name' is empty or None", str(err))
@@ -505,10 +485,10 @@ class TestGcpStorageTransferOperationsPauseOperator(unittest.TestCase):
 
 
 class TestGcpStorageTransferOperationsResumeOperator(unittest.TestCase):
-    @mock.patch('airflow.gcp.operators.cloud_storage_transfer_service.GCPTransferServiceHook')
+    @mock.patch('airflow.gcp.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook')
     def test_operation_resume(self, mock_hook):
-        op = GcpTransferServiceOperationResumeOperator(operation_name=OPERATION_NAME, task_id=TASK_ID)
-        result = op.execute(None)  # pylint:disable=assignment-from-no-return
+        op = CloudDataTransferServiceResumeOperationOperator(operation_name=OPERATION_NAME, task_id=TASK_ID)
+        result = op.execute(None)  # pylint: disable=assignment-from-no-return
         mock_hook.assert_called_once_with(api_version='v1', gcp_conn_id='google_cloud_default')
         mock_hook.return_value.resume_transfer_operation.assert_called_once_with(
             operation_name=OPERATION_NAME
@@ -518,12 +498,12 @@ class TestGcpStorageTransferOperationsResumeOperator(unittest.TestCase):
     # Setting all of the operator's input parameters as templated dag_ids
     # (could be anything else) just to test if the templating works for all
     # fields
-    @mock.patch('airflow.gcp.operators.cloud_storage_transfer_service.GCPTransferServiceHook')
+    @mock.patch('airflow.gcp.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook')
     def test_operation_resume_with_templates(self, _):
         dag_id = 'test_dag_id'
         args = {'start_date': DEFAULT_DATE}
-        self.dag = DAG(dag_id, default_args=args)  # pylint:disable=attribute-defined-outside-init
-        op = GcpTransferServiceOperationResumeOperator(
+        self.dag = DAG(dag_id, default_args=args)  # pylint: disable=attribute-defined-outside-init
+        op = CloudDataTransferServiceResumeOperationOperator(
             operation_name='{{ dag.dag_id }}',
             gcp_conn_id='{{ dag.dag_id }}',
             api_version='{{ dag.dag_id }}',
@@ -536,10 +516,10 @@ class TestGcpStorageTransferOperationsResumeOperator(unittest.TestCase):
         self.assertEqual(dag_id, getattr(op, 'gcp_conn_id'))
         self.assertEqual(dag_id, getattr(op, 'api_version'))
 
-    @mock.patch('airflow.gcp.operators.cloud_storage_transfer_service.GCPTransferServiceHook')
+    @mock.patch('airflow.gcp.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook')
     def test_operation_resume_should_throw_ex_when_name_none(self, mock_hook):
         with self.assertRaises(AirflowException) as cm:
-            op = GcpTransferServiceOperationResumeOperator(operation_name="", task_id=TASK_ID)
+            op = CloudDataTransferServiceResumeOperationOperator(operation_name="", task_id=TASK_ID)
             op.execute(None)
         err = cm.exception
         self.assertIn("The required parameter 'operation_name' is empty or None", str(err))
@@ -547,10 +527,10 @@ class TestGcpStorageTransferOperationsResumeOperator(unittest.TestCase):
 
 
 class TestGcpStorageTransferOperationsCancelOperator(unittest.TestCase):
-    @mock.patch('airflow.gcp.operators.cloud_storage_transfer_service.GCPTransferServiceHook')
+    @mock.patch('airflow.gcp.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook')
     def test_operation_cancel(self, mock_hook):
-        op = GcpTransferServiceOperationCancelOperator(operation_name=OPERATION_NAME, task_id=TASK_ID)
-        result = op.execute(None)  # pylint:disable=assignment-from-no-return
+        op = CloudDataTransferServiceCancelOperationOperator(operation_name=OPERATION_NAME, task_id=TASK_ID)
+        result = op.execute(None)  # pylint: disable=assignment-from-no-return
         mock_hook.assert_called_once_with(api_version='v1', gcp_conn_id='google_cloud_default')
         mock_hook.return_value.cancel_transfer_operation.assert_called_once_with(
             operation_name=OPERATION_NAME
@@ -560,12 +540,12 @@ class TestGcpStorageTransferOperationsCancelOperator(unittest.TestCase):
     # Setting all of the operator's input parameters as templated dag_ids
     # (could be anything else) just to test if the templating works for all
     # fields
-    @mock.patch('airflow.gcp.operators.cloud_storage_transfer_service.GCPTransferServiceHook')
+    @mock.patch('airflow.gcp.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook')
     def test_operation_cancel_with_templates(self, _):
         dag_id = 'test_dag_id'
         args = {'start_date': DEFAULT_DATE}
-        self.dag = DAG(dag_id, default_args=args)  # pylint:disable=attribute-defined-outside-init
-        op = GcpTransferServiceOperationCancelOperator(
+        self.dag = DAG(dag_id, default_args=args)  # pylint: disable=attribute-defined-outside-init
+        op = CloudDataTransferServiceCancelOperationOperator(
             operation_name='{{ dag.dag_id }}',
             gcp_conn_id='{{ dag.dag_id }}',
             api_version='{{ dag.dag_id }}',
@@ -578,10 +558,10 @@ class TestGcpStorageTransferOperationsCancelOperator(unittest.TestCase):
         self.assertEqual(dag_id, getattr(op, 'gcp_conn_id'))
         self.assertEqual(dag_id, getattr(op, 'api_version'))
 
-    @mock.patch('airflow.gcp.operators.cloud_storage_transfer_service.GCPTransferServiceHook')
+    @mock.patch('airflow.gcp.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook')
     def test_operation_cancel_should_throw_ex_when_name_none(self, mock_hook):
         with self.assertRaises(AirflowException) as cm:
-            op = GcpTransferServiceOperationCancelOperator(operation_name="", task_id=TASK_ID)
+            op = CloudDataTransferServiceCancelOperationOperator(operation_name="", task_id=TASK_ID)
             op.execute(None)
         err = cm.exception
         self.assertIn("The required parameter 'operation_name' is empty or None", str(err))
@@ -590,7 +570,7 @@ class TestGcpStorageTransferOperationsCancelOperator(unittest.TestCase):
 
 class TestS3ToGoogleCloudStorageTransferOperator(unittest.TestCase):
     def test_constructor(self):
-        operator = S3ToGoogleCloudStorageTransferOperator(
+        operator = CloudDataTransferServiceS3ToGCSOperator(
             task_id=TASK_ID,
             s3_bucket=AWS_BUCKET_NAME,
             gcs_bucket=GCS_BUCKET_NAME,
@@ -609,12 +589,12 @@ class TestS3ToGoogleCloudStorageTransferOperator(unittest.TestCase):
     # Setting all of the operator's input parameters as templated dag_ids
     # (could be anything else) just to test if the templating works for all
     # fields
-    @mock.patch('airflow.gcp.operators.cloud_storage_transfer_service.GCPTransferServiceHook')
+    @mock.patch('airflow.gcp.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook')
     def test_templates(self, _):
         dag_id = 'test_dag_id'
         args = {'start_date': DEFAULT_DATE}
-        self.dag = DAG(dag_id, default_args=args)  # pylint:disable=attribute-defined-outside-init
-        op = S3ToGoogleCloudStorageTransferOperator(
+        self.dag = DAG(dag_id, default_args=args)  # pylint: disable=attribute-defined-outside-init
+        op = CloudDataTransferServiceS3ToGCSOperator(
             s3_bucket='{{ dag.dag_id }}',
             gcs_bucket='{{ dag.dag_id }}',
             description='{{ dag.dag_id }}',
@@ -629,20 +609,20 @@ class TestS3ToGoogleCloudStorageTransferOperator(unittest.TestCase):
         self.assertEqual(dag_id, getattr(op, 'gcs_bucket'))
         self.assertEqual(dag_id, getattr(op, 'description'))
 
-        # pylint:disable=unsubscriptable-object
+        # pylint: disable=unsubscriptable-object
         self.assertEqual(dag_id, getattr(op, 'object_conditions')['exclude_prefixes'][0])
-        # pylint:enable=unsubscriptable-object
+        # pylint: enable=unsubscriptable-object
 
         self.assertEqual(dag_id, getattr(op, 'gcp_conn_id'))
 
-    @mock.patch('airflow.gcp.operators.cloud_storage_transfer_service.GCPTransferServiceHook')
+    @mock.patch('airflow.gcp.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook')
     @mock.patch('airflow.gcp.operators.cloud_storage_transfer_service.AwsHook')
     def test_execute(self, mock_aws_hook, mock_transfer_hook):
         mock_aws_hook.return_value.get_credentials.return_value = Credentials(
             TEST_AWS_ACCESS_KEY_ID, TEST_AWS_ACCESS_SECRET, None
         )
 
-        operator = S3ToGoogleCloudStorageTransferOperator(
+        operator = CloudDataTransferServiceS3ToGCSOperator(
             task_id=TASK_ID,
             s3_bucket=AWS_BUCKET_NAME,
             gcs_bucket=GCS_BUCKET_NAME,
@@ -658,14 +638,14 @@ class TestS3ToGoogleCloudStorageTransferOperator(unittest.TestCase):
 
         self.assertTrue(mock_transfer_hook.return_value.wait_for_transfer_job.called)
 
-    @mock.patch('airflow.gcp.operators.cloud_storage_transfer_service.GCPTransferServiceHook')
+    @mock.patch('airflow.gcp.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook')
     @mock.patch('airflow.gcp.operators.cloud_storage_transfer_service.AwsHook')
     def test_execute_skip_wait(self, mock_aws_hook, mock_transfer_hook):
         mock_aws_hook.return_value.get_credentials.return_value = Credentials(
             TEST_AWS_ACCESS_KEY_ID, TEST_AWS_ACCESS_SECRET, None
         )
 
-        operator = S3ToGoogleCloudStorageTransferOperator(
+        operator = CloudDataTransferServiceS3ToGCSOperator(
             task_id=TASK_ID,
             s3_bucket=AWS_BUCKET_NAME,
             gcs_bucket=GCS_BUCKET_NAME,
@@ -685,7 +665,7 @@ class TestS3ToGoogleCloudStorageTransferOperator(unittest.TestCase):
 
 class TestGoogleCloudStorageToGoogleCloudStorageTransferOperator(unittest.TestCase):
     def test_constructor(self):
-        operator = GoogleCloudStorageToGoogleCloudStorageTransferOperator(
+        operator = CloudDataTransferServiceGCSToGCSOperator(
             task_id=TASK_ID,
             source_bucket=GCS_BUCKET_NAME,
             destination_bucket=GCS_BUCKET_NAME,
@@ -704,12 +684,12 @@ class TestGoogleCloudStorageToGoogleCloudStorageTransferOperator(unittest.TestCa
     # Setting all of the operator's input parameters as templated dag_ids
     # (could be anything else) just to test if the templating works for all
     # fields
-    @mock.patch('airflow.gcp.operators.cloud_storage_transfer_service.GCPTransferServiceHook')
+    @mock.patch('airflow.gcp.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook')
     def test_templates(self, _):
         dag_id = 'test_dag_id'
         args = {'start_date': DEFAULT_DATE}
-        self.dag = DAG(dag_id, default_args=args)  # pylint:disable=attribute-defined-outside-init
-        op = GoogleCloudStorageToGoogleCloudStorageTransferOperator(
+        self.dag = DAG(dag_id, default_args=args)  # pylint: disable=attribute-defined-outside-init
+        op = CloudDataTransferServiceGCSToGCSOperator(
             source_bucket='{{ dag.dag_id }}',
             destination_bucket='{{ dag.dag_id }}',
             description='{{ dag.dag_id }}',
@@ -724,15 +704,15 @@ class TestGoogleCloudStorageToGoogleCloudStorageTransferOperator(unittest.TestCa
         self.assertEqual(dag_id, getattr(op, 'destination_bucket'))
         self.assertEqual(dag_id, getattr(op, 'description'))
 
-        # pylint:disable=unsubscriptable-object
+        # pylint: disable=unsubscriptable-object
         self.assertEqual(dag_id, getattr(op, 'object_conditions')['exclude_prefixes'][0])
-        # pylint:enable=unsubscriptable-object
+        # pylint: enable=unsubscriptable-object
 
         self.assertEqual(dag_id, getattr(op, 'gcp_conn_id'))
 
-    @mock.patch('airflow.gcp.operators.cloud_storage_transfer_service.GCPTransferServiceHook')
+    @mock.patch('airflow.gcp.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook')
     def test_execute(self, mock_transfer_hook):
-        operator = GoogleCloudStorageToGoogleCloudStorageTransferOperator(
+        operator = CloudDataTransferServiceGCSToGCSOperator(
             task_id=TASK_ID,
             source_bucket=GCS_BUCKET_NAME,
             destination_bucket=GCS_BUCKET_NAME,
@@ -747,9 +727,9 @@ class TestGoogleCloudStorageToGoogleCloudStorageTransferOperator(unittest.TestCa
         )
         self.assertTrue(mock_transfer_hook.return_value.wait_for_transfer_job.called)
 
-    @mock.patch('airflow.gcp.operators.cloud_storage_transfer_service.GCPTransferServiceHook')
+    @mock.patch('airflow.gcp.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook')
     def test_execute_skip_wait(self, mock_transfer_hook):
-        operator = GoogleCloudStorageToGoogleCloudStorageTransferOperator(
+        operator = CloudDataTransferServiceGCSToGCSOperator(
             task_id=TASK_ID,
             source_bucket=GCS_BUCKET_NAME,
             destination_bucket=GCS_BUCKET_NAME,

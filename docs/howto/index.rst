@@ -33,8 +33,8 @@ configuring an Airflow environment.
     set-config
     initialize-database
     operator/index
+    custom-operator
     connection/index
-    secure-connections
     write-logs
     run-behind-proxy
     run-with-systemd
@@ -43,3 +43,4 @@ configuring an Airflow environment.
     check-health
     define_extra_link
     tracking-user-activity
+    email-config

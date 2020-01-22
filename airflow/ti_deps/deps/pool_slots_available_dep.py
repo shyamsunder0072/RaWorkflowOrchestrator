@@ -20,7 +20,7 @@
 """This module defines dep for pool slots availability"""
 
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
-from airflow.utils.db import provide_session
+from airflow.utils.session import provide_session
 from airflow.utils.state import State
 
 STATES_TO_COUNT_AS_RUNNING = [State.RUNNING, State.QUEUED]
@@ -37,6 +37,7 @@ class PoolSlotsAvailableDep(BaseTIDep):
     def _get_dep_statuses(self, ti, session, dep_context=None):
         """
         Determines if the pool task instance is in has available slots
+
         :param ti: the task instance to get the dependency status for
         :type ti: airflow.models.TaskInstance
         :param session: database session
@@ -61,12 +62,13 @@ class PoolSlotsAvailableDep(BaseTIDep):
             open_slots = pools[0].open_slots()
 
         if ti.state in STATES_TO_COUNT_AS_RUNNING:
-            open_slots += 1
+            open_slots += ti.pool_slots
 
-        if open_slots <= 0:
+        if open_slots <= (ti.pool_slots - 1):
             yield self._failing_status(
-                reason=("Not scheduling since there are %s open slots in pool %s",
-                        open_slots, pool_name)
+                reason=("Not scheduling since there are %s open slots in pool %s "
+                        "and require %s pool slots",
+                        open_slots, pool_name, ti.pool_slots)
             )
         else:
             yield self._passing_status(

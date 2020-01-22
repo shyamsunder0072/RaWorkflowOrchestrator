@@ -45,38 +45,18 @@ from typing import Any, Dict
 
 from airflow import models
 from airflow.gcp.hooks.cloud_storage_transfer_service import (
-    GcpTransferOperationStatus,
-    GcpTransferJobsStatus,
-    TRANSFER_OPTIONS,
-    PROJECT_ID,
-    BUCKET_NAME,
-    GCS_DATA_SINK,
-    STATUS,
-    DESCRIPTION,
-    GCS_DATA_SOURCE,
-    START_TIME_OF_DAY,
-    SCHEDULE_END_DATE,
-    SCHEDULE_START_DATE,
-    SCHEDULE,
-    AWS_S3_DATA_SOURCE,
-    TRANSFER_SPEC,
-    FILTER_PROJECT_ID,
-    FILTER_JOB_NAMES,
-    TRANSFER_JOB,
-    TRANSFER_JOB_FIELD_MASK,
-    ALREADY_EXISTING_IN_SINK,
+    ALREADY_EXISTING_IN_SINK, AWS_S3_DATA_SOURCE, BUCKET_NAME, DESCRIPTION, FILTER_JOB_NAMES,
+    FILTER_PROJECT_ID, GCS_DATA_SINK, GCS_DATA_SOURCE, PROJECT_ID, SCHEDULE, SCHEDULE_END_DATE,
+    SCHEDULE_START_DATE, START_TIME_OF_DAY, STATUS, TRANSFER_JOB, TRANSFER_JOB_FIELD_MASK, TRANSFER_OPTIONS,
+    TRANSFER_SPEC, GcpTransferJobsStatus, GcpTransferOperationStatus,
 )
 from airflow.gcp.operators.cloud_storage_transfer_service import (
-    GcpTransferServiceJobCreateOperator,
-    GcpTransferServiceJobDeleteOperator,
-    GcpTransferServiceJobUpdateOperator,
-    GcpTransferServiceOperationsListOperator,
-    GcpTransferServiceOperationGetOperator,
-    GcpTransferServiceOperationPauseOperator,
-    GcpTransferServiceOperationResumeOperator,
-    GcpTransferServiceOperationCancelOperator,
+    CloudDataTransferServiceCancelOperationOperator, CloudDataTransferServiceCreateJobOperator,
+    CloudDataTransferServiceDeleteJobOperator, CloudDataTransferServiceGetOperationOperator,
+    CloudDataTransferServiceListOperationsOperator, CloudDataTransferServicePauseOperationOperator,
+    CloudDataTransferServiceResumeOperationOperator, CloudDataTransferServiceUpdateJobOperator,
 )
-from airflow.gcp.sensors.cloud_storage_transfer_service import GCPTransferServiceWaitForJobStatusSensor
+from airflow.gcp.sensors.cloud_storage_transfer_service import CloudDataTransferServiceJobStatusSensor
 from airflow.utils.dates import days_ago
 
 # [START howto_operator_gcp_transfer_common_variables]
@@ -145,16 +125,19 @@ default_args = {'start_date': days_ago(1)}
 # [END howto_operator_gcp_transfer_default_args]
 
 with models.DAG(
-    'example_gcp_transfer', default_args=default_args, schedule_interval=None  # Override to match your needs
+    'example_gcp_transfer',
+    default_args=default_args,
+    schedule_interval=None,  # Override to match your needs
+    tags=['example'],
 ) as dag:
 
     # [START howto_operator_gcp_transfer_create_job]
-    create_transfer_job_from_aws = GcpTransferServiceJobCreateOperator(
+    create_transfer_job_from_aws = CloudDataTransferServiceCreateJobOperator(
         task_id="create_transfer_job_from_aws", body=aws_to_gcs_transfer_body
     )
     # [END howto_operator_gcp_transfer_create_job]
 
-    wait_for_operation_to_start = GCPTransferServiceWaitForJobStatusSensor(
+    wait_for_operation_to_start = CloudDataTransferServiceJobStatusSensor(
         task_id="wait_for_operation_to_start",
         job_name="{{task_instance.xcom_pull('create_transfer_job_from_aws')['name']}}",
         project_id=GCP_PROJECT_ID,
@@ -163,7 +146,7 @@ with models.DAG(
     )
 
     # [START howto_operator_gcp_transfer_pause_operation]
-    pause_operation = GcpTransferServiceOperationPauseOperator(
+    pause_operation = CloudDataTransferServicePauseOperationOperator(
         task_id="pause_operation",
         operation_name="{{task_instance.xcom_pull('wait_for_operation_to_start', "
         "key='sensed_operations')[0]['name']}}",
@@ -171,7 +154,7 @@ with models.DAG(
     # [END howto_operator_gcp_transfer_pause_operation]
 
     # [START howto_operator_gcp_transfer_update_job]
-    update_job = GcpTransferServiceJobUpdateOperator(
+    update_job = CloudDataTransferServiceUpdateJobOperator(
         task_id="update_job",
         job_name="{{task_instance.xcom_pull('create_transfer_job_from_aws')['name']}}",
         body=update_body,
@@ -179,7 +162,7 @@ with models.DAG(
     # [END howto_operator_gcp_transfer_update_job]
 
     # [START howto_operator_gcp_transfer_list_operations]
-    list_operations = GcpTransferServiceOperationsListOperator(
+    list_operations = CloudDataTransferServiceListOperationsOperator(
         task_id="list_operations",
         request_filter={
             FILTER_PROJECT_ID: GCP_PROJECT_ID,
@@ -189,19 +172,19 @@ with models.DAG(
     # [END howto_operator_gcp_transfer_list_operations]
 
     # [START howto_operator_gcp_transfer_get_operation]
-    get_operation = GcpTransferServiceOperationGetOperator(
+    get_operation = CloudDataTransferServiceGetOperationOperator(
         task_id="get_operation", operation_name="{{task_instance.xcom_pull('list_operations')[0]['name']}}"
     )
     # [END howto_operator_gcp_transfer_get_operation]
 
     # [START howto_operator_gcp_transfer_resume_operation]
-    resume_operation = GcpTransferServiceOperationResumeOperator(
+    resume_operation = CloudDataTransferServiceResumeOperationOperator(
         task_id="resume_operation", operation_name="{{task_instance.xcom_pull('get_operation')['name']}}"
     )
     # [END howto_operator_gcp_transfer_resume_operation]
 
     # [START howto_operator_gcp_transfer_wait_operation]
-    wait_for_operation_to_end = GCPTransferServiceWaitForJobStatusSensor(
+    wait_for_operation_to_end = CloudDataTransferServiceJobStatusSensor(
         task_id="wait_for_operation_to_end",
         job_name="{{task_instance.xcom_pull('create_transfer_job_from_aws')['name']}}",
         project_id=GCP_PROJECT_ID,
@@ -214,11 +197,11 @@ with models.DAG(
 
     gcs_to_gcs_transfer_body['schedule']['startTimeOfDay'] = (datetime.utcnow() + timedelta(minutes=2)).time()
 
-    create_transfer_job_from_gcp = GcpTransferServiceJobCreateOperator(
+    create_transfer_job_from_gcp = CloudDataTransferServiceCreateJobOperator(
         task_id="create_transfer_job_from_gcp", body=gcs_to_gcs_transfer_body
     )
 
-    wait_for_second_operation_to_start = GCPTransferServiceWaitForJobStatusSensor(
+    wait_for_second_operation_to_start = CloudDataTransferServiceJobStatusSensor(
         task_id="wait_for_second_operation_to_start",
         job_name="{{ task_instance.xcom_pull('create_transfer_job_from_gcp')['name'] }}",
         project_id=GCP_PROJECT_ID,
@@ -227,7 +210,7 @@ with models.DAG(
     )
 
     # [START howto_operator_gcp_transfer_cancel_operation]
-    cancel_operation = GcpTransferServiceOperationCancelOperator(
+    cancel_operation = CloudDataTransferServiceCancelOperationOperator(
         task_id="cancel_operation",
         operation_name="{{task_instance.xcom_pull("
         "'wait_for_second_operation_to_start', key='sensed_operations')[0]['name']}}",
@@ -235,14 +218,14 @@ with models.DAG(
     # [END howto_operator_gcp_transfer_cancel_operation]
 
     # [START howto_operator_gcp_transfer_delete_job]
-    delete_transfer_from_aws_job = GcpTransferServiceJobDeleteOperator(
+    delete_transfer_from_aws_job = CloudDataTransferServiceDeleteJobOperator(
         task_id="delete_transfer_from_aws_job",
         job_name="{{task_instance.xcom_pull('create_transfer_job_from_aws')['name']}}",
         project_id=GCP_PROJECT_ID,
     )
     # [END howto_operator_gcp_transfer_delete_job]
 
-    delete_transfer_from_gcp_job = GcpTransferServiceJobDeleteOperator(
+    delete_transfer_from_gcp_job = CloudDataTransferServiceDeleteJobOperator(
         task_id="delete_transfer_from_gcp_job",
         job_name="{{task_instance.xcom_pull('create_transfer_job_from_gcp')['name']}}",
         project_id=GCP_PROJECT_ID,

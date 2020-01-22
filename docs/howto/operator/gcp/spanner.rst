@@ -24,16 +24,21 @@ Google Cloud Spanner Operators
   :depth: 1
   :local:
 
-.. _howto/operator:CloudSpannerInstanceDatabaseDeleteOperator:
+Prerequisite Tasks
+------------------
 
-CloudSpannerInstanceDatabaseDeleteOperator
-------------------------------------------
+.. include:: _partials/prerequisite_tasks.rst
+
+.. _howto/operator:SpannerDeleteDatabaseInstanceOperator:
+
+SpannerDeleteDatabaseInstanceOperator
+-------------------------------------
 
 Deletes a database from the specified Cloud Spanner instance. If the database does not
 exist, no action is taken, and the operator succeeds.
 
 For parameter definition, take a look at
-:class:`~airflow.gcp.operators.spanner.CloudSpannerInstanceDatabaseDeleteOperator`.
+:class:`~airflow.gcp.operators.spanner.SpannerDeleteDatabaseInstanceOperator`.
 
 Arguments
 """""""""
@@ -72,10 +77,10 @@ More information
 See `Google Cloud Spanner API documentation to drop an instance of a database
 <https://cloud.google.com/spanner/docs/reference/rest/v1/projects.instances.databases/dropDatabase>`_.
 
-.. _howto/operator:CloudSpannerInstanceDatabaseDeployOperator:
+.. _howto/operator:SpannerDeployDatabaseInstanceOperator:
 
-CloudSpannerInstanceDatabaseDeployOperator
-------------------------------------------
+SpannerDeployDatabaseInstanceOperator
+-------------------------------------
 
 Creates a new Cloud Spanner database in the specified instance, or if the
 desired database exists, assumes success with no changes applied to database
@@ -83,7 +88,7 @@ configuration. No structure of the database is verified - it's enough if the dat
 with the same name.
 
 For parameter definition, take a look at
-:class:`~airflow.gcp.operators.spanner.CloudSpannerInstanceDatabaseDeployOperator`.
+:class:`~airflow.gcp.operators.spanner.SpannerDeployDatabaseInstanceOperator`.
 
 Arguments
 """""""""
@@ -122,10 +127,10 @@ More information
 See Google Cloud Spanner API documentation `to create a new database
 <https://cloud.google.com/spanner/docs/reference/rest/v1/projects.instances.databases/create>`_.
 
-.. _howto/operator:CloudSpannerInstanceDatabaseUpdateOperator:
+.. _howto/operator:SpannerUpdateDatabaseInstanceOperator:
 
-CloudSpannerInstanceDatabaseUpdateOperator
-------------------------------------------
+SpannerUpdateDatabaseInstanceOperator
+-------------------------------------
 
 Runs a DDL query in a Cloud Spanner database and allows you to modify the structure of an
 existing database.
@@ -133,11 +138,11 @@ existing database.
 You can optionally specify an operation_id parameter which simplifies determining whether
 the statements were executed in case the update_database call is replayed
 (idempotency check). The operation_id should be unique within the database, and must be
-a valid identifier: `[a-z][a-z0-9_]*`. More information can be found in
+a valid identifier: ``[a-z][a-z0-9_]*``. More information can be found in
 `the documentation of updateDdl API <https://cloud.google.com/spanner/docs/reference/rest/v1/projects.instances.databases/updateDdl>`_
 
 For parameter definition take a look at
-:class:`~airflow.gcp.operators.spanner.CloudSpannerInstanceDatabaseUpdateOperator`.
+:class:`~airflow.gcp.operators.spanner.SpannerUpdateDatabaseInstanceOperator`.
 
 Arguments
 """""""""
@@ -182,15 +187,15 @@ More information
 See Google Cloud Spanner API documentation for `database update_ddl
 <https://cloud.google.com/spanner/docs/reference/rest/v1/projects.instances.databases/updateDdl>`_.
 
-.. _howto/operator:CloudSpannerInstanceDatabaseQueryOperator:
+.. _howto/operator:SpannerQueryDatabaseInstanceOperator:
 
-CloudSpannerInstanceDatabaseQueryOperator
------------------------------------------
+SpannerQueryDatabaseInstanceOperator
+------------------------------------
 
 Executes an arbitrary DML query (INSERT, UPDATE, DELETE).
 
 For parameter definition take a look at
-:class:`~airflow.gcp.operators.spanner.CloudSpannerInstanceDatabaseQueryOperator`.
+:class:`~airflow.gcp.operators.spanner.SpannerQueryDatabaseInstanceOperator`.
 
 Arguments
 """""""""
@@ -229,16 +234,16 @@ More information
 See Google Cloud Spanner API documentation for more information about `DML syntax
 <https://cloud.google.com/spanner/docs/dml-syntax>`_.
 
-.. _howto/operator:CloudSpannerInstanceDeleteOperator:
+.. _howto/operator:SpannerDeleteInstanceOperator:
 
-CloudSpannerInstanceDeleteOperator
-----------------------------------
+SpannerDeleteInstanceOperator
+-----------------------------
 
 Deletes a Cloud Spanner instance. If an instance does not exist, no action is taken,
 and the operator succeeds.
 
 For parameter definition take a look at
-:class:`~airflow.gcp.operators.spanner.CloudSpannerInstanceDeleteOperator`.
+:class:`~airflow.gcp.operators.spanner.SpannerDeleteInstanceOperator`.
 
 Arguments
 """""""""
@@ -276,3 +281,11 @@ More information
 
 See Google Cloud Spanner API documentation to `delete an instance
 <https://cloud.google.com/spanner/docs/reference/rest/v1/projects.instances/delete>`_.
+
+Reference
+---------
+
+For further information, look at:
+
+* `Client Library Documentation <https://googleapis.github.io/google-cloud-python/latest/spanner/index.html>`__
+* `Product Documentation <https://cloud.google.com/spanner/docs/>`__

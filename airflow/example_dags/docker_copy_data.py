@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -27,16 +28,16 @@ TODO: Review the workflow, change it accordingly to
 
 #
 # from airflow import DAG
-# import airflow
 # from datetime import timedelta
 # from airflow.operators import BashOperator
 # from airflow.operators import ShortCircuitOperator
-# from airflow.operators.docker_operator import DockerOperator
+# from airflow.providers.docker.operators.docker import DockerOperator
+# from airflow.utils.dates import days_ago
 #
 # default_args = {
-#     'owner': 'Airflow',
+#     'owner': 'airflow',
 #     'depends_on_past': False,
-#     'start_date': airflow.utils.dates.days_ago(2),
+#     'start_date': days_ago(2),
 #     'email': ['airflow@example.com'],
 #     'email_on_failure': False,
 #     'email_on_retry': False,
@@ -69,7 +70,6 @@ TODO: Review the workflow, change it accordingly to
 #
 # t_is_data_available = ShortCircuitOperator(
 #         task_id='check_if_data_available',
-#         provide_context=True,
 #         python_callable=is_data_available,
 #         dag=dag)
 #

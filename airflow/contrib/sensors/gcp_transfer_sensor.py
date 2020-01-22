@@ -16,16 +16,27 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `airflow.gcp.operators.cloud_storage_transfer_service`."""
+"""This module is deprecated. Please use `airflow.gcp.sensors.cloud_storage_transfer_service`."""
 
 import warnings
 
-# pylint: disable=unused-import
-from airflow.gcp.sensors.cloud_storage_transfer_service import (  # noqa
-    GCPTransferServiceWaitForJobStatusSensor
-)
+from airflow.gcp.sensors.cloud_storage_transfer_service import CloudDataTransferServiceJobStatusSensor
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.gcp.operators.cloud_storage_transfer_service`.",
-    DeprecationWarning,
+    "This module is deprecated. Please use `airflow.gcp.sensors.cloud_storage_transfer_service`.",
+    DeprecationWarning, stacklevel=2
 )
+
+
+class GCPTransferServiceWaitForJobStatusSensor(CloudDataTransferServiceJobStatusSensor):
+    """
+    This class is deprecated.
+    Please use `airflow.gcp.sensors.transfer.CloudDataTransferServiceJobStatusSensor`.
+    """
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+            Please use `airflow.gcp.sensors.transfer.CloudDataTransferServiceJobStatusSensor`.""",
+            DeprecationWarning, stacklevel=2
+        )
+        super().__init__(*args, **kwargs)

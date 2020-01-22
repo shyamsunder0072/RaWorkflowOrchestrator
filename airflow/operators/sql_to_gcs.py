@@ -27,11 +27,12 @@ from tempfile import NamedTemporaryFile
 
 import unicodecsv as csv
 
-from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
+from airflow.gcp.hooks.gcs import GCSHook
 from airflow.models import BaseOperator
+from airflow.utils.decorators import apply_defaults
 
 
-class BaseSQLToGoogleCloudStorageOperator(BaseOperator, metaclass=abc.ABCMeta):
+class BaseSQLToGCSOperator(BaseOperator, metaclass=abc.ABCMeta):
     """
     :param sql: The SQL to execute.
     :type sql: str
@@ -78,6 +79,7 @@ class BaseSQLToGoogleCloudStorageOperator(BaseOperator, metaclass=abc.ABCMeta):
     template_ext = ('.sql',)
     ui_color = '#a0e08c'
 
+    @apply_defaults
     def __init__(self,  # pylint: disable=too-many-arguments
                  sql,
                  bucket,
@@ -94,7 +96,7 @@ class BaseSQLToGoogleCloudStorageOperator(BaseOperator, metaclass=abc.ABCMeta):
                  delegate_to=None,
                  *args,
                  **kwargs):
-        super(BaseSQLToGoogleCloudStorageOperator, self).__init__(*args, **kwargs)
+        super(BaseSQLToGCSOperator, self).__init__(*args, **kwargs)
 
         if google_cloud_storage_conn_id:
             warnings.warn(
@@ -264,9 +266,9 @@ class BaseSQLToGoogleCloudStorageOperator(BaseOperator, metaclass=abc.ABCMeta):
     def _upload_to_gcs(self, files_to_upload):
         """
         Upload all of the file splits (and optionally the schema .json file) to
-        Google cloud storage.
+        Google Cloud Storage.
         """
-        hook = GoogleCloudStorageHook(
+        hook = GCSHook(
             google_cloud_storage_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to)
         for tmp_file in files_to_upload:

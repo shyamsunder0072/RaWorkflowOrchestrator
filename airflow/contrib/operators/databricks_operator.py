@@ -23,11 +23,10 @@ This module contains Databricks operators.
 
 import time
 
-from airflow.exceptions import AirflowException
 from airflow.contrib.hooks.databricks_hook import DatabricksHook
+from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
-
 
 XCOM_RUN_ID_KEY = 'run_id'
 XCOM_RUN_PAGE_URL_KEY = 'run_page_url'
@@ -434,7 +433,7 @@ class DatabricksRunNowOperator(BaseOperator):
     @apply_defaults
     def __init__(
             self,
-            job_id,
+            job_id=None,
             json=None,
             notebook_params=None,
             python_params=None,

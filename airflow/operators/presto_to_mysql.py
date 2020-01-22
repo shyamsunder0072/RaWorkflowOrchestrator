@@ -16,10 +16,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from typing import Optional
 
-from airflow.hooks.mysql_hook import MySqlHook
-from airflow.hooks.presto_hook import PrestoHook
 from airflow.models import BaseOperator
+from airflow.providers.mysql.hooks.mysql import MySqlHook
+from airflow.providers.presto.hooks.presto import PrestoHook
 from airflow.utils.decorators import apply_defaults
 
 
@@ -55,7 +56,7 @@ class PrestoToMySqlTransfer(BaseOperator):
                  mysql_table: str,
                  presto_conn_id: str = 'presto_default',
                  mysql_conn_id: str = 'mysql_default',
-                 mysql_preoperator: str = None,
+                 mysql_preoperator: Optional[str] = None,
                  *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.sql = sql

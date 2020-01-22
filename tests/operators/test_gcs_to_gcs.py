@@ -20,10 +20,10 @@
 import unittest
 from datetime import datetime
 
-from airflow.operators.gcs_to_gcs import \
-    GoogleCloudStorageToGoogleCloudStorageOperator, WILDCARD
+import mock
+
 from airflow.exceptions import AirflowException
-from tests.compat import mock, patch
+from airflow.operators.gcs_to_gcs import WILDCARD, GCSSynchronizeBuckets, GCSToGCSOperator
 
 TASK_ID = 'test-gcs-to-gcs-operator'
 TEST_BUCKET = 'test-bucket'
@@ -52,12 +52,12 @@ class TestGoogleCloudStorageToCloudStorageOperator(unittest.TestCase):
     no_suffix: test_object*
     prefix_and_suffix: test*object
 
-    Also tests the destionation_object as prefix when the wildcard is used.
+    Also tests the destination_object as prefix when the wildcard is used.
     """
 
-    @mock.patch('airflow.operators.gcs_to_gcs.GoogleCloudStorageHook')
+    @mock.patch('airflow.operators.gcs_to_gcs.GCSHook')
     def test_execute_no_prefix(self, mock_hook):
-        operator = GoogleCloudStorageToGoogleCloudStorageOperator(
+        operator = GCSToGCSOperator(
             task_id=TASK_ID, source_bucket=TEST_BUCKET,
             source_object=SOURCE_OBJECT_WILDCARD_PREFIX,
             destination_bucket=DESTINATION_BUCKET)
@@ -67,9 +67,9 @@ class TestGoogleCloudStorageToCloudStorageOperator(unittest.TestCase):
             TEST_BUCKET, prefix="", delimiter="test_object"
         )
 
-    @mock.patch('airflow.operators.gcs_to_gcs.GoogleCloudStorageHook')
+    @mock.patch('airflow.operators.gcs_to_gcs.GCSHook')
     def test_execute_no_suffix(self, mock_hook):
-        operator = GoogleCloudStorageToGoogleCloudStorageOperator(
+        operator = GCSToGCSOperator(
             task_id=TASK_ID, source_bucket=TEST_BUCKET,
             source_object=SOURCE_OBJECT_WILDCARD_SUFFIX,
             destination_bucket=DESTINATION_BUCKET)
@@ -79,9 +79,9 @@ class TestGoogleCloudStorageToCloudStorageOperator(unittest.TestCase):
             TEST_BUCKET, prefix="test_object", delimiter=""
         )
 
-    @mock.patch('airflow.operators.gcs_to_gcs.GoogleCloudStorageHook')
+    @mock.patch('airflow.operators.gcs_to_gcs.GCSHook')
     def test_execute_prefix_and_suffix(self, mock_hook):
-        operator = GoogleCloudStorageToGoogleCloudStorageOperator(
+        operator = GCSToGCSOperator(
             task_id=TASK_ID, source_bucket=TEST_BUCKET,
             source_object=SOURCE_OBJECT_WILDCARD_MIDDLE,
             destination_bucket=DESTINATION_BUCKET)
@@ -93,10 +93,10 @@ class TestGoogleCloudStorageToCloudStorageOperator(unittest.TestCase):
 
     # copy with wildcard
 
-    @mock.patch('airflow.operators.gcs_to_gcs.GoogleCloudStorageHook')
+    @mock.patch('airflow.operators.gcs_to_gcs.GCSHook')
     def test_execute_wildcard_with_destination_object(self, mock_hook):
         mock_hook.return_value.list.return_value = SOURCE_FILES_LIST
-        operator = GoogleCloudStorageToGoogleCloudStorageOperator(
+        operator = GCSToGCSOperator(
             task_id=TASK_ID, source_bucket=TEST_BUCKET,
             source_object=SOURCE_OBJECT_WILDCARD_FILENAME,
             destination_bucket=DESTINATION_BUCKET,
@@ -111,10 +111,10 @@ class TestGoogleCloudStorageToCloudStorageOperator(unittest.TestCase):
         ]
         mock_hook.return_value.rewrite.assert_has_calls(mock_calls)
 
-    @mock.patch('airflow.operators.gcs_to_gcs.GoogleCloudStorageHook')
+    @mock.patch('airflow.operators.gcs_to_gcs.GCSHook')
     def test_execute_wildcard_with_destination_object_retained_prefix(self, mock_hook):
         mock_hook.return_value.list.return_value = SOURCE_FILES_LIST
-        operator = GoogleCloudStorageToGoogleCloudStorageOperator(
+        operator = GCSToGCSOperator(
             task_id=TASK_ID, source_bucket=TEST_BUCKET,
             source_object=SOURCE_OBJECT_WILDCARD_FILENAME,
             destination_bucket=DESTINATION_BUCKET,
@@ -131,10 +131,10 @@ class TestGoogleCloudStorageToCloudStorageOperator(unittest.TestCase):
         ]
         mock_hook.return_value.rewrite.assert_has_calls(mock_calls_retained)
 
-    @mock.patch('airflow.operators.gcs_to_gcs.GoogleCloudStorageHook')
+    @mock.patch('airflow.operators.gcs_to_gcs.GCSHook')
     def test_execute_wildcard_without_destination_object(self, mock_hook):
         mock_hook.return_value.list.return_value = SOURCE_FILES_LIST
-        operator = GoogleCloudStorageToGoogleCloudStorageOperator(
+        operator = GCSToGCSOperator(
             task_id=TASK_ID, source_bucket=TEST_BUCKET,
             source_object=SOURCE_OBJECT_WILDCARD_FILENAME,
             destination_bucket=DESTINATION_BUCKET)
@@ -148,10 +148,10 @@ class TestGoogleCloudStorageToCloudStorageOperator(unittest.TestCase):
         ]
         mock_hook.return_value.rewrite.assert_has_calls(mock_calls_none)
 
-    @mock.patch('airflow.operators.gcs_to_gcs.GoogleCloudStorageHook')
+    @mock.patch('airflow.operators.gcs_to_gcs.GCSHook')
     def test_execute_wildcard_empty_destination_object(self, mock_hook):
         mock_hook.return_value.list.return_value = SOURCE_FILES_LIST
-        operator = GoogleCloudStorageToGoogleCloudStorageOperator(
+        operator = GCSToGCSOperator(
             task_id=TASK_ID, source_bucket=TEST_BUCKET,
             source_object=SOURCE_OBJECT_WILDCARD_FILENAME,
             destination_bucket=DESTINATION_BUCKET,
@@ -166,10 +166,10 @@ class TestGoogleCloudStorageToCloudStorageOperator(unittest.TestCase):
         ]
         mock_hook.return_value.rewrite.assert_has_calls(mock_calls_empty)
 
-    @mock.patch('airflow.operators.gcs_to_gcs.GoogleCloudStorageHook')
+    @mock.patch('airflow.operators.gcs_to_gcs.GCSHook')
     def test_execute_last_modified_time(self, mock_hook):
         mock_hook.return_value.list.return_value = SOURCE_FILES_LIST
-        operator = GoogleCloudStorageToGoogleCloudStorageOperator(
+        operator = GCSToGCSOperator(
             task_id=TASK_ID, source_bucket=TEST_BUCKET,
             source_object=SOURCE_OBJECT_WILDCARD_FILENAME,
             destination_bucket=DESTINATION_BUCKET,
@@ -184,11 +184,11 @@ class TestGoogleCloudStorageToCloudStorageOperator(unittest.TestCase):
         ]
         mock_hook.return_value.rewrite.assert_has_calls(mock_calls_none)
 
-    @mock.patch('airflow.operators.gcs_to_gcs.GoogleCloudStorageHook')
+    @mock.patch('airflow.operators.gcs_to_gcs.GCSHook')
     def test_wc_with_last_modified_time_with_all_true_cond(self, mock_hook):
         mock_hook.return_value.list.return_value = SOURCE_FILES_LIST
         mock_hook.return_value.is_updated_after.side_effect = [True, True, True]
-        operator = GoogleCloudStorageToGoogleCloudStorageOperator(
+        operator = GCSToGCSOperator(
             task_id=TASK_ID, source_bucket=TEST_BUCKET,
             source_object=SOURCE_OBJECT_WILDCARD_FILENAME,
             destination_bucket=DESTINATION_BUCKET,
@@ -203,11 +203,11 @@ class TestGoogleCloudStorageToCloudStorageOperator(unittest.TestCase):
         ]
         mock_hook.return_value.rewrite.assert_has_calls(mock_calls_none)
 
-    @mock.patch('airflow.operators.gcs_to_gcs.GoogleCloudStorageHook')
+    @mock.patch('airflow.operators.gcs_to_gcs.GCSHook')
     def test_wc_with_last_modified_time_with_one_true_cond(self, mock_hook):
         mock_hook.return_value.list.return_value = SOURCE_FILES_LIST
         mock_hook.return_value.is_updated_after.side_effect = [True, False, False]
-        operator = GoogleCloudStorageToGoogleCloudStorageOperator(
+        operator = GCSToGCSOperator(
             task_id=TASK_ID, source_bucket=TEST_BUCKET,
             source_object=SOURCE_OBJECT_WILDCARD_FILENAME,
             destination_bucket=DESTINATION_BUCKET,
@@ -218,10 +218,10 @@ class TestGoogleCloudStorageToCloudStorageOperator(unittest.TestCase):
             TEST_BUCKET, 'test_object/file1.txt',
             DESTINATION_BUCKET, 'test_object/file1.txt')
 
-    @mock.patch('airflow.operators.gcs_to_gcs.GoogleCloudStorageHook')
+    @mock.patch('airflow.operators.gcs_to_gcs.GCSHook')
     def test_wc_with_no_last_modified_time(self, mock_hook):
         mock_hook.return_value.list.return_value = SOURCE_FILES_LIST
-        operator = GoogleCloudStorageToGoogleCloudStorageOperator(
+        operator = GCSToGCSOperator(
             task_id=TASK_ID, source_bucket=TEST_BUCKET,
             source_object=SOURCE_OBJECT_WILDCARD_FILENAME,
             destination_bucket=DESTINATION_BUCKET,
@@ -236,10 +236,10 @@ class TestGoogleCloudStorageToCloudStorageOperator(unittest.TestCase):
         ]
         mock_hook.return_value.rewrite.assert_has_calls(mock_calls_none)
 
-    @mock.patch('airflow.operators.gcs_to_gcs.GoogleCloudStorageHook')
+    @mock.patch('airflow.operators.gcs_to_gcs.GCSHook')
     def test_no_prefix_with_last_modified_time_with_true_cond(self, mock_hook):
         mock_hook.return_value.is_updated_after.return_value = True
-        operator = GoogleCloudStorageToGoogleCloudStorageOperator(
+        operator = GCSToGCSOperator(
             task_id=TASK_ID, source_bucket=TEST_BUCKET,
             source_object=SOURCE_OBJECT_NO_WILDCARD,
             destination_bucket=DESTINATION_BUCKET,
@@ -250,9 +250,9 @@ class TestGoogleCloudStorageToCloudStorageOperator(unittest.TestCase):
         mock_hook.return_value.rewrite.assert_called_once_with(
             TEST_BUCKET, 'test_object.txt', DESTINATION_BUCKET, 'test_object.txt')
 
-    @mock.patch('airflow.operators.gcs_to_gcs.GoogleCloudStorageHook')
+    @mock.patch('airflow.operators.gcs_to_gcs.GCSHook')
     def test_execute_no_prefix_with_no_last_modified_time(self, mock_hook):
-        operator = GoogleCloudStorageToGoogleCloudStorageOperator(
+        operator = GCSToGCSOperator(
             task_id=TASK_ID, source_bucket=TEST_BUCKET,
             source_object=SOURCE_OBJECT_NO_WILDCARD,
             destination_bucket=DESTINATION_BUCKET,
@@ -263,10 +263,10 @@ class TestGoogleCloudStorageToCloudStorageOperator(unittest.TestCase):
         mock_hook.return_value.rewrite.assert_called_once_with(
             TEST_BUCKET, 'test_object.txt', DESTINATION_BUCKET, 'test_object.txt')
 
-    @mock.patch('airflow.operators.gcs_to_gcs.GoogleCloudStorageHook')
+    @mock.patch('airflow.operators.gcs_to_gcs.GCSHook')
     def test_no_prefix_with_last_modified_time_with_false_cond(self, mock_hook):
         mock_hook.return_value.is_updated_after.return_value = False
-        operator = GoogleCloudStorageToGoogleCloudStorageOperator(
+        operator = GCSToGCSOperator(
             task_id=TASK_ID, source_bucket=TEST_BUCKET,
             source_object=SOURCE_OBJECT_NO_WILDCARD,
             destination_bucket=DESTINATION_BUCKET,
@@ -276,10 +276,10 @@ class TestGoogleCloudStorageToCloudStorageOperator(unittest.TestCase):
         operator.execute(None)
         mock_hook.return_value.rewrite.assert_not_called()
 
-    @mock.patch('airflow.operators.gcs_to_gcs.GoogleCloudStorageHook')
+    @mock.patch('airflow.operators.gcs_to_gcs.GCSHook')
     def test_execute_more_than_1_wildcard(self, mock_hook):
         mock_hook.return_value.list.return_value = SOURCE_FILES_LIST
-        operator = GoogleCloudStorageToGoogleCloudStorageOperator(
+        operator = GCSToGCSOperator(
             task_id=TASK_ID, source_bucket=TEST_BUCKET,
             source_object=SOURCE_OBJECT_MULTIPLE_WILDCARDS,
             destination_bucket=DESTINATION_BUCKET,
@@ -288,24 +288,56 @@ class TestGoogleCloudStorageToCloudStorageOperator(unittest.TestCase):
         total_wildcards = operator.source_object.count(WILDCARD)
 
         error_msg = "Only one wildcard '[*]' is allowed in source_object parameter. " \
-                    "Found {}".format(total_wildcards, SOURCE_OBJECT_MULTIPLE_WILDCARDS)
+                    "Found {}".format(total_wildcards)
 
         with self.assertRaisesRegex(AirflowException, error_msg):
             operator.execute(None)
 
-    @mock.patch('airflow.operators.gcs_to_gcs.GoogleCloudStorageHook')
+    @mock.patch('airflow.operators.gcs_to_gcs.GCSHook')
     def test_execute_with_empty_destination_bucket(self, mock_hook):
         mock_hook.return_value.list.return_value = SOURCE_FILES_LIST
-        operator = GoogleCloudStorageToGoogleCloudStorageOperator(
+        operator = GCSToGCSOperator(
             task_id=TASK_ID, source_bucket=TEST_BUCKET,
             source_object=SOURCE_OBJECT_NO_WILDCARD,
             destination_bucket=None,
             destination_object=DESTINATION_OBJECT_PREFIX)
 
-        with patch.object(operator.log, 'warning') as mock_warn:
+        with mock.patch.object(operator.log, 'warning') as mock_warn:
             operator.execute(None)
             mock_warn.assert_called_once_with(
                 'destination_bucket is None. Defaulting it to source_bucket (%s)',
                 TEST_BUCKET
             )
             self.assertEqual(operator.destination_bucket, operator.source_bucket)
+
+
+class TestGoogleCloudStorageSync(unittest.TestCase):
+
+    @mock.patch('airflow.operators.gcs_to_gcs.GCSHook')
+    def test_execute(self, mock_hook):
+        task = GCSSynchronizeBuckets(
+            task_id="task-id",
+            source_bucket="SOURCE_BUCKET",
+            destination_bucket="DESTINATION_BUCKET",
+            source_object="SOURCE_OBJECT",
+            destination_object="DESTINATION_OBJECT",
+            recursive="RECURSIVE",
+            delete_extra_files="DELETE_EXTRA_FILES",
+            allow_overwrite="ALLOW_OVERWRITE",
+            gcp_conn_id="GCP_CONN_ID",
+            delegate_to="DELEGATE_TO",
+        )
+        task.execute({})
+        mock_hook.assert_called_once_with(
+            google_cloud_storage_conn_id='GCP_CONN_ID',
+            delegate_to='DELEGATE_TO'
+        )
+        mock_hook.return_value.sync.assert_called_once_with(
+            source_bucket='SOURCE_BUCKET',
+            source_object='SOURCE_OBJECT',
+            destination_bucket='DESTINATION_BUCKET',
+            destination_object='DESTINATION_OBJECT',
+            delete_extra_files='DELETE_EXTRA_FILES',
+            recursive='RECURSIVE',
+            allow_overwrite="ALLOW_OVERWRITE",
+        )

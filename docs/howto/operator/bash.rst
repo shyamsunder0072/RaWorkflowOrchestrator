@@ -22,7 +22,7 @@
 BashOperator
 ============
 
-Use the :class:`~airflow.operators.bash_operator.BashOperator` to execute
+Use the :class:`~airflow.operators.bash.BashOperator` to execute
 commands in a `Bash <https://www.gnu.org/software/bash/>`__ shell.
 
 .. exampleinclude:: ../../../airflow/example_dags/example_bash_operator.py
@@ -56,7 +56,7 @@ template to it, which will fail.
     t2 = BashOperator(
         task_id='bash_example',
 
-        # This fails with `Jinja template not found` error
+        # This fails with 'Jinja template not found' error
         # bash_command="/home/batcher/test.sh",
 
         # This works (has a space after)

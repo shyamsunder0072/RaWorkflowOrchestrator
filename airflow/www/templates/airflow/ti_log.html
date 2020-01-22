@@ -52,13 +52,12 @@
 {% block tail %}
 {{ super() }}
 <script>
-    // TODO: make those constants configurable.
     // Time interval to wait before next log fetching. Default 2s.
-    const DELAY = 2e3;
+    const DELAY = "{{ (log_fetch_delay_sec | int ) * 1000 }}";
     // Distance away from page bottom to enable auto tailing.
-    const AUTO_TAILING_OFFSET = 30;
+    const AUTO_TAILING_OFFSET = "{{ log_auto_tailing_offset | int }}";
     // Animation speed for auto tailing log display.
-    const ANIMATION_SPEED = 1000;
+    const ANIMATION_SPEED = "{{ log_animation_speed | int }}";
     // Total number of tabs to show.
     const TOTAL_ATTEMPTS = "{{ logs|length }}";
 
@@ -121,10 +120,18 @@
           if (res.message) {
             // Auto scroll window to the end if current window location is near the end.
             if(auto_tailing && checkAutoTailingCondition()) {
-              var should_scroll = true
+              var should_scroll = true;
             }
             // The message may contain HTML, so either have to escape it or write it as text.
-            document.getElementById(`try-${try_number}`).textContent += res.message + "\n";
+            var escaped_message = escapeHtml(res.message);
+
+            // Detect urls
+            var url_regex = /http(s)?:\/\/[\w\.\-]+(\.?:[\w\.\-]+)*([\/?#][\w\-\._~:/?#[\]@!\$&'\(\)\*\+,;=\.%]+)?/g;
+            var linkified_message = escaped_message.replace(url_regex, function(url) {
+              return "<a href=\"" + url + "\" target=\"_blank\">" + url + "</a>";
+            });
+
+            document.getElementById(`try-${try_number}`).innerHTML += linkified_message + "<br/>";
             // Auto scroll window to the end if current window location is near the end.
             if(should_scroll) {
               scrollBottom();
