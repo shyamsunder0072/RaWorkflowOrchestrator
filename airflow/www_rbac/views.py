@@ -2475,8 +2475,6 @@ class LdapConfView(AirflowBaseView):
                     'airflow/ldap.html', title=title, error=error)
 
 
-
-
 class HelpView(AirflowBaseView):
     @expose('/help')
     @has_access
@@ -2744,7 +2742,7 @@ class AddDagView(AirflowBaseView):
 
     # regex for validating filenames while adding new ones
     regex_valid_filenames = re.compile('^[A-Za-z0-9_@()-]+$')
-    regex_valid_snippetnames = re.compile('^[\sA-Za-z0-9_@()-]+$')
+    regex_valid_snippetnames = re.compile('^[\sA-Za-z0-9_@()-]+$') # noqa
 
     template_dag_file_path = os.path.join(
         app.root_path, *['..', 'config_templates', 'default_dag_template.py'])
@@ -2779,7 +2777,7 @@ class AddDagView(AirflowBaseView):
                 try:
                     with open(self.get_snippet_file_path(title)) as codefile:
                         snippet = codefile.read()
-                except Exception as e:
+                except Exception:
                     # print(e)
                     snippet = ''
                 metadata[title] = {
