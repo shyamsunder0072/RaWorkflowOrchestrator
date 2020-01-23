@@ -128,11 +128,11 @@ def create_app(config=None, session=None, testing=False, app_name="Workflow"):
                                 "Manage DAG",
                                 category="Developer",
                                 category_icon="fa-wrench")
-            appbuilder.add_view(views.CodeArtifactView
+            appbuilder.add_view(views.CodeArtifactView,
                                 "Code Artifacts",
                                 category="Developer",
                                 category_icon="fa-wrench")
-            appbuilder.add_view(views.JupyterNotebookView
+            appbuilder.add_view(views.JupyterNotebookView,
                                 "Jupyter Notebook",
                                 category="Developer",
                                 category_icon="fa-wrench")

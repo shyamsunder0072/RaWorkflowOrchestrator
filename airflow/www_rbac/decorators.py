@@ -45,7 +45,7 @@ def action_logging(f):
                 owner=user,
                 extra=str(list(request.values.items())),
                 task_id=request.values.get('task_id'),
-                dag_id=request.values.get('dag_id'))
+                dag_id=request.values.get('dag_id'),
                 source_ip=request.environ['REMOTE_ADDR'])
 
             if 'execution_date' in request.values:

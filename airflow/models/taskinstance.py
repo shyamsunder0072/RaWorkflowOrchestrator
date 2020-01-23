@@ -865,10 +865,9 @@ class TaskInstance(Base, LoggingMixin):
                 self.log.warning(hr)
             self.log.warning(hr)
             self.queued_dttm = timezone.utcnow()
-                self.queued_dttm = timezone.utcnow()
-                session.merge(self)
-                session.commit()
-                return False
+            session.merge(self)
+            session.commit()
+            return False
 
         # print status message
         self.log.info(hr)

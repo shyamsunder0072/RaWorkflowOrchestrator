@@ -17,7 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-
+from flask_appbuilder.security.manager import BaseSecurityManager
 from flask import g
 from flask_appbuilder.security.sqla import models as sqla_models
 from flask_appbuilder.security.sqla.manager import SecurityManager
@@ -86,15 +86,15 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         'XComModelView',
     }
 
-DEV_VMS = {
-    'Developer',
-    'Manage DAG',
-    'AddDagView',
-    'Code Artifacts',
-    'CodeArtifactView',
-    'Jupyter Notebook',
-    'JupyterNotebookView',
-}
+    DEV_VMS = {
+        'Developer',
+        'Manage DAG',
+        'AddDagView',
+        'Code Artifacts',
+        'CodeArtifactView',
+        'Jupyter Notebook',
+        'JupyterNotebookView',
+    }
 
     ###########################################################################
     #                               PERMISSIONS
@@ -150,10 +150,10 @@ DEV_VMS = {
         'can_varimport',
     }
 
-DEV_PERMS = {
-    'menu_access',
-    'can_jupyter_notebook',
-}
+    DEV_PERMS = {
+        'menu_access',
+        'can_jupyter_notebook',
+    }
 
     # global view-menu for dag-level access
     DAG_VMS = {

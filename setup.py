@@ -387,7 +387,7 @@ devel = [
     'pywinrm',
     'qds-sdk>=1.9.6',
     'requests_mock',
-    'flake8>=3.6.0',
+    'yamllint'
 ]
 ############################################################################################################
 # IMPORTANT NOTE!!!!!!!!!!!!!!!
@@ -455,9 +455,10 @@ def do_setup():
             'croniter>=0.3.17, <0.4',
             'dill>=0.2.2, <0.4',
             'enum34~=1.1.6;python_version<"3.4"',
-            'flask>=1.0, <2.0',
-            'flask-appbuilder==1.12.3',
-            'flask-admin==1.5.3',
+            'flask>=1.1.0, <2.0',
+            'flask-admin==1.5.4',
+            'flask-appbuilder>=1.12.2, <2.0.0;python_version<"3.6"',
+            'flask-appbuilder~=2.2;python_version>="3.6"',
             'flask-caching>=1.3.3, <1.4.0',
             'flask-login>=0.3, <0.5',
             'flask-swagger==0.2.13',
@@ -493,7 +494,6 @@ def do_setup():
             'typing-extensions>=3.7.4;python_version<"3.8"',
             'tzlocal>=1.4,<2.0.0',
             'unicodecsv>=0.14.1',
-            'werkzeug>=0.14.1, <0.15.0',
             'zope.deprecation>=4.0, <5.0',
         ],
         #####################################################################################################
