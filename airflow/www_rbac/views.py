@@ -19,6 +19,7 @@
 #
 
 import copy
+import functools
 import itertools
 import json
 import logging
@@ -61,7 +62,7 @@ from airflow.models import (Connection, DagModel, DagRun, Log, SlaMiss,
 from airflow.ti_deps.dep_context import QUEUE_DEPS, SCHEDULER_DEPS, DepContext
 from airflow.utils import timezone
 from airflow.utils.dates import infer_time_unit, scale_time_units
-from airflow.utils.db import provide_session
+from airflow.utils.db import provide_session, create_session
 from airflow.utils.helpers import alchemy_to_dict, render_log_filename
 from airflow.utils.state import State
 from airflow.www_rbac import utils as wwwutils
@@ -2133,8 +2134,43 @@ class FileUploadBaseView(AirflowBaseView):
         '''Called when all files uploaded are saved'''
         pass
 
+    def action_logger(f):
+        '''
+        Decorator to log user actions.
+
+        Similar to decorator `action_logging` in `decorators.py` but it
+        logs `f.__class__.__name__` + `f.__name__` as event.
+        '''
+        @functools.wraps(f)
+        def wrapper(*args, **kwargs):
+
+            with create_session() as session:
+                if g.user.is_anonymous:
+                    user = 'anonymous'
+                else:
+                    user = g.user.username
+
+                log = Log(
+                    event="{}.{}".format(args[0].__class__.__name__, f.__name__)[:30],
+                    task_instance=None,
+                    owner=user,
+                    extra=str(list(request.args.items())),
+                    task_id=request.args.get('task_id'),
+                    dag_id=request.args.get('dag_id'),
+                    source_ip=request.environ['REMOTE_ADDR'])
+
+                if 'execution_date' in request.args:
+                    log.execution_date = pendulum.parse(
+                        request.args.get('execution_date'))
+
+                session.add(log)
+
+            return f(*args, **kwargs)
+
+        return wrapper
+
     @has_access
-    @action_logging
+    @action_logger
     def list_view(self):
         self.check_attr_is_set(self.fs_path, self.accepted_file_extensions)
 
@@ -2149,7 +2185,7 @@ class FileUploadBaseView(AirflowBaseView):
         )
 
     @has_access
-    @action_logging
+    @action_logger
     def upload_view(self):
         list_files = request.files.getlist("file")
         files_uploaded = 0
@@ -2158,8 +2194,9 @@ class FileUploadBaseView(AirflowBaseView):
             if filename.endswith(self.accepted_file_extensions):
                 destination = self.get_file_path(filename)
                 upload.save(destination)
-                AirflowBaseView.audit_logging("spark_dependency_added",
-                                              filename, request.environ['REMOTE_ADDR'])
+                AirflowBaseView.audit_logging(
+                    "{}.{}".format(self.__class__.__name__, 'upload_view'),
+                    filename, request.environ['REMOTE_ADDR'])
                 files_uploaded += 1
             else:
                 flash('File, ' + filename + ' not allowed', 'error')
@@ -2169,24 +2206,29 @@ class FileUploadBaseView(AirflowBaseView):
         return redirect(url_for(self.__class__.__name__ + '.list_view'))
 
     @has_access
-    @action_logging
+    @action_logger
     def edit_view(self, filename):
         '''When `self.files_editable` is set to True, you should override this view'''
         return make_response(('BAD_REQUEST', 400))
         # raise NotImplementedError('Please implement this in your subclass to be able to edit files.')
 
     @has_access
-    @action_logging
+    @action_logger
     def download_view(self, filename):
         file_path = self.get_file_path(filename)
+        AirflowBaseView.audit_logging(
+            "{}.{}".format(self.__class__.__name__, 'download_view'),
+            filename, request.environ['REMOTE_ADDR'])
         return send_file(file_path, as_attachment=True, conditional=True)
 
     @has_access
-    @action_logging
     def destroy_view(self, filename):
         file = Path(self.get_file_path(filename))
         if file.exists():
             file.unlink()
+            AirflowBaseView.audit_logging(
+                "{}.{}".format(self.__class__.__name__, 'destroy_view'),
+                filename, request.environ['REMOTE_ADDR'])
             flash('File ' + filename + ' successfully deleted.', category='warning')
         else:
             flash('File ' + filename + ' not found.', category='error')
@@ -2200,6 +2242,12 @@ class SparkDepView(FileUploadBaseView):
 
     def on_save_complete(self):
         flash('To include the file(s) for spark job, select them from spark configuration.', 'success')
+
+
+class CodeArtifactView(FileUploadBaseView):
+    fs_path = settings.CODE_ARTIFACTS_FOLDER
+    accepted_file_extensions = ('.jar', '.egg', '.zip', '.py')
+    title = 'Code Artifacts'
 
 
 class HadoopConfView(FileUploadBaseView):
@@ -2640,84 +2688,9 @@ class JupyterNotebookView(AirflowBaseView):
         return self.render_template('airflow/jupyter_notebook.html', title=title)
 
 
-class CodeArtifactView(AirflowBaseView):
-    @expose('/code_artifact', methods=['GET', 'POST'])
-    @action_logging
-    @has_access
-    def update_spark_file(self):
-        title = "Code Artifact"
-        from airflow.configuration import AIRFLOW_HOME
-        add_to_dir = AIRFLOW_HOME + '/../code'
-
-        if request.method == 'POST':
-
-            try:    # for deleting the files from the folder
-                del_filename = request.form['option_title_delete_Spark']
-                file_data = {}
-                for r, d, f in os.walk(add_to_dir):
-                    for file_name in f:
-                        if file_name == del_filename:
-                            os.remove(os.path.join(add_to_dir, file_name))
-                            AirflowBaseView.audit_logging(
-                                "code_artifact_deleted", file_name, request.environ['REMOTE_ADDR'])
-                            flash('File Deleted!!', "warning")
-                        else:
-                            filePath = os.path.join(add_to_dir, file_name)
-                            if(os.path.exists(filePath)):
-                                fileStatsObj = os.stat(filePath)
-                                modificationTime = time.ctime(fileStatsObj[stat.ST_MTIME])
-                                size = os.stat(filePath).st_size
-                                size = AirflowBaseView.convert_size(size)
-                                temp_dict = {'time': modificationTime.split(' ', 1)[1], 'size': size}
-                                file_data[file_name] = temp_dict
-                return redirect(url_for('CodeArtifactView.update_spark_file'))
-            except Exception:
-                print("Sorry ! No file in spark for delete")
-
-            target = os.path.join(add_to_dir)
-            if not os.path.isdir(target):
-                os.mkdir(target)
-
-            try:
-                for f in request.files.getlist("file"):   # for saving a file
-                    filename = f.filename
-                    if filename.endswith((".py", ".egg", ".zip", ".jar")):
-                        destination = "/".join([target, filename])
-                        f.save(destination)
-                        AirflowBaseView.audit_logging(
-                            "code_artifact_added", filename, request.environ['REMOTE_ADDR'])
-                        flash('File Uploaded!!', "success")
-                    else:
-                        flash('Supported format for code artifacts are .jar, .py or .r!!', "error")
-            except Exception:
-                print("No file selected!")
-            return redirect(url_for('CodeArtifactView.update_spark_file'))
-
-        else:
-            file_data = {}
-            # calling get_details without any extension
-            file_data = self.get_details(add_to_dir, "")
-            len_jar = AirflowBaseView.get_len_jar(file_data)
-            len_py = AirflowBaseView.get_len_py(file_data)
-
-            return self.render_template('airflow/code_artifact.html',
-                                        title=title,
-                                        len_jar=len_jar,
-                                        len_py=len_py,
-                                        file_data=file_data)
-
-    @expose("/artifact_download/<string:filename>", methods=['GET', 'POST'])
-    @has_access
-    def download(self, filename):        # for downloading the file passed in the filename
-        from airflow.configuration import AIRFLOW_HOME
-        add_to_dir = AIRFLOW_HOME + '/../code'
-        path_file = os.path.join(add_to_dir, filename)
-        return send_file(path_file, as_attachment=True, conditional=True)
-
-
 class AddDagView(AirflowBaseView):
     # WARNING: No access control decorators found in this view.
-    # TODO: Add access control decorators.
+    # TODO: Refactor this to use FileUploadBaseView
 
     # regex for validating filenames while adding new ones
     regex_valid_filenames = re.compile('^[A-Za-z0-9_@()-]+$')
@@ -2731,6 +2704,10 @@ class AddDagView(AirflowBaseView):
             dag_file_template = f.read()
     except Exception:
         pass
+
+    def __init__(self, *args, **kwargs):
+        os.makedirs(settings.DAGS_FOLDER, exist_ok=True)
+        super().__init__(*args, **kwargs)
 
     def get_dag_file_path(self, filename):
         return os.path.join(settings.DAGS_FOLDER, filename)
@@ -2811,6 +2788,10 @@ class AddDagView(AirflowBaseView):
                                                       request.environ['REMOTE_ADDR'])
                         flash('File ' + file_name + ' Deleted!!', "warning")
                         break
+                # The below redirect makes sure that the ?delete=<filename>
+                # is removed from the GET request, as we are redirecting user
+                # with 0 GET args. This will prevent any accidental deletion of file.
+                return redirect(url_for('AddDagView.add_dag'))
         elif request.method == 'POST':
             list_files = request.files.getlist("file")
             # check if a new filename has been sent to be created.
@@ -2866,6 +2847,9 @@ class AddDagView(AirflowBaseView):
             with open(fullpath, 'w') as code_file:
                 code_file.write(code)
                 flash('Successfully saved !')
+                AirflowBaseView.audit_logging(
+                    "{}.{}".format(self.__class__.__name__, 'editdag'),
+                    filename, request.environ['REMOTE_ADDR'])
             return redirect(url_for('AddDagView.editdag', filename=filename))
         else:
             with open(fullpath, 'r') as code_file:
@@ -2876,6 +2860,7 @@ class AddDagView(AirflowBaseView):
 
     @expose("/save_snippet/<string:filename>", methods=['POST'])
     @has_access
+    @action_logging
     def save_snippet(self, filename):
         snippet_file_path = self.get_snippet_metadata_path()
 
@@ -2899,6 +2884,7 @@ class AddDagView(AirflowBaseView):
 
     @expose("/dag_download/<string:filename>", methods=['GET', 'POST'])
     @has_access
+    @action_logging
     def download(self, filename):
         path_file = self.get_dag_file_path(filename)
         return send_file(path_file, as_attachment=True)

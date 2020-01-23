@@ -131,7 +131,7 @@ def create_app(config=None, session=None, testing=False, app_name="Workflow"):
                                 category="Developer",
                                 category_icon="fa-wrench")
             appbuilder.add_link("Code Artifacts",
-                                href='/code_artifact',
+                                href='/CodeArtifactView/list',
                                 category="Developer",
                                 category_icon="fa-wrench")
             appbuilder.add_link("Jupyter Notebook",
