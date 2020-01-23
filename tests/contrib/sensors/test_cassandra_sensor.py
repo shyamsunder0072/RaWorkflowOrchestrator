@@ -22,8 +22,9 @@ import unittest
 
 from mock import patch
 
+from flaky import flaky
+
 from airflow import DAG
-from airflow import configuration
 from airflow.contrib.sensors.cassandra_record_sensor import CassandraRecordSensor
 from airflow.contrib.sensors.cassandra_table_sensor import CassandraTableSensor
 from airflow.utils import timezone
@@ -32,10 +33,10 @@ from airflow.utils import timezone
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 
 
+@flaky(max_runs=4, min_passes=1)
 class TestCassandraRecordSensor(unittest.TestCase):
 
     def setUp(self):
-        configuration.load_test_config()
         args = {
             'owner': 'airflow',
             'start_date': DEFAULT_DATE
@@ -55,10 +56,10 @@ class TestCassandraRecordSensor(unittest.TestCase):
         mock_record_exists.assert_called_once_with('t', {'foo': 'bar'})
 
 
+@flaky(max_runs=4, min_passes=1)
 class TestCassandraTableSensor(unittest.TestCase):
 
     def setUp(self):
-        configuration.load_test_config()
         args = {
             'owner': 'airflow',
             'start_date': DEFAULT_DATE

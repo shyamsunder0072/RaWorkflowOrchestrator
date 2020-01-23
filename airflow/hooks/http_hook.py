@@ -44,7 +44,7 @@ class HttpHook(BaseHook):
         http_conn_id='http_default'
     ):
         self.http_conn_id = http_conn_id
-        self.method = method
+        self.method = method.upper()
         self.base_url = None
         self._retry_obj = None
 
@@ -61,12 +61,13 @@ class HttpHook(BaseHook):
         if self.http_conn_id:
             conn = self.get_connection(self.http_conn_id)
 
-            if "://" in conn.host:
+            if conn.host and "://" in conn.host:
                 self.base_url = conn.host
             else:
                 # schema defaults to HTTP
                 schema = conn.schema if conn.schema else "http"
-                self.base_url = schema + "://" + conn.host
+                host = conn.host if conn.host else ""
+                self.base_url = schema + "://" + host
 
             if conn.port:
                 self.base_url = self.base_url + ":" + str(conn.port)
@@ -76,7 +77,7 @@ class HttpHook(BaseHook):
                 try:
                     session.headers.update(conn.extra_dejson)
                 except TypeError:
-                    self.log.warn('Connection to %s has invalid extra field.', conn.host)
+                    self.log.warning('Connection to %s has invalid extra field.', conn.host)
         if headers:
             session.headers.update(headers)
 
@@ -142,8 +143,7 @@ class HttpHook(BaseHook):
             response.raise_for_status()
         except requests.exceptions.HTTPError:
             self.log.error("HTTP error: %s", response.reason)
-            if self.method not in ['GET', 'HEAD']:
-                self.log.error(response.text)
+            self.log.error(response.text)
             raise AirflowException(str(response.status_code) + ":" + response.reason)
 
     def run_and_check(self, session, prepped_request, extra_options):
@@ -177,7 +177,7 @@ class HttpHook(BaseHook):
             return response
 
         except requests.exceptions.ConnectionError as ex:
-            self.log.warn(str(ex) + ' Tenacity will retry to execute the operation')
+            self.log.warning(str(ex) + ' Tenacity will retry to execute the operation')
             raise ex
 
     def run_with_advanced_retry(self, _retry_args, *args, **kwargs):
@@ -191,7 +191,7 @@ class HttpHook(BaseHook):
         :type _retry_args: dict
 
 
-        :Example::
+        .. code-block:: python
 
             hook = HttpHook(http_conn_id='my_conn',method='GET')
             retry_args = dict(
@@ -203,9 +203,10 @@ class HttpHook(BaseHook):
                      endpoint='v1/test',
                      _retry_args=retry_args
                  )
+
         """
         self._retry_obj = tenacity.Retrying(
             **_retry_args
         )
 
-        self._retry_obj(self.run, *args, **kwargs)
+        return self._retry_obj(self.run, *args, **kwargs)

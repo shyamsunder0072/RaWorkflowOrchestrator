@@ -1,17 +1,23 @@
 # -*- coding: utf-8 -*-
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
 
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+"""GRPC Hook"""
 
 import grpc
 from google import auth as google_auth
@@ -26,22 +32,21 @@ from airflow.exceptions import AirflowConfigException
 class GrpcHook(BaseHook):
     """
     General interaction with gRPC servers.
+
+    :param grpc_conn_id: The connection ID to use when fetching connection info.
+    :type grpc_conn_id: str
+    :param interceptors: a list of gRPC interceptor objects which would be applied
+        to the connected gRPC channel. None by default.
+    :type interceptors: a list of gRPC interceptors based on or extends the four
+        official gRPC interceptors, eg, UnaryUnaryClientInterceptor,
+        UnaryStreamClientInterceptor, StreamUnaryClientInterceptor,
+        StreamStreamClientInterceptor.
+    :param custom_connection_func: The customized connection function to return gRPC channel.
+    :type custom_connection_func: python callable objects that accept the connection as
+        its only arg. Could be partial or lambda.
     """
 
     def __init__(self, grpc_conn_id, interceptors=None, custom_connection_func=None):
-        """
-        :param grpc_conn_id: The connection ID to use when fetching connection info.
-        :type grpc_conn_id: str
-        :param interceptors: a list of gRPC interceptor objects which would be applied
-            to the connected gRPC channel. None by default.
-        :type interceptors: a list of gRPC interceptors based on or extends the four
-            official gRPC interceptors, eg, UnaryUnaryClientInterceptor,
-            UnaryStreamClientInterceptor, StreamUnaryClientInterceptor,
-            StreamStreamClientInterceptor.
-        ::param custom_connection_func: The customized connection function to return gRPC channel.
-        :type custom_connection_func: python callable objects that accept the connection as
-            its only arg. Could be partial or lambda.
-        """
         self.grpc_conn_id = grpc_conn_id
         self.conn = self.get_connection(self.grpc_conn_id)
         self.extras = self.conn.extra_dejson
@@ -58,7 +63,7 @@ class GrpcHook(BaseHook):
 
         if auth_type == "NO_AUTH":
             channel = grpc.insecure_channel(base_url)
-        elif auth_type == "SSL" or auth_type == "TLS":
+        elif auth_type in {"SSL", "TLS"}:
             credential_file_name = self._get_field("credential_pem_file")
             creds = grpc.ssl_channel_credentials(open(credential_file_name).read())
             channel = grpc.secure_channel(base_url, creds)
@@ -91,7 +96,9 @@ class GrpcHook(BaseHook):
 
         return channel
 
-    def run(self, stub_class, call_func, streaming=False, data={}):
+    def run(self, stub_class, call_func, streaming=False, data=None):
+        if data is None:
+            data = {}
         with self.get_conn() as channel:
             stub = stub_class(channel)
             try:
@@ -103,10 +110,14 @@ class GrpcHook(BaseHook):
                     for single_response in response:
                         yield single_response
             except grpc.RpcError as ex:
+                # noinspection PyUnresolvedReferences
                 self.log.exception(
                     "Error occurred when calling the grpc service: {0}, method: {1} \
                     status code: {2}, error details: {3}"
-                    .format(stub.__class__.__name__, call_func, ex.code(), ex.details()))
+                    .format(stub.__class__.__name__,
+                            call_func,
+                            ex.code(),  # pylint: disable=no-member
+                            ex.details()))  # pylint: disable=no-member
                 raise ex
 
     def _get_field(self, field_name, default=None):

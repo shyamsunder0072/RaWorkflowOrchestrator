@@ -19,7 +19,7 @@
 
 import json
 from builtins import bytes
-from urllib.parse import urlparse, unquote, parse_qsl
+from urllib.parse import parse_qsl, quote, unquote, urlencode, urlparse
 
 from sqlalchemy import Column, Integer, String, Boolean
 from sqlalchemy.ext.declarative import declared_attr
@@ -73,6 +73,7 @@ class Connection(Base, LoggingMixin):
         ('google_cloud_platform', 'Google Cloud Platform'),
         ('hdfs', 'HDFS',),
         ('http', 'HTTP',),
+        ('pig_cli', 'Pig Client Wrapper',),
         ('hive_cli', 'Hive Client Wrapper',),
         ('hive_metastore', 'Hive Metastore Thrift',),
         ('hiveserver2', 'Hive Server 2 Thrift',),
@@ -142,7 +143,42 @@ class Connection(Base, LoggingMixin):
             if uri_parts.password else uri_parts.password
         self.port = uri_parts.port
         if uri_parts.query:
-            self.extra = json.dumps(dict(parse_qsl(uri_parts.query)))
+            self.extra = json.dumps(dict(parse_qsl(uri_parts.query, keep_blank_values=True)))
+
+    def get_uri(self):
+        uri = '{}://'.format(str(self.conn_type).lower().replace('_', '-'))
+
+        authority_block = ''
+        if self.login is not None:
+            authority_block += quote(self.login, safe='')
+
+        if self.password is not None:
+            authority_block += ':' + quote(self.password, safe='')
+
+        if authority_block != '':
+            authority_block += '@'
+
+            uri += authority_block
+
+        host_block = ''
+        if self.host:
+            host_block += quote(self.host, safe='')
+
+        if self.port:
+            if host_block != '':
+                host_block += ':{}'.format(self.port)
+            else:
+                host_block += '@:{}'.format(self.port)
+
+        if self.schema:
+            host_block += '/{}'.format(quote(self.schema, safe=''))
+
+        uri += host_block
+
+        if self.extra_dejson:
+            uri += '?{}'.format(urlencode(self.extra_dejson))
+
+        return uri
 
     def get_password(self):
         if self._password and self.is_encrypted:
@@ -208,6 +244,9 @@ class Connection(Base, LoggingMixin):
         elif self.conn_type == 'postgres':
             from airflow.hooks.postgres_hook import PostgresHook
             return PostgresHook(postgres_conn_id=self.conn_id)
+        elif self.conn_type == 'pig_cli':
+            from airflow.hooks.pig_hook import PigCliHook
+            return PigCliHook(pig_cli_conn_id=self.conn_id)
         elif self.conn_type == 'hive_cli':
             from airflow.hooks.hive_hooks import HiveCliHook
             return HiveCliHook(hive_cli_conn_id=self.conn_id)
@@ -269,6 +308,17 @@ class Connection(Base, LoggingMixin):
 
     def __repr__(self):
         return self.conn_id
+
+    def log_info(self):
+        return ("id: {}. Host: {}, Port: {}, Schema: {}, "
+                "Login: {}, Password: {}, extra: {}".
+                format(self.conn_id,
+                       self.host,
+                       self.port,
+                       self.schema,
+                       self.login,
+                       "XXXXXXXX" if self.password else None,
+                       "XXXXXXXX" if self.extra_dejson else None))
 
     def debug_info(self):
         return ("id: {}. Host: {}, Port: {}, Schema: {}, "

@@ -20,7 +20,7 @@
 import unittest
 from mock import Mock
 
-from airflow import DAG, configuration, settings
+from airflow import DAG, settings
 from airflow.exceptions import (AirflowSensorTimeout, AirflowException,
                                 AirflowRescheduleException)
 from airflow.models import DagRun, TaskInstance, TaskReschedule
@@ -33,8 +33,6 @@ from airflow.utils.timezone import datetime
 from datetime import timedelta
 from time import sleep
 from freezegun import freeze_time
-
-configuration.load_test_config()
 
 DEFAULT_DATE = datetime(2015, 1, 1)
 TEST_DAG_ID = 'unit_test_dag'
@@ -53,7 +51,6 @@ class DummySensor(BaseSensorOperator):
 
 class BaseSensorTest(unittest.TestCase):
     def setUp(self):
-        configuration.load_test_config()
         args = {
             'owner': 'airflow',
             'start_date': DEFAULT_DATE
@@ -366,10 +363,15 @@ class BaseSensorTest(unittest.TestCase):
             if ti.task_id == DUMMY_OP:
                 self.assertEqual(ti.state, State.NONE)
 
-    def test_should_include_ready_to_reschedule_dep(self):
+    def test_should_include_ready_to_reschedule_dep_in_reschedule_mode(self):
+        sensor = self._make_sensor(True, mode='reschedule')
+        deps = sensor.deps
+        self.assertIn(ReadyToRescheduleDep(), deps)
+
+    def test_should_not_include_ready_to_reschedule_dep_in_poke_mode(self):
         sensor = self._make_sensor(True)
         deps = sensor.deps
-        self.assertTrue(ReadyToRescheduleDep() in deps)
+        self.assertNotIn(ReadyToRescheduleDep(), deps)
 
     def test_invalid_mode(self):
         with self.assertRaises(AirflowException):

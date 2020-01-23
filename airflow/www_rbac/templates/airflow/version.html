@@ -21,14 +21,12 @@
 {% extends "airflow/master.html" %}
 
 {% block content %}
-{{ super() }}
-<h2>{{ title }}</h2>
-{% set version_label = 'Version' %}
-{% if airflow_version %}
-<h4>{{ version_label }} : {{ airflow_version }}</a></h4>
-{% else %}
-<h4>{{ version_label }} : Not Available</h4>
-{% endif %}
-<hr>
-
+    {{ super() }}
+    <h2>{{ title }}</h2>
+  {% set version_label = 'Version' %}
+    {% if airflow_version %}
+        <h4>{{ version_label }} : {{ airflow_version }}</a></h4>
+    {% else %}
+        <h4>{{ version_label }} : Not Available</h4>
+    {% endif %}
 {% endblock %}
