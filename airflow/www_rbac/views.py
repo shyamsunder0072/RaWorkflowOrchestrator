@@ -2500,6 +2500,7 @@ class KeyTabView(AirflowBaseView):
     @has_access
     @action_logging
     def update_keytab(self):
+        # NOTE: refactor this method.
         # title = "KeyTab"
         from airflow.configuration import AIRFLOW_HOME
         add_to_dir = AIRFLOW_HOME + '/keytab'
@@ -2571,10 +2572,7 @@ class KeyTabView(AirflowBaseView):
                                 file_data[file_name] = temp_dict
                 len_keytab = len(file_data)
 
-                return self.render_template('airflow/keytab.html',
-                                            file_data=file_data,
-                                            len_keytab=len_keytab,
-                                            Files=all_files)
+                return redirect(url_for('KeyTabView.update_keytab'))
             except Exception:
                 print("Sorry ! No file to delete")
 
@@ -2601,7 +2599,6 @@ class KeyTabView(AirflowBaseView):
             file_name = AIRFLOW_HOME + '/keytab/keytab.conf'
             with open(file_name, 'w') as configfile:
                 config.write(configfile)
-            newargs = collections.OrderedDict(config.items('arguments'))
 
             conf_path = AIRFLOW_HOME + '/couture-spark.conf'
             config.read(filenames=conf_path)
@@ -2610,14 +2607,9 @@ class KeyTabView(AirflowBaseView):
             with open(conf_path, 'w') as configfile:
                 config.write(configfile)
 
-            return self.render_template('airflow/keytab.html',
-                                        file_data=file_data,
-                                        len_keytab=len_keytab,
-                                        Arguments=newargs,
-                                        Files=all_files)
+            return redirect(url_for('KeyTabView.update_keytab'))
 
         else:
-            # calling get_details without any extension
             file_data = self.get_details(add_to_dir, ".keytab")
             len_keytab = len(file_data)
             all_files = []
@@ -2632,11 +2624,12 @@ class KeyTabView(AirflowBaseView):
                                         Files=all_files)
 
     @expose("/keytab_download/<string:filename>", methods=['GET', 'POST'])
+    @has_access
     def download(self, filename):  # for downloading the file passed in the filename
         from airflow.configuration import AIRFLOW_HOME
         add_to_dir = AIRFLOW_HOME + '/keytab'
         path_file = os.path.join(add_to_dir, filename)
-        return send_file(path_file, as_attachment=True)
+        return send_file(path_file, as_attachment=True, conditional=True)
 
 
 class JupyterNotebookView(AirflowBaseView):
@@ -2650,6 +2643,7 @@ class JupyterNotebookView(AirflowBaseView):
 class CodeArtifactView(AirflowBaseView):
     @expose('/code_artifact', methods=['GET', 'POST'])
     @action_logging
+    @has_access
     def update_spark_file(self):
         title = "Code Artifact"
         from airflow.configuration import AIRFLOW_HOME
@@ -2676,13 +2670,7 @@ class CodeArtifactView(AirflowBaseView):
                                 size = AirflowBaseView.convert_size(size)
                                 temp_dict = {'time': modificationTime.split(' ', 1)[1], 'size': size}
                                 file_data[file_name] = temp_dict
-                len_jar = AirflowBaseView.get_len_jar(file_data)
-                len_py = AirflowBaseView.get_len_py(file_data)
-                return self.render_template('airflow/code_artifact.html',
-                                            title=title,
-                                            len_jar=len_jar,
-                                            len_py=len_py,
-                                            file_data=file_data)
+                return redirect(url_for('CodeArtifactView.update_spark_file'))
             except Exception:
                 print("Sorry ! No file in spark for delete")
 
@@ -2703,18 +2691,8 @@ class CodeArtifactView(AirflowBaseView):
                         flash('Supported format for code artifacts are .jar, .py or .r!!', "error")
             except Exception:
                 print("No file selected!")
+            return redirect(url_for('CodeArtifactView.update_spark_file'))
 
-            file_data = {}
-            # calling get_details without any extension
-            file_data = self.get_details(add_to_dir, "")
-            len_jar = AirflowBaseView.get_len_jar(file_data)
-            len_py = AirflowBaseView.get_len_py(file_data)
-
-            return self.render_template('airflow/code_artifact.html',
-                                        title=title,
-                                        len_jar=len_jar,
-                                        len_py=len_py,
-                                        file_data=file_data)
         else:
             file_data = {}
             # calling get_details without any extension
@@ -2729,11 +2707,12 @@ class CodeArtifactView(AirflowBaseView):
                                         file_data=file_data)
 
     @expose("/artifact_download/<string:filename>", methods=['GET', 'POST'])
+    @has_access
     def download(self, filename):        # for downloading the file passed in the filename
         from airflow.configuration import AIRFLOW_HOME
         add_to_dir = AIRFLOW_HOME + '/../code'
         path_file = os.path.join(add_to_dir, filename)
-        return send_file(path_file, as_attachment=True)
+        return send_file(path_file, as_attachment=True, conditional=True)
 
 
 class AddDagView(AirflowBaseView):
