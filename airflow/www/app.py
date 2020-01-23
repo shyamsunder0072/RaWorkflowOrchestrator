@@ -25,12 +25,12 @@ from flask_admin import Admin, base
 from flask_caching import Cache
 from flask_wtf.csrf import CSRFProtect
 from six.moves.urllib.parse import urlparse
-from werkzeug.wsgi import DispatcherMiddleware
-from werkzeug.contrib.fixers import ProxyFix
+from werkzeug.middleware.proxy_fix import ProxyFix
+from werkzeug.middleware.dispatcher import DispatcherMiddleware
 
 import airflow
-from airflow import configuration as conf
-from airflow import models, LoggingMixin
+from airflow import models, version, LoggingMixin
+from airflow.configuration import conf
 from airflow.models.connection import Connection
 from airflow.settings import Session
 
@@ -38,7 +38,6 @@ from airflow.www.blueprints import routes
 from airflow.logging_config import configure_logging
 from airflow import jobs
 from airflow import settings
-from airflow import configuration
 from airflow.utils.net import get_hostname
 
 csrf = CSRFProtect()
@@ -46,10 +45,18 @@ csrf = CSRFProtect()
 
 def create_app(config=None, testing=False):
     app = Flask(__name__)
-    if configuration.conf.getboolean('webserver', 'ENABLE_PROXY_FIX'):
-        app.wsgi_app = ProxyFix(app.wsgi_app)
-    app.secret_key = configuration.conf.get('webserver', 'SECRET_KEY')
-    app.config['LOGIN_DISABLED'] = not configuration.conf.getboolean(
+    if conf.getboolean('webserver', 'ENABLE_PROXY_FIX'):
+        app.wsgi_app = ProxyFix(
+            app.wsgi_app,
+            num_proxies=conf.get("webserver", "PROXY_FIX_NUM_PROXIES", fallback=None),
+            x_for=conf.get("webserver", "PROXY_FIX_X_FOR", fallback=1),
+            x_proto=conf.get("webserver", "PROXY_FIX_X_PROTO", fallback=1),
+            x_host=conf.get("webserver", "PROXY_FIX_X_HOST", fallback=1),
+            x_port=conf.get("webserver", "PROXY_FIX_X_PORT", fallback=1),
+            x_prefix=conf.get("webserver", "PROXY_FIX_X_PREFIX", fallback=1)
+        )
+    app.secret_key = conf.get('webserver', 'SECRET_KEY')
+    app.config['LOGIN_DISABLED'] = not conf.getboolean(
         'webserver', 'AUTHENTICATE')
 
     app.config['SESSION_COOKIE_HTTPONLY'] = True
@@ -64,11 +71,11 @@ def create_app(config=None, testing=False):
     app.config['TESTING'] = testing
 
     airflow.load_login()
-    airflow.login.login_manager.init_app(app)
+    airflow.login.LOGIN_MANAGER.init_app(app)
 
     from airflow import api
     api.load_auth()
-    api.api_auth.init_app(app)
+    api.API_AUTH.api_auth.init_app(app)
 
     # flake8: noqa: F841
     cache = Cache(app=app, config={'CACHE_TYPE': 'filesystem', 'CACHE_DIR': '/tmp'})
@@ -153,7 +160,7 @@ def create_app(config=None, testing=False):
         def jinja_globals():
             return {
                 'hostname': get_hostname(),
-                'navbar_color': configuration.get('webserver', 'NAVBAR_COLOR'),
+                'navbar_color': conf.get('webserver', 'NAVBAR_COLOR'),
             }
 
         @app.teardown_appcontext
@@ -174,7 +181,7 @@ def root_app(env, resp):
 def cached_app(config=None, testing=False):
     global app
     if not app:
-        base_url = urlparse(configuration.conf.get('webserver', 'base_url'))[2]
+        base_url = urlparse(conf.get('webserver', 'base_url'))[2]
         if not base_url or base_url == '/':
             base_url = ""
 

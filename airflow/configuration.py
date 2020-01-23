@@ -35,8 +35,8 @@ import subprocess
 import sys
 import warnings
 
-from backports.configparser import ConfigParser, _UNSET, NoOptionError
-from zope.deprecation import deprecated as _deprecated
+from backports.configparser import ConfigParser, _UNSET, NoOptionError, NoSectionError
+from zope.deprecation import deprecated
 
 from airflow.exceptions import AirflowConfigException
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -102,16 +102,16 @@ def _read_default_config_file(file_name):
     templates_dir = os.path.join(os.path.dirname(__file__), 'config_templates')
     file_path = os.path.join(templates_dir, file_name)
     if six.PY2:
-        with open(file_path) as f:
-            config = f.read()
-            return config.decode('utf-8')
+        with open(file_path) as file_handle:
+            config = file_handle.read()
+            return config.decode('utf-8'), file_path
     else:
-        with open(file_path, encoding='utf-8') as f:
-            return f.read()
+        with open(file_path, encoding='utf-8') as file_handle:
+            return file_handle.read(), file_path
 
 
-DEFAULT_CONFIG = _read_default_config_file('default_airflow.cfg')
-TEST_CONFIG = _read_default_config_file('default_test.cfg')
+DEFAULT_CONFIG, DEFAULT_CONFIG_FILE_PATH = _read_default_config_file('default_airflow.cfg')
+TEST_CONFIG, TEST_CONFIG_FILE_PATH = _read_default_config_file('default_test.cfg')
 
 
 class AirflowConfigParser(ConfigParser):
@@ -144,6 +144,16 @@ class AirflowConfigParser(ConfigParser):
             'ssl_active': 'celery_ssl_active',
             'ssl_cert': 'celery_ssl_cert',
             'ssl_key': 'celery_ssl_key',
+        },
+        'elasticsearch': {
+            'host': 'elasticsearch_host',
+            'log_id_template': 'elasticsearch_log_id_template',
+            'end_of_log_mark': 'elasticsearch_end_of_log_mark',
+            'frontend': 'elasticsearch_frontend',
+            'write_stdout': 'elasticsearch_write_stdout',
+            'json_format': 'elasticsearch_json_format',
+            'json_fields': 'elasticsearch_json_fields'
+
         }
     }
 
@@ -154,6 +164,12 @@ class AirflowConfigParser(ConfigParser):
             'task_runner': ('BashTaskRunner', 'StandardTaskRunner', '2.0'),
         },
     }
+
+    # This method transforms option names on every read, get, or set operation.
+    # This changes from the default behaviour of ConfigParser from lowercasing
+    # to instead be case-preserving
+    def optionxform(self, optionstr):
+        return optionstr
 
     def __init__(self, default_config=None, *args, **kwargs):
         super(AirflowConfigParser, self).__init__(*args, **kwargs)
@@ -221,6 +237,12 @@ class AirflowConfigParser(ConfigParser):
         env_var = self._env_var_name(section, key)
         if env_var in os.environ:
             return expand_env_var(os.environ[env_var])
+        # alternatively AIRFLOW__{SECTION}__{KEY}_CMD (for a command)
+        env_var_cmd = env_var + '_CMD'
+        if env_var_cmd in os.environ:
+            # if this is a valid command key...
+            if (section, key) in self.as_command_stdout:
+                return run_command(os.environ[env_var_cmd])
 
     def _get_cmd_option(self, section, key):
         fallback_key = key + '_cmd'
@@ -296,7 +318,7 @@ class AirflowConfigParser(ConfigParser):
         elif val in ('f', 'false', '0'):
             return False
         else:
-            raise AirflowConfigException(
+            raise ValueError(
                 'The value for configuration option "{}:{}" is not a '
                 'boolean (received "{}").'.format(section, key, val))
 
@@ -321,7 +343,7 @@ class AirflowConfigParser(ConfigParser):
             # UNSET to avoid logging a warning about missing values
             self.get(section, option, fallback=_UNSET)
             return True
-        except NoOptionError:
+        except (NoOptionError, NoSectionError):
             return False
 
     def remove_option(self, section, option, remove_default=True):
@@ -374,9 +396,11 @@ class AirflowConfigParser(ConfigParser):
         return _section
 
     def as_dict(
-            self, display_source=False, display_sensitive=False, raw=False):
+            self, display_source=False, display_sensitive=False, raw=False,
+            include_env=True, include_cmds=True):
         """
         Returns the current configuration as an OrderedDict of OrderedDicts.
+
         :param display_source: If False, the option value is returned. If True,
             a tuple of (option_value, source) is returned. Source is either
             'airflow.cfg', 'default', 'env var', or 'cmd'.
@@ -388,6 +412,13 @@ class AirflowConfigParser(ConfigParser):
         :param raw: Should the values be output as interpolated values, or the
             "raw" form that can be fed back in to ConfigParser
         :type raw: bool
+        :param include_env: Should the value of configuration from AIRFLOW__
+            environment variables be included or not
+        :type include_env: bool
+        :param include_cmds: Should the result of calling any *_cmd config be
+            set (True, default), or should the _cmd options be left as the
+            command to run (False)
+        :type include_cmds: bool
         """
         cfg = {}
         configs = [
@@ -404,33 +435,42 @@ class AirflowConfigParser(ConfigParser):
                     sect[k] = val
 
         # add env vars and overwrite because they have priority
-        for ev in [ev for ev in os.environ if ev.startswith('AIRFLOW__')]:
-            try:
-                _, section, key = ev.split('__')
-                opt = self._get_env_var_option(section, key)
-            except ValueError:
-                continue
-            if not display_sensitive and ev != 'AIRFLOW__CORE__UNIT_TEST_MODE':
-                opt = '< hidden >'
-            elif raw:
-                opt = opt.replace('%', '%%')
-            if display_source:
-                opt = (opt, 'env var')
-            cfg.setdefault(section.lower(), OrderedDict()).update(
-                {key.lower(): opt})
-
-        # add bash commands
-        for (section, key) in self.as_command_stdout:
-            opt = self._get_cmd_option(section, key)
-            if opt:
-                if not display_sensitive:
+        if include_env:
+            for ev in [ev for ev in os.environ if ev.startswith('AIRFLOW__')]:
+                try:
+                    _, section, key = ev.split('__', 2)
+                    opt = self._get_env_var_option(section, key)
+                except ValueError:
+                    continue
+                if not display_sensitive and ev != 'AIRFLOW__CORE__UNIT_TEST_MODE':
                     opt = '< hidden >'
-                if display_source:
-                    opt = (opt, 'cmd')
                 elif raw:
                     opt = opt.replace('%', '%%')
+                if display_source:
+                    opt = (opt, 'env var')
+
+                section = section.lower()
+                # if we lower key for kubernetes_environment_variables section,
+                # then we won't be able to set any Airflow environment
+                # variables. Airflow only parse environment variables starts
+                # with AIRFLOW_. Therefore, we need to make it a special case.
+                if section != 'kubernetes_environment_variables':
+                    key = key.lower()
                 cfg.setdefault(section, OrderedDict()).update({key: opt})
-                del cfg[section][key + '_cmd']
+
+        # add bash commands
+        if include_cmds:
+            for (section, key) in self.as_command_stdout:
+                opt = self._get_cmd_option(section, key)
+                if opt:
+                    if not display_sensitive:
+                        opt = '< hidden >'
+                    if display_source:
+                        opt = (opt, 'cmd')
+                    elif raw:
+                        opt = opt.replace('%', '%%')
+                    cfg.setdefault(section, OrderedDict()).update({key: opt})
+                    del cfg[section][key + '_cmd']
 
         return cfg
 
@@ -441,10 +481,13 @@ class AirflowConfigParser(ConfigParser):
         Note: this is not reversible.
         """
         # override any custom settings with defaults
+        log.info("Overriding settings with defaults from %s", DEFAULT_CONFIG_FILE_PATH)
         self.read_string(parameterized_config(DEFAULT_CONFIG))
         # then read test config
+        log.info("Reading default test configuration from %s", TEST_CONFIG_FILE_PATH)
         self.read_string(parameterized_config(TEST_CONFIG))
         # then read any "custom" test settings
+        log.info("Reading test configuration from %s", TEST_CONFIG_FILE)
         self.read(TEST_CONFIG_FILE)
 
     def _warn_deprecate(self, section, key, deprecated_name):
@@ -515,13 +558,20 @@ def parameterized_config(template):
     """
     Generates a configuration from the provided template + variables defined in
     current scope
+
     :param template: a config content templated with {{variables}}
     """
     all_vars = {k: v for d in [globals(), locals()] for k, v in d.items()}
     return template.format(**all_vars)
 
 
-TEST_CONFIG_FILE = AIRFLOW_HOME + '/unittests.cfg'
+def get_airflow_test_config(airflow_home):
+    if 'AIRFLOW_TEST_CONFIG' not in os.environ:
+        return os.path.join(airflow_home, 'unittests.cfg')
+    return expand_env_var(os.environ['AIRFLOW_TEST_CONFIG'])
+
+
+TEST_CONFIG_FILE = get_airflow_test_config(AIRFLOW_HOME)
 
 # only generate a Fernet key if we need to create a new config file
 if not os.path.isfile(TEST_CONFIG_FILE) or not os.path.isfile(AIRFLOW_CONFIG):
@@ -591,12 +641,11 @@ if _old_config_file != AIRFLOW_CONFIG and os.path.isfile(_old_config_file):
 WEBSERVER_CONFIG = AIRFLOW_HOME + '/webserver_config.py'
 
 if conf.getboolean('webserver', 'rbac'):
-    DEFAULT_WEBSERVER_CONFIG = _read_default_config_file('default_webserver_config.py')
-
     if not os.path.isfile(WEBSERVER_CONFIG):
         log.info('Creating new FAB webserver config file in: %s', WEBSERVER_CONFIG)
-        with open(WEBSERVER_CONFIG, 'w') as f:
-            f.write(DEFAULT_WEBSERVER_CONFIG)
+        DEFAULT_WEBSERVER_CONFIG, _ = _read_default_config_file('default_webserver_config.py')
+        with open(WEBSERVER_CONFIG, 'w') as file:
+            file.write(DEFAULT_WEBSERVER_CONFIG)
 
 if conf.getboolean('core', 'unit_test_mode'):
     conf.load_test_config()
@@ -616,8 +665,8 @@ set = conf.set # noqa
 
 for func in [load_test_config, get, getboolean, getfloat, getint, has_option,
              remove_option, as_dict, set]:
-    _deprecated(
-        func,
+    deprecated(
+        func.__name__,
         "Accessing configuration method '{f.__name__}' directly from "
         "the configuration module is deprecated. Please access the "
         "configuration from the 'configuration.conf' object via "

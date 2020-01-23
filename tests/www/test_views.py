@@ -19,14 +19,15 @@
 
 import io
 import copy
+import json
 import logging.config
-import mock
+import sys
+
 import os
 import shutil
 import tempfile
 import unittest
-import sys
-import json
+from tests.compat import mock
 
 from six.moves.urllib.parse import quote_plus
 from werkzeug.test import Client
@@ -34,14 +35,16 @@ from werkzeug.wrappers import BaseResponse
 
 
 import airflow
-from airflow import models, configuration
+from airflow import models
+from airflow.configuration import conf
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.settings import Session
 from airflow.utils.timezone import datetime
 from airflow.www import app as application
-from airflow import configuration as conf
+
+from tests.test_utils.config import conf_vars
 
 
 class TestChartModelView(unittest.TestCase):
@@ -62,7 +65,6 @@ class TestChartModelView(unittest.TestCase):
 
     def setUp(self):
         super(TestChartModelView, self).setUp()
-        configuration.load_test_config()
         app = application.create_app(testing=True)
         app.config['WTF_CSRF_METHODS'] = []
         self.app = app.test_client()
@@ -119,7 +121,6 @@ class TestVariableView(unittest.TestCase):
 
     def setUp(self):
         super(TestVariableView, self).setUp()
-        configuration.load_test_config()
         app = application.create_app(testing=True)
         app.config['WTF_CSRF_METHODS'] = []
         self.app = app.test_client()
@@ -191,7 +192,6 @@ class TestKnownEventView(unittest.TestCase):
 
     def setUp(self):
         super(TestKnownEventView, self).setUp()
-        configuration.load_test_config()
         app = application.create_app(testing=True)
         app.config['WTF_CSRF_METHODS'] = []
         self.app = app.test_client()
@@ -256,7 +256,6 @@ class TestPoolModelView(unittest.TestCase):
 
     def setUp(self):
         super(TestPoolModelView, self).setUp()
-        configuration.load_test_config()
         app = application.create_app(testing=True)
         app.config['WTF_CSRF_METHODS'] = []
         self.app = app.test_client()
@@ -332,9 +331,10 @@ class TestLogView(unittest.TestCase):
 
     def setUp(self):
         super(TestLogView, self).setUp()
+        # Make sure that the configure_logging is not cached
+        self.old_modules = dict(sys.modules)
 
         # Create a custom logging configuration
-        configuration.load_test_config()
         logging_config = copy.deepcopy(DEFAULT_LOGGING_CONFIG)
         current_dir = os.path.dirname(os.path.abspath(__file__))
         logging_config['handlers']['task']['base_log_folder'] = os.path.normpath(
@@ -372,6 +372,11 @@ class TestLogView(unittest.TestCase):
         self.session.commit()
         self.session.close()
 
+        # Remove any new modules imported during the test run. This lets us
+        # import the same source files for more than one test.
+        for m in [m for m in sys.modules if m not in self.old_modules]:
+            del sys.modules[m]
+
         sys.path.remove(self.settings_folder)
         shutil.rmtree(self.settings_folder)
         conf.set('core', 'logging_config_class', '')
@@ -408,6 +413,29 @@ class TestLogView(unittest.TestCase):
         self.assertTrue(expected_filename in content_disposition)
         self.assertEqual(200, response.status_code)
         self.assertIn('Log for testing.', response.data.decode('utf-8'))
+
+    def test_get_logs_with_metadata_as_download_large_file(self):
+        with mock.patch("airflow.utils.log.file_task_handler.FileTaskHandler.read") as read_mock:
+            first_return = (['1st line'], [{}])
+            second_return = (['2nd line'], [{'end_of_log': False}])
+            third_return = (['3rd line'], [{'end_of_log': True}])
+            fourth_return = (['should never be read'], [{'end_of_log': True}])
+            read_mock.side_effect = [first_return, second_return, third_return, fourth_return]
+            url_template = "/admin/airflow/get_logs_with_metadata?dag_id={}&" \
+                           "task_id={}&execution_date={}&" \
+                           "try_number={}&metadata={}&format=file"
+            try_number = 1
+            url = url_template.format(self.DAG_ID,
+                                      self.TASK_ID,
+                                      quote_plus(self.DEFAULT_DATE.isoformat()),
+                                      try_number,
+                                      json.dumps({}))
+            response = self.app.get(url)
+
+            self.assertIn('1st line', response.data.decode('utf-8'))
+            self.assertIn('2nd line', response.data.decode('utf-8'))
+            self.assertIn('3rd line', response.data.decode('utf-8'))
+            self.assertNotIn('should never be read', response.data.decode('utf-8'))
 
     def test_get_logs_with_metadata(self):
         url_template = "/admin/airflow/get_logs_with_metadata?dag_id={}&" \
@@ -458,7 +486,6 @@ class TestVarImportView(unittest.TestCase):
 
     def setUp(self):
         super(TestVarImportView, self).setUp()
-        configuration.load_test_config()
         app = application.create_app(testing=True)
         app.config['WTF_CSRF_METHODS'] = []
         self.app = app.test_client()
@@ -521,10 +548,10 @@ class TestVarImportView(unittest.TestCase):
         self.assertIn('dict_key', db_dict)
         self.assertEqual('str_value', db_dict['str_key'])
         self.assertEqual('60', db_dict['int_key'])
-        self.assertEqual('[1, 2]', db_dict['list_key'])
+        self.assertEqual(u'[\n  1,\n  2\n]', db_dict['list_key'])
 
-        case_a_dict = '{"k_a": 2, "k_b": 3}'
-        case_b_dict = '{"k_b": 3, "k_a": 2}'
+        case_a_dict = u'{\n  "k_a": 2,\n  "k_b": 3\n}'
+        case_b_dict = u'{\n  "k_b": 3,\n  "k_a": 2\n}'
         try:
             self.assertEqual(case_a_dict, db_dict['dict_key'])
         except AssertionError:
@@ -534,12 +561,11 @@ class TestVarImportView(unittest.TestCase):
 class TestMountPoint(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        configuration.load_test_config()
-        configuration.conf.set("webserver", "base_url", "http://localhost:8080/test")
         # Clear cached app to remount base_url forcefully
         application.app = None
-        app = application.cached_app(config={'WTF_CSRF_ENABLED': False}, testing=True)
-        cls.client = Client(app, BaseResponse)
+        with conf_vars({("webserver", "base_url"): "http://localhost:8080/test"}):
+            app = application.cached_app(config={'WTF_CSRF_ENABLED': False}, testing=True)
+            cls.client = Client(app, BaseResponse)
 
     @classmethod
     def tearDownClass(cls):
@@ -572,7 +598,6 @@ class ViewWithDateTimeAndNumRunsAndDagRunsFormTester:
         self.endpoint = endpoint
 
     def setUp(self):
-        configuration.load_test_config()
         app = application.create_app(testing=True)
         app.config['WTF_CSRF_METHODS'] = []
         self.app = app.test_client()
@@ -649,7 +674,7 @@ class ViewWithDateTimeAndNumRunsAndDagRunsFormTester:
         data = response.data.decode('utf-8')
         self.assertBaseDateAndNumRuns(
             self.runs[1].execution_date,
-            configuration.getint('webserver', 'default_dag_run_display_number'),
+            conf.getint('webserver', 'default_dag_run_display_number'),
             data)
         self.assertRunIsNotInDropdown(self.runs[0], data)
         self.assertRunIsSelected(self.runs[1], data)
@@ -804,7 +829,6 @@ class TestTaskInstanceView(unittest.TestCase):
 
     def setUp(self):
         super(TestTaskInstanceView, self).setUp()
-        configuration.load_test_config()
         app = application.create_app(testing=True)
         app.config['WTF_CSRF_METHODS'] = []
         self.app = app.test_client()
@@ -820,7 +844,6 @@ class TestTaskInstanceView(unittest.TestCase):
 class TestDeleteDag(unittest.TestCase):
 
     def setUp(self):
-        conf.load_test_config()
         app = application.create_app(testing=True)
         app.config['WTF_CSRF_METHODS'] = []
         self.app = app.test_client()
@@ -853,7 +876,6 @@ class TestDeleteDag(unittest.TestCase):
 class TestTriggerDag(unittest.TestCase):
 
     def setUp(self):
-        conf.load_test_config()
         app = application.create_app(testing=True)
         app.config['WTF_CSRF_METHODS'] = []
         self.app = app.test_client()
@@ -962,7 +984,7 @@ class TestConnectionModelView(unittest.TestCase):
 
     def tearDown(self):
         self.session.query(models.Connection) \
-            .filter(models.Connection.conn_id == self.CONN_ID).delete()
+                    .filter(models.Connection.conn_id == self.CONN_ID).delete()
         self.session.commit()
         self.session.close()
         super(TestConnectionModelView, self).tearDown()
@@ -991,6 +1013,107 @@ class TestConnectionModelView(unittest.TestCase):
             self.session.query(models.Connection).filter(models.Connection.conn_id == self.CONN_ID).count(),
             0
         )
+
+    def test_create_extras(self):
+        data = self.CONN.copy()
+        data.update({
+            "conn_type": "google_cloud_platform",
+            "extra__google_cloud_platform__num_retries": "2",
+        })
+        response = self.app.post(
+            self.CREATE_ENDPOINT,
+            data=data,
+            follow_redirects=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        conn = self.session.query(models.Connection).filter(models.Connection.conn_id == self.CONN_ID).one()
+
+        self.assertEqual(conn.extra_dejson['extra__google_cloud_platform__num_retries'], 2)
+
+    def test_create_extras_empty_field(self):
+        data = self.CONN.copy()
+        data.update({
+            "conn_type": "google_cloud_platform",
+            "extra__google_cloud_platform__num_retries": "",
+        })
+        response = self.app.post(
+            self.CREATE_ENDPOINT,
+            data=data,
+            follow_redirects=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        conn = self.session.query(models.Connection).filter(models.Connection.conn_id == self.CONN_ID).one()
+
+        self.assertIsNone(conn.extra_dejson['extra__google_cloud_platform__num_retries'])
+
+
+class TestDagModelView(unittest.TestCase):
+    EDIT_URL = '/admin/dagmodel/edit/?id=example_bash_operator'
+
+    @classmethod
+    def setUpClass(cls):
+        super(TestDagModelView, cls).setUpClass()
+        app = application.create_app(testing=True)
+        app.config['WTF_CSRF_METHODS'] = []
+        cls.app = app.test_client()
+
+    def test_edit_disabled_fields(self):
+        response = self.app.post(
+            self.EDIT_URL,
+            data={
+                "fileloc": "/etc/passwd",
+                "description": "Set in tests",
+            },
+            follow_redirects=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        session = Session()
+        DM = models.DagModel
+        dm = session.query(DM).filter(DM.dag_id == 'example_bash_operator').one()
+        session.close()
+
+        self.assertEqual(dm.description, "Set in tests")
+        self.assertNotEqual(dm.fileloc, "/etc/passwd", "Disabled fields shouldn't be updated")
+
+
+class TestTaskStats(unittest.TestCase):
+
+    def setUp(self):
+        app = application.create_app(testing=True)
+        app.config['WTF_CSRF_METHODS'] = []
+        self.app = app.test_client()
+
+        models.DagBag().get_dag("example_bash_operator").sync_to_db()
+        models.DagBag().get_dag("example_subdag_operator").sync_to_db()
+        models.DagBag().get_dag('example_xcom').sync_to_db()
+
+    def test_all_dags(self):
+        resp = self.app.get('/admin/airflow/task_stats', follow_redirects=True)
+        self.assertEqual(resp.status_code, 200)
+        stats = json.loads(resp.data.decode('utf-8'))
+        self.assertIn('example_bash_operator', stats)
+        self.assertIn('example_xcom', stats)
+
+    def test_selected_dags(self):
+        resp = self.app.get(
+            '/admin/airflow/task_stats?dag_ids=example_xcom',
+            follow_redirects=True)
+
+        self.assertEqual(resp.status_code, 200)
+        stats = json.loads(resp.data.decode('utf-8'))
+        self.assertNotIn('example_bash_operator', stats)
+        self.assertIn('example_xcom', stats)
+
+        # Multiple
+        resp = self.app.get(
+            '/admin/airflow/task_stats?dag_ids=example_xcom,example_bash_operator',
+            follow_redirects=True)
+
+        self.assertEqual(resp.status_code, 200)
+        stats = json.loads(resp.data.decode('utf-8'))
+        self.assertIn('example_bash_operator', stats)
+        self.assertIn('example_xcom', stats)
+        self.assertNotIn('example_subdag_operator', stats)
 
 
 if __name__ == '__main__':

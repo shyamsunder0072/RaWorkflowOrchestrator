@@ -76,6 +76,8 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
     :type keytab: str
     :param principal: The name of the kerberos principal used for keytab
     :type principal: str
+    :param proxy_user: User to impersonate when submitting the application
+    :type proxy_user: str
     :param name: Name of the job (default airflow-spark)
     :type name: str
     :param num_executors: Number of executors to launch
@@ -109,12 +111,13 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                  driver_memory=None,
                  keytab=None,
                  principal=None,
+                 proxy_user=None,
                  name='default-name',
                  num_executors=None,
                  application_args=None,
                  env_vars=None,
                  verbose=False,
-                 spark_binary="spark-submit"):
+                 spark_binary=None):
         self._conf = conf
         self._conn_id = conn_id
         self._files = files
@@ -132,6 +135,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         self._driver_memory = driver_memory
         self._keytab = keytab
         self._principal = principal
+        self._proxy_user = proxy_user
         self._name = name
         self._num_executors = num_executors
         self._application_args = application_args
@@ -170,8 +174,8 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                      'queue': None,
                      'deploy_mode': None,
                      'spark_home': None,
-                     'spark_binary': self._spark_binary,
-                     'namespace': 'default'}
+                     'spark_binary': self._spark_binary or "spark-submit",
+                     'namespace': None}
 
         try:
             # Master can be local, yarn, spark://HOST:PORT, mesos://HOST:PORT and
@@ -187,10 +191,11 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             conn_data['queue'] = extra.get('queue', None)
             conn_data['deploy_mode'] = extra.get('deploy-mode', None)
             conn_data['spark_home'] = extra.get('spark-home', None)
-            conn_data['spark_binary'] = extra.get('spark-binary', "spark-submit")
-            conn_data['namespace'] = extra.get('namespace', 'default')
+            conn_data['spark_binary'] = self._spark_binary or  \
+                extra.get('spark-binary', "spark-submit")
+            conn_data['namespace'] = extra.get('namespace')
         except AirflowException:
-            self.log.debug(
+            self.log.info(
                 "Could not load connection string %s, defaulting to %s",
                 self._conn_id, conn_data['master']
             )
@@ -215,13 +220,14 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
     def _build_spark_submit_command(self, application):
         """
         Construct the spark-submit command to execute.
+
         :param application: command to append to the spark-submit command
         :type application: str
         :return: full command to be executed
         """
         connection_cmd = self._get_spark_binary_path()
 
-        # The url ot the spark master
+        # The url of the spark master
         connection_cmd += ["--master", self._connection['master']]
 
         if self._conf:
@@ -230,6 +236,8 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         if self._env_vars and (self._is_kubernetes or self._is_yarn):
             if self._is_yarn:
                 tmpl = "spark.yarn.appMasterEnv.{}={}"
+                # Allow dynamic setting of hadoop/yarn configuration environments
+                self._env = self._env_vars
             else:
                 tmpl = "spark.kubernetes.driverEnv.{}={}"
             for key in self._env_vars:
@@ -241,7 +249,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         elif self._env_vars and self._connection['deploy_mode'] == "cluster":
             raise AirflowException(
                 "SparkSubmitHook env_vars is not supported in standalone-cluster mode.")
-        if self._is_kubernetes:
+        if self._is_kubernetes and self._connection['namespace']:
             connection_cmd += ["--conf", "spark.kubernetes.namespace={}".format(
                 self._connection['namespace'])]
         if self._files:
@@ -274,6 +282,8 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             connection_cmd += ["--keytab", self._keytab]
         if self._principal:
             connection_cmd += ["--principal", self._principal]
+        if self._proxy_user:
+            connection_cmd += ["--proxy-user", self._proxy_user]
         if self._name:
             connection_cmd += ["--name", self._name]
         if self._java_class:
@@ -423,10 +433,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                     self.log.info("identified spark driver id: {}"
                                   .format(self._driver_id))
 
-            else:
-                self.log.info(line)
-
-            self.log.debug("spark submit log: {}".format(line))
+            self.log.info(line)
 
     def _process_spark_status_log(self, itr):
         """
@@ -574,11 +581,12 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
 
                 # Currently only instantiate Kubernetes client for killing a spark pod.
                 try:
+                    import kubernetes
                     client = kube_client.get_kube_client()
                     api_response = client.delete_namespaced_pod(
                         self._kubernetes_driver_pod,
                         self._connection['namespace'],
-                        body=client.V1DeleteOptions(),
+                        body=kubernetes.client.V1DeleteOptions(),
                         pretty=True)
 
                     self.log.info("Spark on K8s killed with response: %s", api_response)

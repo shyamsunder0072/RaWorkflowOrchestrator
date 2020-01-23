@@ -26,6 +26,8 @@ from __future__ import absolute_import
 import logging
 from typing import List, Callable
 
+from airflow.utils.db import create_session
+
 
 def register_pre_exec_callback(action_logger):
     """
@@ -33,6 +35,7 @@ def register_pre_exec_callback(action_logger):
     This function callback is expected to be called with keyword args.
     For more about the arguments that is being passed to the callback,
     refer to airflow.utils.cli.action_logging()
+
     :param action_logger: An action logger function
     :return: None
     """
@@ -89,16 +92,18 @@ def default_action_log(log, **_):
     """
     A default action logger callback that behave same as www.utils.action_logging
     which uses global session and pushes log ORM object.
+
     :param log: An log ORM instance
     :param **_: other keyword arguments that is not being used by this function
     :return: None
-    """
-    """
-    Disabled CLI logging as of now
 
-    with create_session() as session:
-        session.add(log)
+    For workflow, disabled CLI logging as of now
     """
+    try:
+        with create_session() as session:
+            session.add(log)
+    except Exception as error:
+        logging.warning("Failed to log action with %s", error)
 
 
 __pre_exec_callbacks = []  # type: List[Callable]

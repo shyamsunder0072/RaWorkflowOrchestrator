@@ -20,7 +20,7 @@ import os
 
 from cached_property import cached_property
 
-from airflow import configuration
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.log.file_task_handler import FileTaskHandler
@@ -43,7 +43,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
 
     @cached_property
     def hook(self):
-        remote_conn_id = configuration.conf.get('core', 'REMOTE_LOG_CONN_ID')
+        remote_conn_id = conf.get('core', 'REMOTE_LOG_CONN_ID')
         try:
             from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
             return GoogleCloudStorageHook(
@@ -52,7 +52,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         except Exception as e:
             self.log.error(
                 'Could not create a GoogleCloudStorageHook with connection id '
-                '"%s". %s\n\nPlease make sure that airflow[gcp_api] is installed '
+                '"%s". %s\n\nPlease make sure that airflow[gcp] is installed '
                 'and the GCS connection exists.', remote_conn_id, str(e)
             )
 
@@ -95,6 +95,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         """
         Read logs of given task instance and try_number from GCS.
         If failed, read the log from task instance host machine.
+
         :param ti: task instance object
         :param try_number: task instance try_number to read logs from
         :param metadata: log metadata,
@@ -122,6 +123,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
     def gcs_read(self, remote_log_location):
         """
         Returns the log found at the remote_log_location.
+
         :param remote_log_location: the log's location in remote storage
         :type remote_log_location: str (path)
         """
@@ -132,6 +134,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         """
         Writes the log to the remote_log_location. Fails silently if no hook
         was created.
+
         :param log: the log to write to the remote_log_location
         :type log: str
         :param remote_log_location: the log's location in remote storage
