@@ -51,7 +51,7 @@ from flask_babel import lazy_gettext
 import lazy_object_proxy
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
-from sqlalchemy import func, or_, desc, and_, union_all
+from sqlalchemy import func, or_, desc, and_, union_all # noqa
 from wtforms import SelectField, validators
 
 import airflow
