@@ -55,7 +55,7 @@
 
     // Set edges
     edges_popover.forEach(function(edge) {
-      g_popover.setEdge(edge.u, edge.v)
+      g_popover.setEdge(edge.source_id, edge.target_id)
     });
 
     var render = dagreD3.render(),

@@ -1591,8 +1591,8 @@ class Airflow(AirflowBaseView):
         blur = conf.getboolean('webserver', 'demo_mode')
         dag = dagbag.get_dag(dag_id)
         if dag_id not in dagbag.dags:
-            flash('DAG "{0}" seems to be missing.'.format(dag_id), "error")
-            return redirect(url_for('Airflow.index'))
+            # flash('DAG "{0}" seems to be missing.'.format(dag_id), "error")
+            return make_response(('DAG not found!!', 200))
 
         root = request.args.get('root')
         if root:
@@ -1617,18 +1617,18 @@ class Airflow(AirflowBaseView):
                 }
             })
 
-        def get_upstream(task):
-            for t in task.upstream_list:
+        def get_downstream(task):
+            for t in task.downstream_list:
                 edge = {
-                    'u': t.task_id,
-                    'v': task.task_id,
+                    'source_id': task.task_id,
+                    'target_id': t.task_id,
                 }
                 if edge not in edges:
                     edges.append(edge)
-                    get_upstream(t)
+                    get_downstream(t)
 
         for t in dag.roots:
-            get_upstream(t)
+            get_downstream(t)
 
         dt_nr_dr_data = get_date_time_num_runs_dag_runs_form_data(request, session, dag)
         dt_nr_dr_data['arrange'] = arrange
@@ -1652,6 +1652,7 @@ class Airflow(AirflowBaseView):
             t.task_id: {
                 'dag_id': t.dag_id,
                 'task_type': t.task_type,
+                'extra_links': t.extra_links,
                 'description': t.description,
                 'run_dag_id': t.run_dag_id,
             }
@@ -2255,7 +2256,7 @@ class FileUploadBaseView(AirflowBaseView):
 
     # NOTE: You can update the below attributes when subclassing this view.
     # set template name while using this generic view.
-
+    default_view = 'list_view'
     template_name = 'airflow/file_upload_base.html'
     accepted_file_extensions = ()
     fs_path = None   # the path in filesystem where the files should be saved.
