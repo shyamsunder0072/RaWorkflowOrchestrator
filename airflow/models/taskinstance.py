@@ -176,6 +176,7 @@ class TaskInstance(Base, LoggingMixin):
         self.task_id = task.task_id
         self.task = task
         self._log = logging.getLogger("airflow.task")
+
         if task.description:
             self.description = task.description
         else:
@@ -863,11 +864,10 @@ class TaskInstance(Base, LoggingMixin):
                     "%s. State set to NONE.", self.try_number, self.max_tries + 1
                 )
                 self.log.warning(hr)
-            self.log.warning(hr)
-            self.queued_dttm = timezone.utcnow()
-            session.merge(self)
-            session.commit()
-            return False
+                self.queued_dttm = timezone.utcnow()
+                session.merge(self)
+                session.commit()
+                return False
 
         # print status message
         self.log.info(hr)

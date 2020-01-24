@@ -111,6 +111,8 @@
     // Below variables are being used in dag.js
     var tasks = {{ tasks|tojson|safe }};
     var task_instances = {{ task_instances|tojson|safe }};
+
+
     var getTaskInstanceURL = "{{ url_for('Airflow.task_instances') }}" +
       "?dag_id=" + encodeURIComponent(dag_id) + "&execution_date=" +
       encodeURIComponent(execution_date);

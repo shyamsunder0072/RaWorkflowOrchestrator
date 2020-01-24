@@ -165,7 +165,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
     }
 
     READ_DAG_PERMS = {
-    'can_dag_read',
+        'can_dag_read',
         'can_dag_read',
     }
 
