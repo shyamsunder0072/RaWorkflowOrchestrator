@@ -109,17 +109,17 @@ input[type=submit]:hover {
 {{ super() }}
 
 <div class="couture-container">
-  <form action="{{ url_for('HadoopConfView.hadoop_file_edit', filename = Filename) }}", method="post">
+  <form action="{{ url_for('HadoopConfView.edit_view', filename=Filename) }}" method="post">
     <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
     <h2>Configuration</h2>
     <div id="container_xml">
       {%for j in Configurations%}
       <div class="couture-row">
         <div class="couture-col-25">
-          <label for={{j}}  class="couture-label">{{j}}</label>
+          <label for="{{j}}"  class="couture-label">{{j}}</label>
         </div>
         <div class="couture-col-75">
-          <input id={{j}} name={{j}} type="text" value={{Configurations[j]}}>
+          <input id="{{j}}" name="{{j}}" type="text" value="{{Configurations[j]}}">
           <button onclick="javascript:myFunction_config('{{j}}')" class="couture-button-delete" title="Delete Configuration"><i class="glyphicon glyphicon-remove-circle" style="color:red" aria-hidden="true">
           </i></button>
         </div>
@@ -158,21 +158,35 @@ input[type=submit]:hover {
 {{ super() }}
 
 <script type="text/javascript">
-function add_feed_config()
-{
+  var globalValues = {
+    newConfigKeySN: 0
+  };
+  function add_feed_config() {
     var div1 = document.createElement('div');
-    div1.innerHTML = document.getElementById('newfield_for_xml').innerHTML;
-    document.getElementById('container_xml').appendChild(div1);
-}
-function myFunction_config(option)
-{
-  let del = confirm("Are you sure you want to delete?");
-  if(del) {
-    document.getElementById("for_delete_xml").value = option;
-    var div1 = document.createElement('div');
-    div1.innerHTML = document.getElementById('newfield_for_delete_xml').innerHTML;
+
+    // creating template here.
+    const template = '<div class="couture-row">'
+      + '<div class="couture-col-25">'
+      + '<input name="new-config-key-'+ globalValues.newConfigKeySN + '" type="text" value="" placeholder="Enter name" required>'
+      + '</div>'
+      + '<div class="couture-col-75">'
+      + '<input name="new-config-value-' + globalValues.newConfigKeySN + '" type="text" value="" placeholder="Enter value" required>'
+      + '</div>';
+    '</div>'
+
+    div1.innerHTML = template;
+    globalValues.newConfigKeySN += 1;
+    // div1.innerHTML = document.getElementById('newfield_for_xml').innerHTML;
     document.getElementById('container_xml').appendChild(div1);
   }
-}
+  function myFunction_config(option) {
+    let del = confirm("Are you sure you want to delete?");
+    if(del) {
+      document.getElementById("for_delete_xml").value = option;
+      var div1 = document.createElement('div');
+      div1.innerHTML = document.getElementById('newfield_for_delete_xml').innerHTML;
+      document.getElementById('container_xml').appendChild(div1);
+  }
+  }
 </script>
 {% endblock %}
