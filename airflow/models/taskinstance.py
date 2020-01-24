@@ -176,6 +176,7 @@ class TaskInstance(Base, LoggingMixin):
         self.task_id = task.task_id
         self.task = task
         self._log = logging.getLogger("airflow.task")
+        print("task.description:: ", task.description)
         if task.description:
             self.description = task.description
         else:

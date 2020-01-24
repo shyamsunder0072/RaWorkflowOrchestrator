@@ -1535,6 +1535,7 @@ class Airflow(AirflowBaseView):
         task_instances = {
             ti.task_id: alchemy_to_dict(ti)
             for ti in dag.get_task_instances(dttm, dttm, session=session)}
+
         tasks = {
             t.task_id: {
                 'dag_id': t.dag_id,
@@ -1544,6 +1545,8 @@ class Airflow(AirflowBaseView):
                 'run_dag_id': t.run_dag_id,
             }
             for t in dag.tasks}
+        for task in task_instances:
+            task_instances[task]['description'] = tasks[task]['description']
         if not tasks:
             flash("No tasks found", "error")
         session.commit()

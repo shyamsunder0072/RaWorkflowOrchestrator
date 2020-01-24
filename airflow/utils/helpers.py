@@ -79,6 +79,7 @@ def alchemy_to_dict(obj):
         if type(value) == datetime:
             value = value.isoformat()
         d[c.name] = value
+    print("WWWWW:", d)
     return d
 
 
