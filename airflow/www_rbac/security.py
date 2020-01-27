@@ -39,10 +39,12 @@ EXISTING_ROLES = {
     'Developer',
 }
 
+
 class CoutureSecurity(BaseSecurityManager):
     from airflow.www_rbac.index import CoutureAuthView, CoutureAuthLDAPView
     BaseSecurityManager.authdbview = CoutureAuthView
     BaseSecurityManager.authldapview = CoutureAuthLDAPView
+
 
 class AirflowSecurityManager(SecurityManager, LoggingMixin):
     ###########################################################################
