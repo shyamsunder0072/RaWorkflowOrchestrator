@@ -3,6 +3,7 @@ import papermill as pm
 from nbconvert import HTMLExporter
 from airflow.lineage.datasets import File
 from airflow.operators.papermill_operator import PapermillOperator, NoteBook
+from airflow.settings import JUPYTER_HOME
 from airflow.utils.decorators import apply_defaults
 
 from traitlets.config import Config
@@ -13,6 +14,28 @@ class HTMLReport(File):
 
 
 class CoutureJupyterOperator(PapermillOperator):
+    """
+    Runs a `.ipynb` notebook and produces an output `.ipynb` file with the
+    output results. Can also produce an html alongside.
+
+    It can also take parameters to be injected into the notebook to override
+    variables in the notebook cell tagged `parameters`.
+
+    NOTE: All paths are relative to jupyter notebook home directory.
+    :param input_nb: path to input .ipynb file.
+    :type input_nb: str
+    :param output_nb: path to output .ipynb file.
+    :type output_nb: str
+    :param parameters: parameters to be overriden.
+    :type parameters: dict
+    :param export_html: Whether to export the result of the output notebook into html.
+        Defaults to False.
+    :type export_html: boolean
+    :param output_html: path to a valid directory, where the html file will be saved.
+    :type output_html: str
+    :param report_mode: Whether to hide ingested parameters. Defaults to True.
+    :type report_mode: boolean
+    """
     __html_config = Config()
     __html_config.HTMLExporter.preprocessors = [
         'nbconvert.preprocessors.ExtractOutputPreprocessor']
@@ -20,9 +43,12 @@ class CoutureJupyterOperator(PapermillOperator):
     __html_exporter = HTMLExporter(config=__html_config)
 
     @apply_defaults
-    def __init__(self, input_nb, output_nb, parameters,
+    def __init__(self, input_nb: str, output_nb, parameters,
                  export_html=False, output_html=None,
                  report_mode=True, *args, **kwargs):
+
+        input_nb = os.path.join(JUPYTER_HOME, input_nb)
+        output_nb = os.path.join(JUPYTER_HOME, output_nb)
 
         # if isinstance(input_nb, str):
         super().__init__(input_nb=input_nb,
@@ -33,6 +59,7 @@ class CoutureJupyterOperator(PapermillOperator):
         # TODO: Write convert to html code.
         if export_html:
             assert output_html, 'output_html is not set, set it to a valid folder path.'
+            output_html = os.path.join(JUPYTER_HOME, output_html)
             # self.outlets.append(HTMLReport(qualified_name=output_html,
             #                                location=output_html))
             self.export_html = export_html

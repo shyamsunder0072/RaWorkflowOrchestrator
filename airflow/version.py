@@ -18,6 +18,6 @@
 # under the License.
 #
 
-#airflow version = '1.10.7'
+# airflow version = '1.10.7'
 
 version = '1.0rc'
