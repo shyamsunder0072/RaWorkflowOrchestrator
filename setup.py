@@ -472,6 +472,7 @@ def do_setup():
             'json-merge-patch==0.2',
             'jsonschema~=3.0',
             'lazy_object_proxy~=1.3',
+            'lxml>=4.0.0',
             'markdown>=2.5.2, <3.0',
             'marshmallow-sqlalchemy>=0.16.1, <0.19.0;python_version<"3.6"',
             'pandas>=0.17.1, <1.0.0',
