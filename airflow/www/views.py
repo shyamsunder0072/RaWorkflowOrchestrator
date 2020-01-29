@@ -22,6 +22,7 @@ import ast
 import codecs
 import copy
 import datetime as dt
+from io import BytesIO
 import itertools
 import json
 import logging
@@ -40,7 +41,7 @@ import pendulum
 import sqlalchemy as sqla
 from flask import (
     abort, jsonify, redirect, url_for, request, Markup, Response,
-    current_app, render_template, make_response)
+    current_app, render_template, make_response, send_file)
 from flask import flash
 from flask_admin import BaseView, expose, AdminIndexView
 from flask_admin.actions import action
@@ -94,8 +95,7 @@ CHART_LIMIT = 200000
 
 UTF8_READER = codecs.getreader('utf-8')
 
-dagbag = models.DagBag(settings.DAGS_FOLDER,
-                       store_serialized_dags=STORE_SERIALIZED_DAGS)
+dagbag = models.DagBag(settings.DAGS_FOLDER, store_serialized_dags=STORE_SERIALIZED_DAGS)
 
 login_required = airflow.login.login_required
 current_user = airflow.login.current_user
@@ -346,8 +346,7 @@ def get_date_time_num_runs_dag_runs_form_data(request, session, dag):
         # the first dag run. Round to next second.
         base_date = (dttm + timedelta(seconds=1)).replace(microsecond=0)
 
-    default_dag_run = conf.getint(
-        'webserver', 'default_dag_run_display_number')
+    default_dag_run = conf.getint('webserver', 'default_dag_run_display_number')
     num_runs = request.args.get('num_runs')
     num_runs = int(num_runs) if num_runs else default_dag_run
 
@@ -386,8 +385,7 @@ def get_date_time_num_runs_dag_runs_form_data(request, session, dag):
 
 class AirflowViewMixin(object):
     def render(self, template, **kwargs):
-        kwargs['scheduler_job'] = lazy_object_proxy.Proxy(
-            jobs.SchedulerJob.most_recent_job)
+        kwargs['scheduler_job'] = lazy_object_proxy.Proxy(jobs.SchedulerJob.most_recent_job)
         kwargs['macros'] = airflow.macros
         return super(AirflowViewMixin, self).render(template, **kwargs)
 
@@ -526,8 +524,7 @@ class Airflow(AirflowViewMixin, BaseView):
                 nvd3_chart = NVd3ChartClass(x_is_date=chart.x_is_date)
 
                 for col in df.columns:
-                    nvd3_chart.add_serie(
-                        name=col, y=df[col].tolist(), x=df[col].index.tolist())
+                    nvd3_chart.add_serie(name=col, y=df[col].tolist(), x=df[col].index.tolist())
                 try:
                     nvd3_chart.buildcontent()
                     payload['chart_type'] = nvd3_chart.__class__.__name__
@@ -582,8 +579,7 @@ class Airflow(AirflowViewMixin, BaseView):
         dag_ids = session.query(dm.dag_id)
 
         dag_state_stats = (
-            session.query(dr.dag_id, dr.state, sqla.func.count(
-                dr.state)).group_by(dr.dag_id, dr.state)
+            session.query(dr.dag_id, dr.state, sqla.func.count(dr.state)).group_by(dr.dag_id, dr.state)
         )
 
         data = {}
@@ -621,8 +617,7 @@ class Airflow(AirflowViewMixin, BaseView):
         }
 
         LastDagRun = (
-            session.query(DagRun.dag_id, sqla.func.max(
-                DagRun.execution_date).label('execution_date'))
+            session.query(DagRun.dag_id, sqla.func.max(DagRun.execution_date).label('execution_date'))
                 .join(Dag, Dag.dag_id == DagRun.dag_id)
                 .filter(DagRun.state != State.RUNNING)
                 .filter(Dag.is_active == True)  # noqa: E712
@@ -640,8 +635,7 @@ class Airflow(AirflowViewMixin, BaseView):
 
         if selected_dag_ids:
             LastDagRun = LastDagRun.filter(DagRun.dag_id.in_(selected_dag_ids))
-            RunningDagRun = RunningDagRun.filter(
-                DagRun.dag_id.in_(selected_dag_ids))
+            RunningDagRun = RunningDagRun.filter(DagRun.dag_id.in_(selected_dag_ids))
 
         LastDagRun = LastDagRun.subquery('last_dag_run')
         RunningDagRun = RunningDagRun.subquery('running_dag_run')
@@ -679,8 +673,7 @@ class Airflow(AirflowViewMixin, BaseView):
 
         payload = {}
 
-        dag_ids = selected_dag_ids or {dag_id for (
-            dag_id,) in session.query(Dag.dag_id)}
+        dag_ids = selected_dag_ids or {dag_id for (dag_id,) in session.query(Dag.dag_id)}
 
         for dag_id in dag_ids:
             payload[dag_id] = []
@@ -808,8 +801,7 @@ class Airflow(AirflowViewMixin, BaseView):
         for template_field in task.__class__.template_fields:
             content = getattr(task, template_field)
             if template_field in attr_renderer:
-                html_dict[template_field] = attr_renderer[template_field](
-                    content)
+                html_dict[template_field] = attr_renderer[template_field](content)
             else:
                 html_dict[template_field] = (
                     "<pre><code>" + str(content) + "</pre></code>")
@@ -874,8 +866,7 @@ class Airflow(AirflowViewMixin, BaseView):
                 logs = ["*** Task instance did not exist in the DB\n"]
                 metadata['end_of_log'] = True
             else:
-                logs, metadatas = handler.read(
-                    ti, try_number, metadata=metadata)
+                logs, metadatas = handler.read(ti, try_number, metadata=metadata)
                 metadata = metadatas[0]
             return logs, metadata
 
@@ -906,8 +897,7 @@ class Airflow(AirflowViewMixin, BaseView):
                     metadata.pop('max_offset', None)
                     metadata.pop('offset', None)
                     while 'end_of_log' not in metadata or not metadata['end_of_log']:
-                        logs, metadata = _get_logs_with_metadata(
-                            try_number, metadata)
+                        logs, metadata = _get_logs_with_metadata(try_number, metadata)
                         yield "\n".join(logs) + "\n"
             return Response(_generate_log_stream(try_number, metadata),
                             mimetype="text/plain",
@@ -1015,8 +1005,7 @@ class Airflow(AirflowViewMixin, BaseView):
         for attr_name in attr_renderer:
             if hasattr(task, attr_name):
                 source = getattr(task, attr_name)
-                special_attrs_rendered[attr_name] = attr_renderer[attr_name](
-                    source)
+                special_attrs_rendered[attr_name] = attr_renderer[attr_name](source)
 
         no_failed_deps_result = [(
             "Unknown",
@@ -1075,8 +1064,7 @@ class Airflow(AirflowViewMixin, BaseView):
         dm_db = models.DagModel
         ti_db = models.TaskInstance
         dag = session.query(dm_db).filter(dm_db.dag_id == dag_id).first()
-        ti = session.query(ti_db).filter(
-            ti_db.dag_id == dag_id and ti_db.task_id == task_id).first()
+        ti = session.query(ti_db).filter(ti_db.dag_id == dag_id and ti_db.task_id == task_id).first()
         if not ti:
             flash(
                 "Task [{}.{}] doesn't seem to exist"
@@ -1206,8 +1194,7 @@ class Airflow(AirflowViewMixin, BaseView):
     def trigger(self, session=None):
         dag_id = request.values.get('dag_id')
         origin = request.values.get('origin') or "/admin/"
-        dag = session.query(models.DagModel).filter(
-            models.DagModel.dag_id == dag_id).first()
+        dag = session.query(models.DagModel).filter(models.DagModel.dag_id == dag_id).first()
         if not dag:
             flash("Cannot find dag {}".format(dag_id))
             return redirect(origin)
@@ -1358,8 +1345,7 @@ class Airflow(AirflowViewMixin, BaseView):
             flash('Cannot find DAG: {}'.format(dag_id), 'error')
             return redirect(origin)
 
-        new_dag_state = set_dag_run_state_to_failed(
-            dag, execution_date, commit=confirmed)
+        new_dag_state = set_dag_run_state_to_failed(dag, execution_date, commit=confirmed)
 
         if confirmed:
             flash('Marked failed on {} task instances'.format(len(new_dag_state)))
@@ -1516,8 +1502,7 @@ class Airflow(AirflowViewMixin, BaseView):
     @wwwutils.action_logging
     @provide_session
     def tree(self, session=None):
-        default_dag_run = conf.getint(
-            'webserver', 'default_dag_run_display_number')
+        default_dag_run = conf.getint('webserver', 'default_dag_run_display_number')
         dag_id = request.args.get('dag_id')
         blur = conf.getboolean('webserver', 'demo_mode')
         dag = dagbag.get_dag(dag_id)
@@ -1685,8 +1670,7 @@ class Airflow(AirflowViewMixin, BaseView):
         for t in dag.roots:
             get_downstream(t)
 
-        dt_nr_dr_data = get_date_time_num_runs_dag_runs_form_data(
-            request, session, dag)
+        dt_nr_dr_data = get_date_time_num_runs_dag_runs_form_data(request, session, dag)
         dt_nr_dr_data['arrange'] = arrange
         dttm = dt_nr_dr_data['dttm']
 
@@ -1715,8 +1699,7 @@ class Airflow(AirflowViewMixin, BaseView):
         if not tasks:
             flash("No tasks found", "error")
         session.commit()
-        doc_md = markdown.markdown(dag.doc_md) if hasattr(
-            dag, 'doc_md') and dag.doc_md else ''
+        doc_md = markdown.markdown(dag.doc_md) if hasattr(dag, 'doc_md') and dag.doc_md else ''
 
         external_logs = conf.get('elasticsearch', 'frontend')
         return self.render(
@@ -1744,8 +1727,7 @@ class Airflow(AirflowViewMixin, BaseView):
     @wwwutils.action_logging
     @provide_session
     def duration(self, session=None):
-        default_dag_run = conf.getint(
-            'webserver', 'default_dag_run_display_number')
+        default_dag_run = conf.getint('webserver', 'default_dag_run_display_number')
         dag_id = request.args.get('dag_id')
         dag = dagbag.get_dag(dag_id)
         base_date = request.args.get('base_date')
@@ -1858,8 +1840,7 @@ class Airflow(AirflowViewMixin, BaseView):
     @wwwutils.action_logging
     @provide_session
     def tries(self, session=None):
-        default_dag_run = conf.getint(
-            'webserver', 'default_dag_run_display_number')
+        default_dag_run = conf.getint('webserver', 'default_dag_run_display_number')
         dag_id = request.args.get('dag_id')
         dag = dagbag.get_dag(dag_id)
         base_date = request.args.get('base_date')
@@ -1925,8 +1906,7 @@ class Airflow(AirflowViewMixin, BaseView):
     @wwwutils.action_logging
     @provide_session
     def landing_times(self, session=None):
-        default_dag_run = conf.getint(
-            'webserver', 'default_dag_run_display_number')
+        default_dag_run = conf.getint('webserver', 'default_dag_run_display_number')
         dag_id = request.args.get('dag_id')
         dag = dagbag.get_dag(dag_id)
         base_date = request.args.get('base_date')
@@ -2047,8 +2027,7 @@ class Airflow(AirflowViewMixin, BaseView):
                 include_upstream=True,
                 include_downstream=False)
 
-        dt_nr_dr_data = get_date_time_num_runs_dag_runs_form_data(
-            request, session, dag)
+        dt_nr_dr_data = get_date_time_num_runs_dag_runs_form_data(request, session, dag)
         dttm = dt_nr_dr_data['dttm']
 
         form = DateTimeWithNumRunsWithDagRunsForm(data=dt_nr_dr_data)
@@ -2076,8 +2055,7 @@ class Airflow(AirflowViewMixin, BaseView):
             # or the try_number of the last complete run
             # https://issues.apache.org/jira/browse/AIRFLOW-2143
             try_count = ti.prev_attempted_tries
-            gantt_bar_items.append(
-                (ti.task_id, ti.start_date, end_date, ti.state, try_count))
+            gantt_bar_items.append((ti.task_id, ti.start_date, end_date, ti.state, try_count))
 
         tf_count = 0
         try_count = 1
@@ -2089,8 +2067,7 @@ class Airflow(AirflowViewMixin, BaseView):
             else:
                 try_count = 1
             prev_task_id = tf.task_id
-            gantt_bar_items.append(
-                (tf.task_id, tf.start_date, end_date, State.FAILED, try_count))
+            gantt_bar_items.append((tf.task_id, tf.start_date, end_date, State.FAILED, try_count))
             tf_count = tf_count + 1
 
         tasks = []
@@ -2187,8 +2164,7 @@ class Airflow(AirflowViewMixin, BaseView):
             suc_count = fail_count = 0
             for k, v in d.items():
                 try:
-                    models.Variable.set(
-                        k, v, serialize_json=not isinstance(v, six.string_types))
+                    models.Variable.set(k, v, serialize_json=not isinstance(v, six.string_types))
                 except Exception as e:
                     logging.info('Variable import failed: {}'.format(repr(e)))
                     fail_count += 1
@@ -2349,8 +2325,7 @@ class QueryView(wwwutils.DataProfilingMixin, AirflowViewMixin, BaseView):
             db = [db for db in dbs if db.conn_id == conn_id_str][0]
             try:
                 hook = db.get_hook()
-                df = hook.get_pandas_df(wwwutils.limit_sql(
-                    sql, QUERY_LIMIT, conn_type=db.conn_type))
+                df = hook.get_pandas_df(wwwutils.limit_sql(sql, QUERY_LIMIT, conn_type=db.conn_type))
                 # df = hook.get_pandas_df(sql)
                 has_data = len(df) > 0
                 df = df.fillna('')
@@ -2720,8 +2695,7 @@ class VariableView(wwwutils.DataProfilingMixin, AirflowModelView):
                 val = var.val
             var_dict[var.key] = val
 
-        response = make_response(json.dumps(
-            var_dict, sort_keys=True, indent=4))
+        response = make_response(json.dumps(var_dict, sort_keys=True, indent=4))
         response.headers["Content-Disposition"] = "attachment; filename=variables.json"
         response.headers["Content-Type"] = "application/json; charset=utf-8"
         return response
@@ -2755,10 +2729,8 @@ class XComView(wwwutils.SuperUserMixin, AirflowModelView):
         }
     }
 
-    column_filters = ('key', 'timestamp', 'execution_date',
-                      'task_id', 'dag_id')
-    column_searchable_list = (
-        'key', 'timestamp', 'execution_date', 'task_id', 'dag_id')
+    column_filters = ('key', 'timestamp', 'execution_date', 'task_id', 'dag_id')
+    column_searchable_list = ('key', 'timestamp', 'execution_date', 'task_id', 'dag_id')
     filter_converter = wwwutils.UtcFilterConverter()
     form_overrides = dict(execution_date=DateTimeField)
 
@@ -3115,8 +3087,7 @@ class ConnectionModelView(wwwutils.SuperUserMixin, AirflowModelView):
     verbose_name = "Connection"
     verbose_name_plural = "Connections"
     column_default_sort = ('conn_id', False)
-    column_list = ('conn_id', 'conn_type', 'host', 'port',
-                   'is_encrypted', 'is_extra_encrypted',)
+    column_list = ('conn_id', 'conn_type', 'host', 'port', 'is_encrypted', 'is_extra_encrypted',)
     form_overrides = dict(_password=PasswordField, _extra=TextAreaField)
     form_args = dict(
         conn_id=dict(validators=[validators.DataRequired()])
@@ -3276,8 +3247,7 @@ class SparkConfView(wwwutils.SuperUserMixin, BaseView):
         config.read(filenames=conf_path)
         # orderedDictionary used so that the order displayed is same as in file
         args = collections.OrderedDict(config.items('arguments'))
-        configs = collections.OrderedDict(
-            config.items('configurations'))  # dictionary created
+        configs = collections.OrderedDict(config.items('configurations'))  # dictionary created
         title = "Couture Spark Configuration"
 
         if request.method == 'POST':
@@ -3291,10 +3261,8 @@ class SparkConfView(wwwutils.SuperUserMixin, BaseView):
             try:
                 opt_title = request.form['option_title']
                 opt_value = request.form['option_value']
-                # for not adding empty fields in file
-                if len(opt_title) != 0 and len(opt_value) != 0:
-                    # adding the new name and value in file
-                    config.set('arguments', opt_title, opt_value)
+                if len(opt_title) != 0 and len(opt_value) != 0:  # for not adding empty fields in file
+                    config.set('arguments', opt_title, opt_value)  # adding the new name and value in file
             except Exception:
                 print("Sorry ! No field found ")
 
@@ -3304,8 +3272,7 @@ class SparkConfView(wwwutils.SuperUserMixin, BaseView):
                 # for not adding empty fields in file
                 if len(opt_title_config) != 0 and len(opt_value_config) != 0:
                     # adding the new name and value in file
-                    config.set('configurations',
-                               opt_title_config, opt_value_config)
+                    config.set('configurations', opt_title_config, opt_value_config)
             except Exception:
                 print("Sorry ! No field found ")
 
@@ -3313,8 +3280,7 @@ class SparkConfView(wwwutils.SuperUserMixin, BaseView):
                 # if there is option in the file, then delete
                 if config.has_option('arguments', request.form['option_title_args_delete']):
                     # deleting from the config file
-                    config.remove_option(
-                        'arguments', request.form['option_title_args_delete'])
+                    config.remove_option('arguments', request.form['option_title_args_delete'])
             except Exception:
                 print("Sorry ! No field found in delete in args")
 
@@ -3322,8 +3288,7 @@ class SparkConfView(wwwutils.SuperUserMixin, BaseView):
                 # if there is option in the file, then delete
                 if config.has_option('configurations', request.form['option_title_config_delete']):
                     # deleting from the config file
-                    config.remove_option(
-                        'configurations', request.form['option_title_config_delete'])
+                    config.remove_option('configurations', request.form['option_title_config_delete'])
             except Exception:
                 print("Sorry ! No field found in delete in config")
 
@@ -3332,8 +3297,7 @@ class SparkConfView(wwwutils.SuperUserMixin, BaseView):
                 config.write(configfile)
 
             new_args = collections.OrderedDict(config.items('arguments'))
-            new_config = collections.OrderedDict(
-                config.items('configurations'))
+            new_config = collections.OrderedDict(config.items('configurations'))
             return self.render(
                 'airflow/couture_config.html',
                 title=title,
