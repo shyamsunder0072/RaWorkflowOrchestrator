@@ -46,11 +46,11 @@
           <td colspan="15">
             {% if files_editable %}
               <a href="{{ url_for(view + '.edit_view', filename=i) }}">
-            {% else %}
-              <a href="#">
-            {% endif %}
                 {{i}}
               </a>
+            {% else %}
+              {{i}}
+            {% endif %}
           </td>
           <td colspan="2">{{files[i]['time']}}</td>
           <td colspan="2">{{files[i]['size']}}</td>
