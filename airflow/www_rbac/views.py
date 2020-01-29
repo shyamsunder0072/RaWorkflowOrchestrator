@@ -2506,17 +2506,33 @@ class HadoopConfView(FileUploadBaseView):
 
 class EDAOutputView(AirflowBaseView):
     default_view = 'list_view'
-    output_path = os.path.join(settings.EDA_HOME, *['outputs', 'index.html'])
+    output_path = os.path.join(settings.EDA_HOME, *['outputs'])
 
-    @expose('/eda/outputs/', methods=['GET'])
+    def __init__(self, *args, **kwargs):
+        os.makedirs(self.output_path, exist_ok=True)
+        super().__init__(*args, **kwargs)
+
+    @expose('/eda/', methods=['GET'])
     @has_access
     @action_logging
     def list_view(self):
+        files = []
+        dir_contents = os.listdir(self.output_path)
+        print(dir_contents, self.output_path)
+        for content in dir_contents:
+            if content.endswith(('.htm', '.html',)):
+                files.append(content)
+        return self.render_template('airflow/eda_list.html', files=files)
+
+    @expose('/eda/<string:filename>', methods=['GET'])
+    @has_access
+    @action_logging
+    def dashboard_view(self, filename):
         viz = ''
         try:
-            with open(self.output_path) as f:
+            with open(os.path.join(self.output_path, filename)) as f:
                 viz = f.read()
-        except FileNotFoundError:
+        except Exception:
             pass
         return self.render_template('airflow/eda_outputs.html', visualisations=viz)
 
