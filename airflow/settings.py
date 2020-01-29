@@ -152,6 +152,7 @@ LOGGING_CLASS_PATH = None
 SPARK_DEPENDENCIES_FOLDER = None
 HADOOP_CONFIG_FOLDER = None
 CODE_ARTIFACTS_FOLDER = None
+JUPYTER_HOME = None
 
 engine = None
 Session = None
@@ -207,12 +208,14 @@ def configure_vars():
     global SPARK_DEPENDENCIES_FOLDER
     global HADOOP_CONFIG_FOLDER
     global CODE_ARTIFACTS_FOLDER
+    global JUPYTER_HOME
     SQL_ALCHEMY_CONN = conf.get('core', 'SQL_ALCHEMY_CONN')
     DAGS_FOLDER = os.path.expanduser(conf.get('core', 'DAGS_FOLDER'))
 
     SPARK_DEPENDENCIES_FOLDER = os.path.join(AIRFLOW_HOME, *[os.pardir, 'jars'])
     HADOOP_CONFIG_FOLDER = os.path.join(AIRFLOW_HOME, *[os.pardir, 'setup', 'hadoop_conn'])
     CODE_ARTIFACTS_FOLDER = os.path.join(AIRFLOW_HOME, *[os.pardir, 'code'])
+    JUPYTER_HOME = os.path.join(AIRFLOW_HOME, *[os.pardir, 'jupyter'])
 
     PLUGINS_FOLDER = conf.get(
         'core',
