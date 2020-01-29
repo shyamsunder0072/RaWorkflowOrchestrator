@@ -2504,6 +2504,23 @@ class HadoopConfView(FileUploadBaseView):
             return redirect(url_for('HadoopConfView.edit_view', filename=filename))
 
 
+class EDAOutputView(AirflowBaseView):
+    default_view = 'list_view'
+    output_path = os.path.join(settings.JUPYTER_HOME, *['outputs', 'index.html'])
+
+    @expose('/eda/outputs/', methods=['GET'])
+    @has_access
+    @action_logging
+    def list_view(self):
+        viz = ''
+        try:
+            with open(self.output_path) as f:
+                viz = f.read()
+        except FileNotFoundError:
+            pass
+        return self.render_template('airflow/eda_outputs.html', visualisations=viz)
+
+
 class SparkConfView(AirflowBaseView):
     default_view = 'update_spark_conf'
 

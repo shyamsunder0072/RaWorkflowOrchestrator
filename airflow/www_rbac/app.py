@@ -136,6 +136,10 @@ def create_app(config=None, session=None, testing=False, app_name="Workflow"):
                                 "Jupyter Notebook",
                                 category="Developer",
                                 category_icon="fa-wrench")
+            appbuilder.add_view(views.EDAOutputView(),
+                                "EDA Output",
+                                category="Developer",
+                                category_icon="fa-wrench")
             appbuilder.add_view(views.ConfigurationView,
                                 "Configurations",
                                 category="Admin",
