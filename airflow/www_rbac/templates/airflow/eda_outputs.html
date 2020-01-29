@@ -1,0 +1,37 @@
+{% extends "airflow/master.html" %}
+{% block title %}
+{{ title }}
+{% endblock %}
+
+{% block head_css %}
+{{ super() }}
+<style>
+  .margin-left-md { margin-left: 1em; }
+  .margin-top-md { margin-top: 1em; }
+</style>
+{% endblock %}
+
+{% block content %}
+{{ super() }}
+<!-- <div class="container"> -->
+  {{ visualisations|safe }}
+<!-- </div> -->
+{% endblock %}
+{% block tail_js %}
+{{ super() }}
+<!-- </body> -->
+<script type="text/javascript">
+
+  $(document).ready(function () {
+    $('[data-toggle="tooltip"]').tooltip();
+
+    $("#sourceSearch").on("keyup", function() {
+      var value = $(this).val().toLowerCase();
+      $("#sourceTable tr").filter(function() {
+        if ( !$(this).hasClass('table-head'))
+          $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1);
+      });
+    });
+  })
+</script>
+{% endblock %}
