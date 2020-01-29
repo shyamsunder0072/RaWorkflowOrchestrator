@@ -2518,7 +2518,7 @@ class EDAOutputView(AirflowBaseView):
     def list_view(self):
         files = []
         dir_contents = os.listdir(self.output_path)
-        print(dir_contents, self.output_path)
+
         for content in dir_contents:
             if content.endswith(('.htm', '.html',)):
                 files.append(content)
