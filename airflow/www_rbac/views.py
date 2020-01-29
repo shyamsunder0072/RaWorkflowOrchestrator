@@ -2506,7 +2506,7 @@ class HadoopConfView(FileUploadBaseView):
 
 class EDAOutputView(AirflowBaseView):
     default_view = 'list_view'
-    output_path = os.path.join(settings.JUPYTER_HOME, *['outputs', 'index.html'])
+    output_path = os.path.join(settings.EDA_HOME, *['outputs', 'index.html'])
 
     @expose('/eda/outputs/', methods=['GET'])
     @has_access
