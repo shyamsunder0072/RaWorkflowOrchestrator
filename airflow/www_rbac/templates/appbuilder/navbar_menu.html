@@ -48,6 +48,9 @@
                     {% endif %}
                 {% endif %}
             {% endfor %}
+            {% if item1.label == 'Developer' %}
+              <li><a href="#" id="vis-link">Visualisations</a></li>
+            {% endif %}
             </ul></li>
         {% else %}
             <li>
@@ -56,3 +59,9 @@
         {% endif %}
     {% endif %}
 {% endfor %}
+<script type="text/javascript">
+  window.onload = function () {
+    document.getElementById('vis-link').setAttribute('href', "http://" + window.location.hostname + ":8088");
+  }
+</script>
+
