@@ -137,7 +137,11 @@ def create_app(config=None, session=None, testing=False, app_name="Workflow"):
                                 category="Developer",
                                 category_icon="fa-wrench")
             appbuilder.add_view(views.EDAOutputView(),
-                                "EDA Output",
+                                "Exploratory data analysis",
+                                category="Developer",
+                                category_icon="fa-wrench")
+            appbuilder.add_link("Superset",
+                                href='http://54.209.50.67:8088/',
                                 category="Developer",
                                 category_icon="fa-wrench")
             appbuilder.add_view(views.ConfigurationView,
