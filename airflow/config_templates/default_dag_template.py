@@ -5,7 +5,8 @@ from airflow.operators import CoutureSparkOperator, CouturePySparkOperator, Cout
 from airflow.operators.dag_operator import SkippableDagOperator, DagOperator
 from airflow.operators.dagrun_operator import TriggerDagRunOperator
 from airflow.operators import CoutureJupyterOperator
-from airflow.operators.bash_operator import BashOperator, PythonOperator
+from airflow.operators.bash_operator import BashOperator
+from airflow.operators import PythonOperator
 from airflow.contrib.operators.kubernetes_pod_operator import KubernetesPodOperator
 
 appName = 'CoutureExample'
