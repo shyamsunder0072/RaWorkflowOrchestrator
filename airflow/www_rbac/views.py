@@ -2513,6 +2513,9 @@ class HadoopConfView(FileUploadBaseView):
             norm_group_path = os.path.normpath(os.path.join(self.fs_path, groupname))
             os.symlink(norm_group_path,
                        os.path.join(self.fs_path, self.default_group))
+            AirflowBaseView.audit_logging(
+                "{}.{}".format(self.__class__.__name__, 'change_default_group'),
+                groupname, request.environ['REMOTE_ADDR'])
         except Exception:
             # print(e)
             pass
@@ -2531,6 +2534,9 @@ class HadoopConfView(FileUploadBaseView):
             flash('Cannot delete the default group. Change default group first.', category='warning')
         else:
             shutil.rmtree(norm_group_path, ignore_errors=True)
+            AirflowBaseView.audit_logging(
+                "{}.{}".format(self.__class__.__name__, 'delete_group'),
+                groupname, request.environ['REMOTE_ADDR'])
         return redirect(url_for('HadoopConfView.groups_view'))
 
     @expose('/HadoopConfView/groups/', methods=['GET', 'POST'])
