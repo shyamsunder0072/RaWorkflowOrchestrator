@@ -150,7 +150,7 @@ LOGGING_CLASS_PATH = None
 
 # CONSTANTS ADDED BY COUTURE.AI
 SPARK_DEPENDENCIES_FOLDER = None
-HADOOP_CONFIG_FOLDER = None
+HADOOP_CONFIGS_FOLDER = None
 CODE_ARTIFACTS_FOLDER = None
 JUPYTER_HOME = None
 EDA_HOME = None
@@ -207,7 +207,7 @@ def configure_vars():
     global DAGS_FOLDER
     global PLUGINS_FOLDER
     global SPARK_DEPENDENCIES_FOLDER
-    global HADOOP_CONFIG_FOLDER
+    global HADOOP_CONFIGS_FOLDER
     global CODE_ARTIFACTS_FOLDER
     global JUPYTER_HOME
     global EDA_HOME
@@ -215,7 +215,8 @@ def configure_vars():
     DAGS_FOLDER = os.path.expanduser(conf.get('core', 'DAGS_FOLDER'))
 
     SPARK_DEPENDENCIES_FOLDER = os.path.join(AIRFLOW_HOME, *[os.pardir, 'jars'])
-    HADOOP_CONFIG_FOLDER = os.path.join(AIRFLOW_HOME, *[os.pardir, 'setup', 'hadoop_conn'])
+    HADOOP_CONFIGS_FOLDER = os.path.join(AIRFLOW_HOME, *[os.pardir, 'setup', 'hadoop_config_groups'])
+
     CODE_ARTIFACTS_FOLDER = os.path.join(AIRFLOW_HOME, *[os.pardir, 'code'])
     JUPYTER_HOME = os.path.join(AIRFLOW_HOME, *[os.pardir, 'jupyter'])
     EDA_HOME = os.path.join(AIRFLOW_HOME, *[os.pardir, 'eda'])
