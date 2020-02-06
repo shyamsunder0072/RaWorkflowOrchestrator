@@ -2575,7 +2575,7 @@ class HadoopConfView(FileUploadBaseView):
                 os.makedirs(os.path.join(self.fs_path, name), exist_ok=True)
                 flash('Group added !', category='success')
                 AirflowBaseView.audit_logging(
-                    "{}.{}".format(self.__class__.__name__, 'groups_view'),
+                    "{}.{}".format(self.__class__.__name__, 'add_group'),
                     name, request.environ['REMOTE_ADDR'])
             else:
                 flash('Invalid group name provided !', category='error')
