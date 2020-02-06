@@ -27,6 +27,7 @@ import math
 import os
 import re
 import socket
+import shutil
 import stat
 import time
 import traceback
@@ -2258,6 +2259,10 @@ class FileUploadBaseView(AirflowBaseView):
     # set template name while using this generic view.
     default_view = 'list_view'
     template_name = 'airflow/file_upload_base.html'
+    groups_template_name = 'airflow/file_upload_groups.html'
+    # group refers to a config group.
+    default_group = 'default'
+    regex_valid_groupnames = re.compile('^[A-Za-z0-9_@()-]+$')
     accepted_file_extensions = ()
     fs_path = None   # the path in filesystem where the files should be saved.
     title = None
@@ -2268,12 +2273,18 @@ class FileUploadBaseView(AirflowBaseView):
     # POST base_url/upload should be POST base_url/
     # GET base_url/download/filename should be GET base_url/filename
     # GET base_url/destroy/filename should be DELETE base_url/filename
+
+    # TODO: Instead of using <path:pathname> use <our_own_converter:pathname>
+    # That converter should allow only one level of subdirectory access.
+    # https://exploreflask.com/en/latest/views.html#custom-converters
     urls_map = {
-        'list_view': "/".join(['base_url', 'list']),
-        'upload_view': "/".join(['base_url', 'upload']),
-        'download_view': "/".join(['base_url', 'download', '<string:filename>']),
-        'destroy_view': "/".join(['base_url', 'destroy', '<string:filename>']),
-        'edit_view': "/".join(['base_url', 'edit', '<string:filename>']),
+        'list_view': ["/".join(['base_url', 'list', '<path:pathname>']),
+                      "/".join(['base_url', 'list', ''])],
+        'upload_view': ["/".join(['base_url', 'upload', '<path:pathname>']),
+                        "/".join(['base_url', 'upload', ''])],
+        'download_view': ["/".join(['base_url', 'download', '<path:pathname>'])],
+        'destroy_view': ["/".join(['base_url', 'destroy', '<path:pathname>'])],
+        'edit_view': ["/".join(['base_url', 'edit', '<path:pathname>'])],
     }
 
     def __init__(self, *args, **kwargs):
@@ -2290,27 +2301,63 @@ class FileUploadBaseView(AirflowBaseView):
         self.__class__.edit_view._urls = []
         super().__init__(*args, **kwargs)
 
-        self.__class__.list_view._urls.append(
-            (self.urls_map['list_view'].replace('base_url', base_url), ['GET']))
-        self.__class__.upload_view._urls.append(
-            (self.urls_map['upload_view'].replace('base_url', base_url), ['POST']))
-        self.__class__.download_view._urls.append(
-            (self.urls_map['download_view'].replace('base_url', base_url), ['GET']))
-        self.__class__.destroy_view._urls.append(
-            (self.urls_map['destroy_view'].replace('base_url', base_url), ['GET']))
-        self.__class__.edit_view._urls.append(
-            (self.urls_map['edit_view'].replace('base_url', base_url), ['GET', 'POST']))
+        for url in self.urls_map['list_view']:
+            self.__class__.list_view._urls.append(
+                (url.replace('base_url', base_url), ['GET']))
+
+        for url in self.urls_map['upload_view']:
+            self.__class__.upload_view._urls.append(
+                (url.replace('base_url', base_url), ['POST']))
+
+        for url in self.urls_map['download_view']:
+            self.__class__.download_view._urls.append(
+                (url.replace('base_url', base_url), ['GET']))
+
+        for url in self.urls_map['destroy_view']:
+            self.__class__.destroy_view._urls.append(
+                (url.replace('base_url', base_url), ['GET']))
+
+        for url in self.urls_map['edit_view']:
+            self.__class__.edit_view._urls.append(
+                (url.replace('base_url', base_url), ['GET', 'POST']))
+
+        # self.__class__.list_view._urls.extend(
+        #     (self.urls_map['list_view'].replace('base_url', base_url), ['GET']))
+
+        # self.__class__.upload_view._urls.extend(
+        #     (self.urls_map['upload_view'].replace('base_url', base_url), ['POST']))
+        # self.__class__.download_view._urls.extend(
+        #     (self.urls_map['download_view'].replace('base_url', base_url), ['GET']))
+        # self.__class__.destroy_view._urls.extend(
+        #     (self.urls_map['destroy_view'].replace('base_url', base_url), ['GET']))
+        # self.__class__.edit_view._urls.extend(
+        #     (self.urls_map['edit_view'].replace('base_url', base_url), ['GET', 'POST']))
 
         if self.fs_path:
             os.makedirs(self.fs_path, exist_ok=True)
+            # os.makedirs(os.path.join(self.fs_path, self.default_group), exist_ok=True)
 
     @classmethod
     def get_base_url(cls):
         return cls.__base_url
 
-    def get_file_path(self, filename):
+    def get_file_path(self, pathname):
         self.check_attr_is_set(self.fs_path)
-        return os.path.join(self.fs_path, filename)
+        if isinstance(pathname, str):
+            path = os.path.join(self.fs_path, pathname)
+        else:
+            path = os.path.join(self.fs_path, *pathname)
+        if self.path_valid(path):
+            return path
+
+    def path_valid(self, path):
+        '''Path is valid if is inside `self.fs_path`
+        '''
+        norm_fs_path = os.path.normpath(self.fs_path)
+        norm_path = os.path.normpath(os.path.join(self.fs_path, path))
+        if norm_fs_path == norm_path[:len(norm_fs_path)]:
+            return True
+        raise Exception('Illegal Access to other directories not allowed.')
 
     def check_attr_is_set(self, *args):
         # TODO: Refactor this to raise more appropriate error messages.
@@ -2359,28 +2406,36 @@ class FileUploadBaseView(AirflowBaseView):
 
     @has_access
     @action_logger
-    def list_view(self):
+    def list_view(self, pathname=None):
         self.check_attr_is_set(self.fs_path, self.accepted_file_extensions)
-
-        files = self.get_details(self.fs_path, self.accepted_file_extensions)
+        if pathname:
+            path = self.get_file_path(pathname)
+        else:
+            path = self.fs_path
+            # pathname = ''  # required for path concatenation in file_upload_base.html
+        files = self.get_details(path, self.accepted_file_extensions)
         return self.render_template(
             self.template_name,
             files=files,
             view=self.__class__.__name__,
             accepted_file_extensions=self.accepted_file_extensions,
             title=self.title,
-            files_editable=self.files_editable
+            files_editable=self.files_editable,
+            pathname=pathname
         )
 
     @has_access
     @action_logger
-    def upload_view(self):
+    def upload_view(self, pathname=None):
         list_files = request.files.getlist("file")
         files_uploaded = 0
         for upload in list_files:
             filename = upload.filename
             if filename.endswith(self.accepted_file_extensions):
-                destination = self.get_file_path(filename)
+                if pathname:
+                    destination = self.get_file_path([pathname, filename])
+                else:
+                    destination = self.get_file_path(filename)
                 upload.save(destination)
                 AirflowBaseView.audit_logging(
                     "{}.{}".format(self.__class__.__name__, 'upload_view'),
@@ -2391,36 +2446,36 @@ class FileUploadBaseView(AirflowBaseView):
         if files_uploaded:
             flash(str(files_uploaded) + ' files uploaded!!', 'success')
         self.on_save_complete()
-        return redirect(url_for(self.__class__.__name__ + '.list_view'))
+        return redirect(url_for(self.__class__.__name__ + '.list_view', pathname=pathname))
 
     @has_access
     @action_logger
-    def edit_view(self, filename):
+    def edit_view(self, pathname):
         '''When `self.files_editable` is set to True, you should override this view'''
         return make_response(('BAD_REQUEST', 400))
         # raise NotImplementedError('Please implement this in your subclass to be able to edit files.')
 
     @has_access
     @action_logger
-    def download_view(self, filename):
-        file_path = self.get_file_path(filename)
+    def download_view(self, pathname):
+        file_path = self.get_file_path(pathname)
         AirflowBaseView.audit_logging(
             "{}.{}".format(self.__class__.__name__, 'download_view'),
-            filename, request.environ['REMOTE_ADDR'])
+            pathname, request.environ['REMOTE_ADDR'])
         return send_file(file_path, as_attachment=True, conditional=True)
 
     @has_access
-    def destroy_view(self, filename):
-        file = Path(self.get_file_path(filename))
+    def destroy_view(self, pathname):
+        file = Path(self.get_file_path(pathname))
         if file.exists():
             file.unlink()
             AirflowBaseView.audit_logging(
                 "{}.{}".format(self.__class__.__name__, 'destroy_view'),
-                filename, request.environ['REMOTE_ADDR'])
-            flash('File ' + filename + ' successfully deleted.', category='warning')
+                pathname, request.environ['REMOTE_ADDR'])
+            flash('File ' + pathname + ' successfully deleted.', category='warning')
         else:
-            flash('File ' + filename + ' not found.', category='error')
-        return redirect(url_for(self.__class__.__name__ + '.list_view'))
+            flash('File ' + pathname + ' not found.', category='error')
+        return redirect(url_for(self.__class__.__name__ + '.list_view', pathname=pathname))
 
 
 class SparkDepView(FileUploadBaseView):
@@ -2439,18 +2494,95 @@ class CodeArtifactView(FileUploadBaseView):
 
 
 class HadoopConfView(FileUploadBaseView):
-    fs_path = settings.HADOOP_CONFIG_FOLDER
+    default_view = 'groups_view'
+    fs_path = settings.HADOOP_CONFIGS_FOLDER
     accepted_file_extensions = ('.xml', )
-    title = 'Hadoop Configuration Files'
+    title = 'Hadoop Configuration Groups'
     files_editable = True
+
+    @expose('/HadoopConfView/change-default-group/', methods=['GET'])
+    @has_access
+    @FileUploadBaseView.action_logger
+    def change_default_group(self):
+        groupname = request.args.get('group')
+        try:
+            try:
+                os.remove(os.path.join(self.fs_path, self.default_group))
+            except OSError:
+                pass
+            norm_group_path = os.path.normpath(os.path.join(self.fs_path, groupname))
+            os.symlink(norm_group_path,
+                       os.path.join(self.fs_path, self.default_group))
+        except Exception:
+            # print(e)
+            pass
+        return redirect(url_for('HadoopConfView.groups_view'))
+
+    @expose('/HadoopConfView/delete-group/<string:groupname>', methods=['GET'])
+    @has_access
+    @FileUploadBaseView.action_logger
+    def delete_group(self, groupname):
+        default_group_p = os.readlink(os.path.join(self.fs_path, self.default_group))
+        if not os.path.isabs(default_group_p):
+            default_group_p = os.path.join(self.fs_path, default_group_p)
+        default_group_p = os.path.normpath(default_group_p)
+        norm_group_path = os.path.normpath(os.path.join(self.fs_path, groupname))
+        if default_group_p == norm_group_path:
+            flash('Cannot delete the default group. Change default group first.', category='warning')
+        else:
+            shutil.rmtree(norm_group_path, ignore_errors=True)
+        return redirect(url_for('HadoopConfView.groups_view'))
+
+    @expose('/HadoopConfView/groups/', methods=['GET', 'POST'])
+    @has_access
+    @FileUploadBaseView.action_logger
+    def groups_view(self):
+        groups = []
+        default_group_p = None
+        default_group_name = None
+        if request.method == 'GET':
+            if not os.path.islink(os.path.join(self.fs_path, self.default_group)):
+                flash('No Default Hadoop Config Group set', category='warning')
+            else:
+                default_group_p = os.readlink(os.path.join(self.fs_path, self.default_group))
+                if not os.path.isabs(default_group_p):
+                    default_group_p = os.path.join(self.fs_path, default_group_p)
+                default_group_p = os.path.normpath(default_group_p)
+            for f in os.scandir(self.fs_path):
+                if f.is_dir() and f.name != self.default_group:
+                    if os.path.normpath(f.path) != default_group_p:
+                        groups.append([f, False])
+                    else:
+                        groups.append([f, True])
+                        default_group_name = f.name
+            return self.render_template(
+                self.groups_template_name,
+                groups=groups,
+                view=self.__class__.__name__,
+                accepted_file_extensions=self.accepted_file_extensions,
+                title=self.title,
+                default_group=default_group_name
+            )
+        else:
+            name = request.form.get('name')
+            if name and self.regex_valid_groupnames.match(name):
+                os.makedirs(os.path.join(self.fs_path, name), exist_ok=True)
+                flash('Group added !', category='success')
+                AirflowBaseView.audit_logging(
+                    "{}.{}".format(self.__class__.__name__, 'groups_view'),
+                    name, request.environ['REMOTE_ADDR'])
+            else:
+                flash('Invalid group name provided !', category='error')
+            return redirect(url_for('HadoopConfView.groups_view'))
 
     @has_access
     @action_logging
-    def edit_view(self, filename):
+    def edit_view(self, pathname):
         from lxml import etree as ET
         UPLOAD_FOLDER = self.fs_path
         if request.method == 'GET':
-            xml_file = os.path.join(UPLOAD_FOLDER, filename)
+            xml_file = os.path.join(UPLOAD_FOLDER, pathname)
+            self.path_valid(xml_file)
             tree = ET.parse(xml_file)
             root = tree.getroot()
             rootname = root.tag
@@ -2463,10 +2595,11 @@ class HadoopConfView(FileUploadBaseView):
             return self.render_template('airflow/hadoop_conn_file.html',
                                         Section=rootname,
                                         Configurations=values_get,
-                                        Filename=filename)
+                                        pathname=pathname)
 
         if request.method == 'POST':
-            xml_file = os.path.join(UPLOAD_FOLDER, filename)
+            xml_file = os.path.join(UPLOAD_FOLDER, pathname)
+            self.path_valid(xml_file)
             tree = ET.parse(xml_file)
             root = tree.getroot()
 
@@ -2501,7 +2634,7 @@ class HadoopConfView(FileUploadBaseView):
 
             tree.write(xml_file)  # writing all the updated changes to the fields
 
-            return redirect(url_for('HadoopConfView.edit_view', filename=filename))
+            return redirect(url_for('HadoopConfView.edit_view', pathname=pathname))
 
 
 class EDAOutputView(AirflowBaseView):
@@ -2540,7 +2673,7 @@ class EDAOutputView(AirflowBaseView):
 class SparkConfView(AirflowBaseView):
     default_view = 'update_spark_conf'
 
-    @expose('/couture_config', methods=['GET', 'POST'])
+    @expose('/couture_config/', methods=['GET', 'POST'])
     @has_access
     @action_logging
     def update_spark_conf(self):

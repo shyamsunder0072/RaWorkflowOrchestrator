@@ -109,7 +109,7 @@ input[type=submit]:hover {
 {{ super() }}
 
 <div class="couture-container">
-  <form action="{{ url_for('HadoopConfView.edit_view', filename=Filename) }}" method="post">
+  <form action="{{ url_for('HadoopConfView.edit_view', pathname=pathname) }}" method="post">
     <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
     <h2>Configuration</h2>
     <div id="container_xml">

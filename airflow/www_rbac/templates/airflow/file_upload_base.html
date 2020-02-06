@@ -16,8 +16,8 @@
 {{ super() }}
 <div class="container">
   <div>
-    <h2 class="margin-top-md">{{ title }}</h2>
-    <form id="upload-form" action="{{ url_for(view + '.upload_view') }}" method="post" enctype="multipart/form-data">
+    <h2 class="margin-top-md">{{ title }} {% if pathname %} - {{pathname}} {% endif %}</h2>
+    <form id="upload-form" action="{{ url_for(view + '.upload_view', pathname=pathname) }}" method="post" enctype="multipart/form-data">
       <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
         <input type="file" name="file" id="cout-file-picker" class="inputfile" multiple style="display: none;" accept="{% for ext in accepted_file_extensions %}{{ ext }},{% endfor %}"/>
         <label for="cout-file-picker" class="btn btn-success pull-right">Upload file(s)</label>
@@ -45,7 +45,11 @@
         <tr>
           <td colspan="15">
             {% if files_editable %}
-              <a href="{{ url_for(view + '.edit_view', filename=i) }}">
+              {% if pathname %}
+                <a href="{{ url_for(view + '.edit_view', pathname= pathname + '/' + i) }}">
+              {% else %}
+                <a href="{{ url_for(view + '.download_view', pathname= i) }}">
+              {% endif %}
                 {{i}}
               </a>
             {% else %}
@@ -56,13 +60,21 @@
           <td colspan="2">{{files[i]['size']}}</td>
           <td colspan="1">
             <div>
-              <a href="{{ url_for(view + '.download_view', filename=i) }}">
+              {% if pathname %}
+              <a href="{{ url_for(view + '.download_view', pathname= pathname + '/' + i) }}">
+              {% else %}
+              <a href="{{ url_for(view + '.download_view', pathname= i) }}">
+              {% endif %}
                 <i class="fa fa-cloud-download fa-lg" data-toggle="tooltip" title="Download"></i>
               </a>
             </div>
             </td>
           <td colspan="1">
-            <a href="{{ url_for(view + '.destroy_view', filename=i) }}" onclick="return confirm('Are you sure to delete {{i}} ?')">
+            {% if pathname %}
+            <a href="{{ url_for(view + '.destroy_view', pathname= pathname + '/' + i) }}" onclick="return confirm('Are you sure to delete {{i}} ?')">
+            {% else %}
+            <a href="{{ url_for(view + '.destroy_view', pathname= i) }}" onclick="return confirm('Are you sure to delete {{i}} ?')">
+            {% endif %}
               <i class="fa fa-trash fa-lg" style="color:red" aria-hidden="true" data-toggle="tooltip" title="Delete File"></i>
             </a>
           </td>
