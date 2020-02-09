@@ -17,7 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-
+import ast
 import copy
 import functools
 import itertools
@@ -32,7 +32,7 @@ import stat
 import time
 import traceback
 from collections import defaultdict
-from datetime import timedelta
+from datetime import timedelta, datetime
 from urllib.parse import unquote
 from pathlib import Path
 
@@ -78,6 +78,7 @@ from airflow.www_rbac.forms import (ConnectionForm, DagRunForm, DateTimeForm,
                                     DateTimeWithNumRunsForm,
                                     DateTimeWithNumRunsWithDagRunsForm)
 from airflow.www_rbac.widgets import AirflowModelListWidget
+# from airflow.www_rbac.utils import unpause_dag
 
 
 PAGE_SIZE = conf.getint('webserver', 'page_size')
@@ -194,7 +195,6 @@ class AirflowBaseView(BaseView):
         ''' Takes the path and file extension, returns size and last modified time of files
         inside the path.
         '''
-
         # NOTE: This method use `os.walk`. We may want to use `os.listdir()` instead.
         file_data = {}
         for r, d, f in os.walk(dir_path):
@@ -3051,11 +3051,61 @@ class KeyTabView(AirflowBaseView):
 class JupyterNotebookView(AirflowBaseView):
     default_view = 'jupyter_notebook'
 
+    def guess_type(self, val):
+        try:
+            val = ast.literal_eval(val)
+        except ValueError:
+            pass
+        return val
+
+    def create_jupyter_dag(self, notebook, parameters, schedule=None):
+        dag_id = "-".join(["JupyterNotebookExceution",
+                           Path(notebook).resolve().stem,
+                           datetime.now().strftime("%d-%m-%Y-%H-%M-%S")])
+        username = g.user.username
+        start_time = datetime.now()
+        code = self.render_template('dags/default_jupyter_dag.jinja2',
+                                    notebook=notebook,
+                                    username=username,
+                                    start_time=start_time,
+                                    parameters=parameters,
+                                    dag_id=dag_id,
+                                    schedule=schedule)
+        with open(os.path.join(settings.DAGS_FOLDER, dag_id + '.py'), 'w') as dag_file:
+            dag_file.write(code)
+        return dag_id
+
     @expose('/jupyter_notebook')
     @has_access
+    @action_logging
     def jupyter_notebook(self):
         title = "Jupyter Notebook"
-        return self.render_template('airflow/jupyter_notebook.html', title=title)
+        notebooks = self.get_details(settings.JUPYTER_HOME, '.ipynb')
+        return self.render_template('airflow/jupyter_notebook.html',
+                                    title=title,
+                                    notebooks=notebooks)
+
+    @expose('/jupyter/run-notebook/', methods=['POST'])
+    @has_access
+    @action_logging
+    def run_notebook(self):
+        notebook = request.form.get('notebook', None)
+        if not notebook:
+            return make_response(('Missing notebook.', 500))
+        parameters = {}
+        for key, val in request.form.items():
+            if key.startswith('param-key-'):
+                key_no = str(key.split('-')[-1])
+                parameters[val] = self.guess_type(request.form.get('param-value-' + key_no, ''))
+        schedule = request.form.get('schedule')
+        # TODO: Check if schedule is a valid cron expression.
+        if not schedule:
+            schedule = '@once'
+        dag_id = self.create_jupyter_dag(notebook, parameters, schedule=schedule)
+        flash('Your notebook was scheduled as {}, it should be reflected shortly.'.format(dag_id))
+        # unpause_dag(dag_id)
+        flash('If dags are paused on default, unpause the created dag.', category='info')
+        return redirect(url_for('Airflow.index'))
 
 
 class AddDagView(AirflowBaseView):

@@ -41,8 +41,9 @@ import flask_appbuilder.models.sqla.filters as fab_sqlafilters
 import sqlalchemy as sqla
 from six.moves.urllib.parse import urlencode
 
+from airflow import settings
 from airflow.configuration import conf
-from airflow.models import BaseOperator
+from airflow.models import BaseOperator, DagModel
 from airflow.operators.subdag_operator import SubDagOperator
 from airflow.utils import timezone
 from airflow.utils.json import AirflowJsonEncoder
@@ -487,3 +488,22 @@ class CustomSQLAInterface(SQLAInterface):
             isinstance(obj.impl, UtcDateTime)
 
     filter_converter_class = UtcAwareFilterConverter
+
+
+def unpause_dag(dag_id):
+    """
+    A way to programatically unpause a DAG.
+    :param dag_id: DAG id.
+    :return: dag.is_paused is now False
+    """
+    session = settings.Session()
+    try:
+        qry = session.query(DagModel).filter(DagModel.dag_id == dag_id)
+        d = qry.first()
+        d.is_paused = False
+        session.commit()
+    except Exception as e:
+        print(e)
+        session.rollback()
+    finally:
+        session.close()

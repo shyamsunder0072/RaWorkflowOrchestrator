@@ -1,0 +1,30 @@
+from airflow import DAG
+from airflow.operators import CoutureJupyterOperator
+import datetime
+
+default_args = {
+    'owner': '{{username}}',
+    'depends_on_past': False,
+    'start_date': datetime.datetime.now(),
+    'retries': 0,
+}
+
+parameters = {{parameters}}
+
+dag = DAG('{{dag_id}}',
+          default_args=default_args,
+          catchup=False,
+
+          {% if not schedule %}
+          schedule_interval=None)
+          {% else %}
+          schedule_interval='{{schedule}}')
+          {% endif %}
+
+notebook = CoutureJupyterOperator(
+    task_id='notebook_execution',
+    input_notebook='{{notebook}}',
+    output_notebook='{{notebook}}',
+    parameters=parameters,
+    dag=dag,
+    description='Jupyter notebook execution')
