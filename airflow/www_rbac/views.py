@@ -78,14 +78,26 @@ from airflow.www_rbac.forms import (ConnectionForm, DagRunForm, DateTimeForm,
                                     DateTimeWithNumRunsForm,
                                     DateTimeWithNumRunsWithDagRunsForm)
 from airflow.www_rbac.widgets import AirflowModelListWidget
-# from airflow.www_rbac.utils import unpause_dag
+from airflow.www_rbac.utils import unpause_dag
 
 
 PAGE_SIZE = conf.getint('webserver', 'page_size')
-if os.environ.get('SKIP_DAGS_PARSING') != 'True':
-    dagbag = models.DagBag(settings.DAGS_FOLDER, store_serialized_dags=STORE_SERIALIZED_DAGS)
-else:
-    dagbag = models.DagBag(os.devnull, include_examples=False)
+
+dagbag = None
+
+
+def _parse_dags(update_DagModel=False):
+    global dagbag
+    if os.environ.get('SKIP_DAGS_PARSING') != 'True':
+        dagbag = models.DagBag(settings.DAGS_FOLDER, store_serialized_dags=STORE_SERIALIZED_DAGS)
+    else:
+        dagbag = models.DagBag(os.devnull, include_examples=False)
+    if update_DagModel:
+        for dag in dagbag.dags.values():
+            dag.sync_to_db()
+
+
+_parse_dags()
 
 
 def get_date_time_num_runs_dag_runs_form_data(request, session, dag):
@@ -3063,11 +3075,9 @@ class JupyterNotebookView(AirflowBaseView):
                            Path(notebook).resolve().stem,
                            datetime.now().strftime("%d-%m-%Y-%H-%M-%S")])
         username = g.user.username
-        start_time = datetime.now()
         code = self.render_template('dags/default_jupyter_dag.jinja2',
                                     notebook=notebook,
                                     username=username,
-                                    start_time=start_time,
                                     parameters=parameters,
                                     dag_id=dag_id,
                                     schedule=schedule)
@@ -3098,14 +3108,16 @@ class JupyterNotebookView(AirflowBaseView):
                 key_no = str(key.split('-')[-1])
                 parameters[val] = self.guess_type(request.form.get('param-value-' + key_no, ''))
         schedule = request.form.get('schedule')
-        # TODO: Check if schedule is a valid cron expression.
+        # TODO: Check if schedule is a valid cron expression. `Croniter`
         if not schedule:
             schedule = '@once'
         dag_id = self.create_jupyter_dag(notebook, parameters, schedule=schedule)
         flash('Your notebook was scheduled as {}, it should be reflected shortly.'.format(dag_id))
-        # unpause_dag(dag_id)
-        flash('If dags are paused on default, unpause the created dag.', category='info')
-        return redirect(url_for('Airflow.index'))
+
+        _parse_dags(update_DagModel=True)
+        unpause_dag(dag_id)
+        # flash('If dags are paused on default, unpause the created dag.', category='info')
+        return redirect(url_for('Airflow.graph', dag_id=dag_id))
 
 
 class AddDagView(AirflowBaseView):
