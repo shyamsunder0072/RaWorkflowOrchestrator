@@ -41,6 +41,7 @@ from six.moves.urllib.parse import quote
 import markdown
 import pendulum
 import sqlalchemy as sqla
+from croniter import CroniterBadCronError, CroniterBadDateError, CroniterNotAlphaError, croniter
 from flask import (
     redirect, request, Markup, g, Response, render_template,
     make_response, flash, jsonify, send_file, url_for)
@@ -3109,7 +3110,15 @@ class JupyterNotebookView(AirflowBaseView):
                 parameters[val] = self.guess_type(request.form.get('param-value-' + key_no, ''))
         schedule = request.form.get('schedule')
         # TODO: Check if schedule is a valid cron expression. `Croniter`
-        if not schedule:
+        if schedule:
+            try:
+                croniter(schedule)
+            except (CroniterBadCronError,
+                    CroniterBadDateError,
+                    CroniterNotAlphaError):
+                flash('Bad Cron Schedule', category='error')
+                return redirect(url_for('JupyterNotebookView.jupyter_notebook'))
+        else:
             schedule = '@once'
         dag_id = self.create_jupyter_dag(notebook, parameters, schedule=schedule)
         flash('Your notebook was scheduled as {}, it should be reflected shortly.'.format(dag_id))
