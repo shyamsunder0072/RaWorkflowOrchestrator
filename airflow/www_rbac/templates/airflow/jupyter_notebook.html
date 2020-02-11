@@ -47,7 +47,7 @@
       <div class="modal-content">
         <div class="modal-header">
           <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-          <h4 class="modal-title">Schedule a Notebook</h4>
+          <h4 class="modal-title">Schedule a Notebook Run</h4>
         </div>
         <form action="{{ url_for('JupyterNotebookView.run_notebook') }}" method="POST">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
@@ -65,8 +65,7 @@
               <input type="checkbox" onclick="showSchedule(this)" checked>
               <span class="help-block">
                 Check this box to schedule the notebook to run at periodic intervals.
-                If unchecked, the notebook will be scheduled to run once as soon as the
-                resources are available.
+                If unchecked, the notebook will be scheduled to run once.
               </span>
             </div>
             <div class="form-group" id="cron-schedule">
