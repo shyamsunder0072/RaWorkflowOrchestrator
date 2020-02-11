@@ -140,7 +140,11 @@
 </div>
 
 <!-- old code -->
-<textarea id="oldCode" hidden>{{code}}</textarea>
+<textarea id="oldCode" hidden>
+  {% if not new %}
+  {{code}}
+  {% endif %}
+</textarea>
 {% endblock %}
 
 {% block tail_js %}
@@ -324,7 +328,7 @@
     }
 
   function submitCode() {
-    var path = "{{ url_for('AddDagView.editdag', filename=filename) }}";
+    var path = "{{ url_for('AddDagView.editdag', filename=filename, new=new) }}";
     post(path, { code: codeEditor.getValue(), csrf_token: '{{ csrf_token() }}' });
   }
 

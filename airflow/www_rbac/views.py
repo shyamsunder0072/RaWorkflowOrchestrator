@@ -3243,7 +3243,7 @@ class AddDagView(AirflowBaseView):
                 files_uploaded = 0
                 for upload in request.files.getlist("file"):
                     filename = upload.filename
-                    if self.regex_valid_filenames.match(os.path.splitext(filename)[0]):
+                    if self.regex_valid_filenames.match(Path(filename).resolve().stem):
                         destination = self.get_dag_file_path(filename)
                         upload.save(destination)
                         AirflowBaseView.audit_logging('dag_added',
@@ -3254,36 +3254,31 @@ class AddDagView(AirflowBaseView):
                         flash('Only python files allowed !, ' + filename + ' not allowed', 'error')
 
                 flash(str(files_uploaded) + ' files uploaded!!', 'success')
+                _parse_dags(update_DagModel=True)
 
             elif filename:
                 if self.regex_valid_filenames.match(filename):
                     filename = '.'.join([filename, 'py'])
-                    try:
-                        # don't overwrite existing files
-                        Path(self.get_dag_file_path(filename)).touch(exist_ok=False)
-                        if request.form.get('insert-template-content', None):
-                            with open(self.get_dag_file_path(filename), 'w') as new_dag:
-                                new_dag.write(self.dag_file_template)
-                                AirflowBaseView.audit_logging('empty_dag_added',
-                                                              filename,
-                                                              request.environ['REMOTE_ADDR'])
-                    except FileExistsError:
-                        pass
-                    return redirect(url_for('AddDagView.editdag', filename=filename))
+                    if Path(filename).exists():
+                        flash('Dag {} Already present.'.format(filename))
+                    else:
+                        return redirect(url_for('AddDagView.editdag', filename=filename, new=True))
                 else:
                     flash('Invalid DAG name, DAG not created.', 'error')
+
             # the below redirect is to avoid form resubmission messages when
             # we refresh the page in the browser.
             return redirect(url_for('AddDagView.add_dag'))
         file_data = self.get_details(dags_dir, ".py")
         return self.render_template('airflow/add_dag.html', title=title, file_data=file_data)
 
-    @expose("/editdag/<string:filename>", methods=['GET', 'POST'])
+    @expose("/editdag/<string:filename>/", methods=['GET', 'POST'])
     @action_logging
     @has_access
     def editdag(self, filename):
         fullpath = self.get_dag_file_path(filename)
-        if not Path(fullpath).exists() and self.regex_valid_filenames.match(os.path.splitext(filename)[0]):
+        new = request.args.get('new', False)
+        if not (new or Path(fullpath).exists()) and self.regex_valid_filenames.match(Path(filename).resolve().stem):
             return make_response(('DAG not found', 404))
         if request.method == 'POST':
             code = request.form['code']
@@ -3293,13 +3288,22 @@ class AddDagView(AirflowBaseView):
                 AirflowBaseView.audit_logging(
                     "{}.{}".format(self.__class__.__name__, 'editdag'),
                     filename, request.environ['REMOTE_ADDR'])
+                if new:
+                    _parse_dags(update_DagModel=True)
             return redirect(url_for('AddDagView.editdag', filename=filename))
         else:
-            with open(fullpath, 'r') as code_file:
-                code = code_file.read()
+            if new:
+                code = self.dag_file_template
+            else:
+                with open(fullpath, 'r') as code_file:
+                    code = code_file.read()
+
 
         return self.render_template("airflow/editdag.html",
-                                    code=code, filename=filename, snippets=self.get_snippets())
+                                    code=code,
+                                    filename=filename,
+                                    new=new,
+                                    snippets=self.get_snippets())
 
     @expose("/save_snippet/<string:filename>", methods=['POST'])
     @has_access
