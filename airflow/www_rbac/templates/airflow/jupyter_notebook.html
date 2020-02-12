@@ -31,9 +31,68 @@
   </div>
 </div>
 
-<div>
-  <object id ="contentarea" type="text/html" data="" width="100%" height="1200px" class="couture_object">
-  </object>
+<div class="container">
+  <div class="row">
+    <button class="btn btn-primary pull-right" data-target="#scheduleNotebookModal" data-toggle="modal">
+      Schedule a notebook
+    </button>
+  </div>
+  <div class="row">
+    <object id ="contentarea" type="text/html" data="" width="100%" height="1200px" class="couture_object">
+    </object>
+  </div>
+
+  <div class="modal fade" tabindex="-1" role="dialog" id="scheduleNotebookModal">
+    <div class="modal-dialog" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+          <h4 class="modal-title">Schedule a Notebook Run</h4>
+        </div>
+        <form action="{{ url_for('JupyterNotebookView.run_notebook') }}" method="POST">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+          <div class="modal-body">
+            <div class="form-group">
+              <label for="notebook">Notebook</label>
+              <select name="notebook" class="form-control select-notebook" required>
+                {% for notebook in notebooks %}
+                <option value="{{ notebook }}">{{ notebook }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="notebook">Schedule Later</label>
+              <input type="checkbox" onclick="showSchedule(this)" checked>
+              <span class="help-block">
+                Check this box to schedule the notebook to run at periodic intervals.
+                If unchecked, the notebook will be scheduled to run once.
+              </span>
+            </div>
+            <div class="form-group" id="cron-schedule">
+              <label for="notebook">Schedule</label>
+              <input type="text" placeholder="* * * * * * *" name="schedule" class="form-control" value="" required>
+              <span class="help-block">
+                Enter a valid cron schedule expression.
+              </span>
+            </div>
+            <div class="form-group" id="injected-parameters">
+              <div style="padding-bottom: 1em;">
+                <label for="parameters">Injected parameters</label>
+                <button type="button" class="btn btn-warning pull-right" onclick="addParameter()">Add parameters</button>
+              </div>
+              <div class="addParameterDiv">
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+            <button type="submit" class="btn btn-primary">Execute</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
 </div>
 
 
@@ -45,11 +104,61 @@
 
 	var loc = "http://" + window.location.hostname + ":8888";
 
-	window.onload = function(){
-	    if(!document.getElementById("contentarea"))
-	        return false;
-	    document.getElementById("contentarea").setAttribute('data', loc);
-	}
+  window.onload = function(){
+    if(!document.getElementById("contentarea"))
+        return false;
+    document.getElementById("contentarea").setAttribute('data', loc);
+    $('.select-notebook').select2();
+  }
+
+  var injectParamCount = 0;
+  function addParameter() {
+    var template = '<div class="row" id="injectedParam-'+ injectParamCount.toString() +'">' +
+      '<div class="col-sm-4">' +
+        '<input type="text" placeholder="key"  name="param-key-'+ injectParamCount.toString() +'" class="form-control" required>' +
+      '</div>' +
+      '<div class="col-sm-8">' +
+        '<div class="col-sm-11">' +
+          '<input type="text" placeholder="value" name="param-value-' + injectParamCount.toString() + '" class="form-control" required>' +
+        '</div>' +
+        '<div class="col-sm-1" style="padding-top:0.5em;">' +
+          ' <i class="fa fa-times-circle" onclick="removeParameter(' + "'" + injectParamCount.toString() + "'" + ')"></i>' +
+        '</div>' +
+        '</div>'
+      '</div>' +
+    '</div>'
+    injectParamCount += 1;
+    $('.addParameterDiv').append(template);
+  }
+
+  function removeParameter(id) {
+    $('#injectedParam-' + id).detach();
+  }
+
+  function showSchedule(ck) {
+    console.log(ck);
+    if (ck.checked) {
+      $('#cron-schedule').show();
+      $('#cron-schedule').find('input[name="schedule"]').attr('required', true);
+    }
+    else {
+      $('#cron-schedule').hide();
+      $('#cron-schedule').find('input[name="schedule"]').val('');
+      $('#cron-schedule').find('input[name="schedule"]').removeAttr('required');
+    }
+  }
+
+  // currently not checking whether the cron schedule is valid or not.
+
+  // function checkCronValid(input) {
+  //   var valid = /^[A-Za-z0-9_@()-]+$/i.test(input.value);
+  //   if (valid) {
+  //     input.setCustomValidity('');
+  //   } else {
+  //     input.setCustomValidity('Not a valid CRON schedule.');
+  //   }
+  // }
+
 </script>
 
 {% endblock %}

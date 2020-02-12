@@ -17,7 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-
+import ast
 import copy
 import functools
 import itertools
@@ -32,7 +32,7 @@ import stat
 import time
 import traceback
 from collections import defaultdict
-from datetime import timedelta
+from datetime import timedelta, datetime
 from urllib.parse import unquote
 from pathlib import Path
 
@@ -41,6 +41,7 @@ from six.moves.urllib.parse import quote
 import markdown
 import pendulum
 import sqlalchemy as sqla
+from croniter import CroniterBadCronError, CroniterBadDateError, CroniterNotAlphaError, croniter
 from flask import (
     redirect, request, Markup, g, Response, render_template,
     make_response, flash, jsonify, send_file, url_for)
@@ -78,13 +79,26 @@ from airflow.www_rbac.forms import (ConnectionForm, DagRunForm, DateTimeForm,
                                     DateTimeWithNumRunsForm,
                                     DateTimeWithNumRunsWithDagRunsForm)
 from airflow.www_rbac.widgets import AirflowModelListWidget
+from airflow.www_rbac.utils import unpause_dag
 
 
 PAGE_SIZE = conf.getint('webserver', 'page_size')
-if os.environ.get('SKIP_DAGS_PARSING') != 'True':
-    dagbag = models.DagBag(settings.DAGS_FOLDER, store_serialized_dags=STORE_SERIALIZED_DAGS)
-else:
-    dagbag = models.DagBag(os.devnull, include_examples=False)
+
+dagbag = None
+
+
+def _parse_dags(update_DagModel=False):
+    global dagbag
+    if os.environ.get('SKIP_DAGS_PARSING') != 'True':
+        dagbag = models.DagBag(settings.DAGS_FOLDER, store_serialized_dags=STORE_SERIALIZED_DAGS)
+    else:
+        dagbag = models.DagBag(os.devnull, include_examples=False)
+    if update_DagModel:
+        for dag in dagbag.dags.values():
+            dag.sync_to_db()
+
+
+_parse_dags()
 
 
 def get_date_time_num_runs_dag_runs_form_data(request, session, dag):
@@ -194,7 +208,6 @@ class AirflowBaseView(BaseView):
         ''' Takes the path and file extension, returns size and last modified time of files
         inside the path.
         '''
-
         # NOTE: This method use `os.walk`. We may want to use `os.listdir()` instead.
         file_data = {}
         for r, d, f in os.walk(dir_path):
@@ -3051,11 +3064,69 @@ class KeyTabView(AirflowBaseView):
 class JupyterNotebookView(AirflowBaseView):
     default_view = 'jupyter_notebook'
 
+    def guess_type(self, val):
+        try:
+            val = ast.literal_eval(val)
+        except ValueError:
+            pass
+        return val
+
+    def create_jupyter_dag(self, notebook, parameters, schedule=None):
+        dag_id = "-".join(["JupyterNotebookExceution",
+                           Path(notebook).resolve().stem,
+                           datetime.now().strftime("%d-%m-%Y-%H-%M-%S")])
+        username = g.user.username
+        code = self.render_template('dags/default_jupyter_dag.jinja2',
+                                    notebook=notebook,
+                                    username=username,
+                                    parameters=parameters,
+                                    dag_id=dag_id,
+                                    schedule=schedule)
+        with open(os.path.join(settings.DAGS_FOLDER, dag_id + '.py'), 'w') as dag_file:
+            dag_file.write(code)
+        return dag_id
+
     @expose('/jupyter_notebook')
     @has_access
+    @action_logging
     def jupyter_notebook(self):
         title = "Jupyter Notebook"
-        return self.render_template('airflow/jupyter_notebook.html', title=title)
+        notebooks = self.get_details(settings.JUPYTER_HOME, '.ipynb')
+        return self.render_template('airflow/jupyter_notebook.html',
+                                    title=title,
+                                    notebooks=notebooks)
+
+    @expose('/jupyter/run-notebook/', methods=['POST'])
+    @has_access
+    @action_logging
+    def run_notebook(self):
+        notebook = request.form.get('notebook', None)
+        if not notebook:
+            return make_response(('Missing notebook.', 500))
+        parameters = {}
+        for key, val in request.form.items():
+            if key.startswith('param-key-'):
+                key_no = str(key.split('-')[-1])
+                parameters[val] = self.guess_type(request.form.get('param-value-' + key_no, ''))
+        schedule = request.form.get('schedule')
+        # TODO: Check if schedule is a valid cron expression. `Croniter`
+        if schedule:
+            try:
+                croniter(schedule)
+            except (CroniterBadCronError,
+                    CroniterBadDateError,
+                    CroniterNotAlphaError):
+                flash('Bad Cron Schedule', category='error')
+                return redirect(url_for('JupyterNotebookView.jupyter_notebook'))
+        else:
+            schedule = '@once'
+        dag_id = self.create_jupyter_dag(notebook, parameters, schedule=schedule)
+        flash('Your notebook was scheduled as {}, it should be reflected shortly.'.format(dag_id))
+
+        _parse_dags(update_DagModel=True)
+        unpause_dag(dag_id)
+        # flash('If dags are paused on default, unpause the created dag.', category='info')
+        return redirect(url_for('Airflow.graph', dag_id=dag_id))
 
 
 class AddDagView(AirflowBaseView):
@@ -3172,7 +3243,7 @@ class AddDagView(AirflowBaseView):
                 files_uploaded = 0
                 for upload in request.files.getlist("file"):
                     filename = upload.filename
-                    if self.regex_valid_filenames.match(os.path.splitext(filename)[0]):
+                    if self.regex_valid_filenames.match(Path(filename).resolve().stem):
                         destination = self.get_dag_file_path(filename)
                         upload.save(destination)
                         AirflowBaseView.audit_logging('dag_added',
@@ -3183,36 +3254,31 @@ class AddDagView(AirflowBaseView):
                         flash('Only python files allowed !, ' + filename + ' not allowed', 'error')
 
                 flash(str(files_uploaded) + ' files uploaded!!', 'success')
+                _parse_dags(update_DagModel=True)
 
             elif filename:
                 if self.regex_valid_filenames.match(filename):
                     filename = '.'.join([filename, 'py'])
-                    try:
-                        # don't overwrite existing files
-                        Path(self.get_dag_file_path(filename)).touch(exist_ok=False)
-                        if request.form.get('insert-template-content', None):
-                            with open(self.get_dag_file_path(filename), 'w') as new_dag:
-                                new_dag.write(self.dag_file_template)
-                                AirflowBaseView.audit_logging('empty_dag_added',
-                                                              filename,
-                                                              request.environ['REMOTE_ADDR'])
-                    except FileExistsError:
-                        pass
-                    return redirect(url_for('AddDagView.editdag', filename=filename))
+                    if Path(filename).exists():
+                        flash('Dag {} Already present.'.format(filename))
+                    else:
+                        return redirect(url_for('AddDagView.editdag', filename=filename, new=True))
                 else:
                     flash('Invalid DAG name, DAG not created.', 'error')
+
             # the below redirect is to avoid form resubmission messages when
             # we refresh the page in the browser.
             return redirect(url_for('AddDagView.add_dag'))
         file_data = self.get_details(dags_dir, ".py")
         return self.render_template('airflow/add_dag.html', title=title, file_data=file_data)
 
-    @expose("/editdag/<string:filename>", methods=['GET', 'POST'])
+    @expose("/editdag/<string:filename>/", methods=['GET', 'POST'])
     @action_logging
     @has_access
     def editdag(self, filename):
         fullpath = self.get_dag_file_path(filename)
-        if not Path(fullpath).exists() and self.regex_valid_filenames.match(os.path.splitext(filename)[0]):
+        new = request.args.get('new', False)
+        if not (new or Path(fullpath).exists()) and self.regex_valid_filenames.match(Path(filename).resolve().stem):
             return make_response(('DAG not found', 404))
         if request.method == 'POST':
             code = request.form['code']
@@ -3222,13 +3288,22 @@ class AddDagView(AirflowBaseView):
                 AirflowBaseView.audit_logging(
                     "{}.{}".format(self.__class__.__name__, 'editdag'),
                     filename, request.environ['REMOTE_ADDR'])
+                if new:
+                    _parse_dags(update_DagModel=True)
             return redirect(url_for('AddDagView.editdag', filename=filename))
         else:
-            with open(fullpath, 'r') as code_file:
-                code = code_file.read()
+            if new:
+                code = self.dag_file_template
+            else:
+                with open(fullpath, 'r') as code_file:
+                    code = code_file.read()
+
 
         return self.render_template("airflow/editdag.html",
-                                    code=code, filename=filename, snippets=self.get_snippets())
+                                    code=code,
+                                    filename=filename,
+                                    new=new,
+                                    snippets=self.get_snippets())
 
     @expose("/save_snippet/<string:filename>", methods=['POST'])
     @has_access
