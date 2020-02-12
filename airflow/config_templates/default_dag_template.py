@@ -92,7 +92,7 @@ dag = DAG('CoutureExample', default_args=default_args, catchup=False, schedule_i
 #     task_id='multivariate_visualisation',
 #     depends_on_past=False,
 #     bash_command='python multivariate_visualisation.py',
-#     dag=eda_dag
+#     dag=edag
 # )
 #
 # def print_context(ds, **kwargs):
