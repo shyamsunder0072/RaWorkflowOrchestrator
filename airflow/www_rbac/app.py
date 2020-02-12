@@ -137,7 +137,7 @@ def create_app(config=None, session=None, testing=False, app_name="Workflow"):
                                 category="Developer",
                                 category_icon="fa-wrench")
             appbuilder.add_view(views.EDAView(),
-                                "EDA Output",
+                                "Exploratory data analysis",
                                 category="Developer",
                                 category_icon="fa-wrench")
             appbuilder.add_view(views.ConfigurationView,
