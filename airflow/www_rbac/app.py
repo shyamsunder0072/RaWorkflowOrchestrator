@@ -136,7 +136,7 @@ def create_app(config=None, session=None, testing=False, app_name="Workflow"):
                                 "Jupyter Notebook",
                                 category="Developer",
                                 category_icon="fa-wrench")
-            appbuilder.add_view(views.EDAOutputView(),
+            appbuilder.add_view(views.EDAView(),
                                 "EDA Output",
                                 category="Developer",
                                 category_icon="fa-wrench")

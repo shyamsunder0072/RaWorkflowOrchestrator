@@ -1,0 +1,135 @@
+{% extends "airflow/master.html" %}
+{% block title %}
+{{ title }}
+{% endblock %}
+
+{% block head_css %}
+{{ super() }}
+<style>
+  .margin-left-md { margin-left: 1em; }
+  .margin-top-md { margin-top: 1em; }
+</style>
+{% endblock %}
+
+{% block content %}
+{{ super() }}
+<div>
+  <div>
+    <h2 class="margin-top-md">EDA Data Sources</h2>
+    <button type="button" class="btn btn-primary pull-right margin-left-md" data-toggle="modal" data-target="#newSource">
+      Add a new data source
+    </button>
+  </div>
+  <br><br>
+  <div class="input-group">
+    <span class="input-group-addon">Search source: </span>
+    <input type="text" class="form-control" placeholder="hdfs://" id="sourceSearch">
+  </div>
+  <br>
+  <div class="table-responsive">
+    <table class="table table-bordered table-hover" id="sourceTable">
+      <thead>
+        <tr class="table-head">
+          <th colspan="12">Source</th>
+          <th colspan="3">Links</th>
+        </tr>
+      </thead>
+      <tbody>
+      <div>
+        {% for source in sources %}
+        <tr>
+          <td class="couture_table_text" class="text-center" colspan="12">
+            {{ source }}
+          </td>
+          <td colspan="1">
+            <div>
+              <a href="#">
+                <i class="fa fa-play fa-lg" data-toggle="tooltip" title="Run EDA on this data source."></i>
+              </a>
+            </div>
+          </td>
+          <td colspan="1">
+            <div>
+              <a href="{{ url_for('EDAView.list_outputs_view', source=source) }}">
+                <i class="fa fa-info-circle fa-lg" data-toggle="tooltip" title="Get Info on All EDA runs for this source."></i>
+              </a>
+            </div>
+          </td>
+          <td colspan="1">
+            <a href="{{ url_for('EDAView.source_destroy_view', source=source) }}" onclick="return confirm('Are you sure to delete {{source}} ?')">
+              <i class="fa fa-trash fa-lg" style="color:red" aria-hidden="true" data-toggle="tooltip" title="Delete Source"></i>
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </div>
+      </tbody>
+    </table>
+  </div>
+</div>
+<!-- Modal for Adding a Data Source -->
+<div class="modal fade" id="newSource" tabindex="-1" role="dialog">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+        <h4 class="modal-title" id="myModalLabel">Add a new data source</h4>
+      </div>
+      <!-- TODO: Change action url -->
+      <form method="POST" action="{{ url_for('EDAView.source_view') }}">
+        <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
+        <div class="modal-body">
+        <div class="form-group">
+          <label for="path">Enter source: </label>
+          <input type="text" name="path" class="form-control" oninput="checkPath(this)" placeholder="hdfs://" required>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+        <button type="submit" class="btn btn-primary">Add</button>
+      </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block tail_js %}
+{{ super() }}
+<!-- </body> -->
+<script type="text/javascript">
+
+  $(document).ready(function () {
+    $('[data-toggle="tooltip"]').tooltip();
+
+    $("#sourceSearch").on("keyup", function() {
+      var value = $(this).val().toLowerCase();
+      $("#sourceTable tr").filter(function() {
+        if ( !$(this).hasClass('table-head'))
+          $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1);
+      });
+    });
+  })
+
+  function pathExists(path) {
+    const paths = [
+      {% for source in sources %}
+        "{{ source }}",
+      {% endfor %}
+    ];
+    if( paths.includes(path) ) return true;
+    return false;
+  }
+
+  function checkPath(input) {
+    if (pathExists(input.value)) {
+      input.setCustomValidity('Source already added.');
+    }
+    else if(! input.value.startsWith('hdfs://')) {
+      input.setCustomValidity('Source path must start with hdfs://');
+    }
+    else {
+      input.setCustomValidity('');
+    }
+  }
+</script>
+{% endblock %}

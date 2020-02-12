@@ -15,7 +15,7 @@
 {{ super() }}
 <div class="container">
   <div>
-    <h2 class="margin-top-md">EDA output dashboards:</h2>
+    <h2 class="margin-top-md">EDA outputs dashboards for {{source}}:</h2>
   </div>
   <br><br>
   <div class="input-group">
@@ -35,7 +35,7 @@
         {% for i in files %}
         <tr>
           <td>
-            <a href="{{ url_for('EDAOutputView.dashboard_view', filename = i ) }}">
+            <a href="{{ url_for('EDAView.dashboard_view', filename = i ) }}">
               {{i}}
             </a>
           </td>

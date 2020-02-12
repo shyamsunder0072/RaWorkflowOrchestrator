@@ -2656,27 +2656,71 @@ class HadoopConfView(FileUploadBaseView):
             return redirect(url_for('HadoopConfView.edit_view', pathname=pathname))
 
 
-class EDAOutputView(AirflowBaseView):
-    default_view = 'list_view'
+class EDAView(AirflowBaseView):
+    default_view = 'source_view'
     output_path = os.path.join(settings.EDA_HOME, *['outputs'])
+    sources_key = 'EDA_Sources'
 
     def __init__(self, *args, **kwargs):
         os.makedirs(self.output_path, exist_ok=True)
         super().__init__(*args, **kwargs)
 
-    @expose('/eda/', methods=['GET'])
+    def get_sources(self):
+        return models.Variable.get(self.sources_key,
+                                   default_var=[],
+                                   deserialize_json=True)
+
+    def add_source(self, source):
+        sources = set(self.get_sources())
+        sources.add(source)
+        sources = list(sources)
+        models.Variable.set(self.sources_key, sources, serialize_json=True)
+
+    def remove_source(self, source):
+        sources = set(self.get_sources())
+        sources.remove(source)
+        sources = list(sources)
+        models.Variable.set(self.sources_key, sources, serialize_json=True)
+
+    @expose('/eda/sources/', methods=['GET', 'POST'])
     @has_access
     @action_logging
-    def list_view(self):
+    def source_view(self):
+        if request.method == "GET":
+            sources = self.get_sources()
+            return self.render_template('eda/eda_sources.html', sources=sources)
+        path = request.form.get('path')
+        if not path or not path.lower().startswith('hdfs://'):
+            flash('Invalid source path.')
+        else:
+            self.add_source(path)
+            flash('Source Added.')
+        return redirect(url_for('EDAView.source_view'))
+
+    @expose('/eda/<path:source>/delete/', methods=['GET', 'POST'])
+    @has_access
+    @action_logging
+    def source_destroy_view(self, source):
+        try:
+            self.remove_source(source)
+            flash('Source removed')
+        except KeyError:
+            flash('Source error, {} doesn\'t exists'.format(source))
+        return redirect(url_for('EDAView.source_view'))
+
+    @expose('/eda/<path:source>/', methods=['GET'])
+    @has_access
+    @action_logging
+    def list_outputs_view(self, source):
         files = []
         dir_contents = os.listdir(self.output_path)
         # print(dir_contents, self.output_path)
         for content in dir_contents:
             if content.endswith(('.htm', '.html',)):
                 files.append(content)
-        return self.render_template('airflow/eda_list.html', files=files)
+        return self.render_template('eda/eda_list.html', files=files, source=source)
 
-    @expose('/eda/<string:filename>', methods=['GET'])
+    @expose('/eda/dashboard/<path:filename>/', methods=['GET'])
     @has_access
     @action_logging
     def dashboard_view(self, filename):
@@ -2686,7 +2730,7 @@ class EDAOutputView(AirflowBaseView):
                 viz = f.read()
         except Exception:
             pass
-        return self.render_template('airflow/eda_outputs.html', visualisations=viz)
+        return self.render_template('eda/eda_outputs.html', visualisations=viz)
 
 
 class SparkConfView(AirflowBaseView):
