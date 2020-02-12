@@ -231,6 +231,8 @@
     var myTextArea = document.getElementById('code');
     codeEditor = CodeMirror.fromTextArea(myTextArea, editorConfigs);
 
+    codeEditor.execCommand('goDocEnd');
+
     jQuery.noConflict();
     $('a[data-toggle="tab"]').on('shown.bs.tab', function (e) {
       compareChanges();
