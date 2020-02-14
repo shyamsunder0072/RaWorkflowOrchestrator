@@ -201,6 +201,9 @@ def pod_mutation_hook(pod):  # type: (Pod) -> None
     to every worker pod launched by KubernetesExecutor or KubernetesPodOperator.
     """
 
+def normalize_path(path):
+    return os.path.normpath(path)
+
 
 def configure_vars():
     global SQL_ALCHEMY_CONN
@@ -214,12 +217,14 @@ def configure_vars():
     SQL_ALCHEMY_CONN = conf.get('core', 'SQL_ALCHEMY_CONN')
     DAGS_FOLDER = os.path.expanduser(conf.get('core', 'DAGS_FOLDER'))
 
-    SPARK_DEPENDENCIES_FOLDER = os.path.join(AIRFLOW_HOME, *[os.pardir, 'jars'])
-    HADOOP_CONFIGS_FOLDER = os.path.join(AIRFLOW_HOME, *[os.pardir, 'setup', 'hadoop_config_groups'])
+    SPARK_DEPENDENCIES_FOLDER = normalize_path(os.path.join(AIRFLOW_HOME, *[os.pardir, 'jars']))
+    HADOOP_CONFIGS_FOLDER = normalize_path(os.path.join(AIRFLOW_HOME, *[os.pardir,
+                                                                        'setup',
+                                                                        'hadoop_config_groups']))
 
-    CODE_ARTIFACTS_FOLDER = os.path.join(AIRFLOW_HOME, *[os.pardir, 'code'])
-    JUPYTER_HOME = os.path.join(AIRFLOW_HOME, *[os.pardir, 'jupyter'])
-    EDA_HOME = os.path.join(AIRFLOW_HOME, *[os.pardir, 'eda'])
+    CODE_ARTIFACTS_FOLDER = normalize_path(os.path.join(AIRFLOW_HOME, *[os.pardir, 'code']))
+    JUPYTER_HOME = normalize_path(os.path.join(AIRFLOW_HOME, *[os.pardir, 'jupyter']))
+    EDA_HOME = normalize_path(os.path.join(AIRFLOW_HOME, *[os.pardir, 'eda']))
 
     PLUGINS_FOLDER = conf.get(
         'core',

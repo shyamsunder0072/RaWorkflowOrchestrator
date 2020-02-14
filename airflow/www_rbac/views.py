@@ -2513,11 +2513,30 @@ class HadoopConfView(FileUploadBaseView):
     title = 'Hadoop Configuration Groups'
     files_editable = True
 
-    @expose('/HadoopConfView/change-default-group/', methods=['GET'])
-    @has_access
-    @FileUploadBaseView.action_logger
-    def change_default_group(self):
-        groupname = request.args.get('group')
+    def get_default_group_path(self):
+        try:
+            default_group_p = os.readlink(os.path.join(self.fs_path, self.default_group))
+        except FileNotFoundError:
+            default_group_p = ""
+        if not os.path.isabs(default_group_p):
+            default_group_p = os.path.join(self.fs_path, default_group_p)
+        default_group_p = os.path.normpath(default_group_p)
+        return default_group_p
+
+    def get_groups(self):
+        groups = []
+        default_group_name = None
+        default_group_p = self.get_default_group_path()
+        for f in os.scandir(self.fs_path):
+            if f.is_dir() and f.name != self.default_group:
+                if os.path.normpath(f.path) != default_group_p:
+                    groups.append([f, False])
+                else:
+                    groups.append([f, True])
+                    default_group_name = f.name
+        return groups, default_group_name
+
+    def _change_default_group(self, groupname):
         try:
             try:
                 os.remove(os.path.join(self.fs_path, self.default_group))
@@ -2532,16 +2551,20 @@ class HadoopConfView(FileUploadBaseView):
         except Exception:
             # print(e)
             pass
+
+    @expose('/HadoopConfView/change-default-group/', methods=['GET'])
+    @has_access
+    @FileUploadBaseView.action_logger
+    def change_default_group(self):
+        groupname = request.args.get('group')
+        self._change_default_group(groupname)
         return redirect(url_for('HadoopConfView.groups_view'))
 
     @expose('/HadoopConfView/delete-group/<string:groupname>', methods=['GET'])
     @has_access
     @FileUploadBaseView.action_logger
     def delete_group(self, groupname):
-        default_group_p = os.readlink(os.path.join(self.fs_path, self.default_group))
-        if not os.path.isabs(default_group_p):
-            default_group_p = os.path.join(self.fs_path, default_group_p)
-        default_group_p = os.path.normpath(default_group_p)
+        default_group_p = self.get_default_group_path()
         norm_group_path = os.path.normpath(os.path.join(self.fs_path, groupname))
         if default_group_p == norm_group_path:
             flash('Cannot delete the default group. Change default group first.', category='warning')
@@ -2557,23 +2580,12 @@ class HadoopConfView(FileUploadBaseView):
     @FileUploadBaseView.action_logger
     def groups_view(self):
         groups = []
-        default_group_p = None
         default_group_name = None
         if request.method == 'GET':
             if not os.path.islink(os.path.join(self.fs_path, self.default_group)):
                 flash('No Default Hadoop Config Group set', category='warning')
             else:
-                default_group_p = os.readlink(os.path.join(self.fs_path, self.default_group))
-                if not os.path.isabs(default_group_p):
-                    default_group_p = os.path.join(self.fs_path, default_group_p)
-                default_group_p = os.path.normpath(default_group_p)
-            for f in os.scandir(self.fs_path):
-                if f.is_dir() and f.name != self.default_group:
-                    if os.path.normpath(f.path) != default_group_p:
-                        groups.append([f, False])
-                    else:
-                        groups.append([f, True])
-                        default_group_name = f.name
+                groups, default_group_name = self.get_groups()
             return self.render_template(
                 self.groups_template_name,
                 groups=groups,
@@ -2586,6 +2598,10 @@ class HadoopConfView(FileUploadBaseView):
             name = request.form.get('name')
             if name and self.regex_valid_groupnames.match(name):
                 os.makedirs(os.path.join(self.fs_path, name), exist_ok=True)
+                groups, _ = self.get_groups()
+                if len(groups) <= 1:
+                    self._change_default_group(name)
+                    # making this the default group.
                 flash('Group added !', category='success')
                 AirflowBaseView.audit_logging(
                     "{}.{}".format(self.__class__.__name__, 'add_group'),
