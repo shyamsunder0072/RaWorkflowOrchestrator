@@ -150,6 +150,7 @@ LOGGING_CLASS_PATH = None
 
 # CONSTANTS ADDED BY COUTURE.AI
 SPARK_DEPENDENCIES_FOLDER = None
+SPARK_CONF_PATH = None
 HADOOP_CONFIGS_FOLDER = None
 CODE_ARTIFACTS_FOLDER = None
 JUPYTER_HOME = None
@@ -201,6 +202,7 @@ def pod_mutation_hook(pod):  # type: (Pod) -> None
     to every worker pod launched by KubernetesExecutor or KubernetesPodOperator.
     """
 
+
 def normalize_path(path):
     return os.path.normpath(path)
 
@@ -210,6 +212,7 @@ def configure_vars():
     global DAGS_FOLDER
     global PLUGINS_FOLDER
     global SPARK_DEPENDENCIES_FOLDER
+    global SPARK_CONF_PATH
     global HADOOP_CONFIGS_FOLDER
     global CODE_ARTIFACTS_FOLDER
     global JUPYTER_HOME
@@ -218,6 +221,7 @@ def configure_vars():
     DAGS_FOLDER = os.path.expanduser(conf.get('core', 'DAGS_FOLDER'))
 
     SPARK_DEPENDENCIES_FOLDER = normalize_path(os.path.join(AIRFLOW_HOME, *[os.pardir, 'jars']))
+    SPARK_CONF_PATH = normalize_path(os.path.join(AIRFLOW_HOME, *[os.pardir, 'couture-spark.conf']))
     HADOOP_CONFIGS_FOLDER = normalize_path(os.path.join(AIRFLOW_HOME, *[os.pardir,
                                                                         'setup',
                                                                         'hadoop_config_groups']))

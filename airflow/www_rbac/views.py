@@ -29,6 +29,8 @@ import re
 import socket
 import shutil
 import stat
+import tarfile
+import tempfile
 import time
 import traceback
 from collections import defaultdict
@@ -48,6 +50,8 @@ from flask import (
 from flask._compat import PY2
 from flask_appbuilder import BaseView, ModelView, expose, has_access
 from flask_appbuilder.actions import action
+from flask_appbuilder.api import BaseApi
+# from flask_appbuilder.security.decorators import protect
 from flask_appbuilder.models.sqla.filters import BaseFilter
 from flask_babel import lazy_gettext
 import lazy_object_proxy
@@ -73,7 +77,7 @@ from airflow.utils.helpers import alchemy_to_dict, render_log_filename
 from airflow.utils.state import State
 from airflow._vendor import nvd3
 from airflow.www_rbac import utils as wwwutils
-from airflow.www_rbac.app import app, appbuilder
+from airflow.www_rbac.app import app, appbuilder, csrf
 from airflow.www_rbac.decorators import action_logging, gzipped, has_dag_access
 from airflow.www_rbac.forms import (ConnectionForm, DagRunForm, DateTimeForm,
                                     DateTimeWithNumRunsForm,
@@ -2507,6 +2511,7 @@ class CodeArtifactView(FileUploadBaseView):
 
 
 class HadoopConfView(FileUploadBaseView):
+    # TODO: Merge this with file upload baseview.
     default_view = 'groups_view'
     fs_path = settings.HADOOP_CONFIGS_FOLDER
     accepted_file_extensions = ('.xml', )
@@ -2543,13 +2548,16 @@ class HadoopConfView(FileUploadBaseView):
             except OSError:
                 pass
             norm_group_path = os.path.normpath(os.path.join(self.fs_path, groupname))
-            os.symlink(norm_group_path,
+            # Changing putting relative symlink here
+            os.symlink(os.path.relpath(norm_group_path, self.fs_path),
                        os.path.join(self.fs_path, self.default_group))
+            # os.symlink(norm_group_path,
+            #            os.path.join(self.fs_path, self.default_group))
             AirflowBaseView.audit_logging(
                 "{}.{}".format(self.__class__.__name__, 'change_default_group'),
                 groupname, request.environ['REMOTE_ADDR'])
         except Exception:
-            # print(e)
+            # print(e, type(e))
             pass
 
     @expose('/HadoopConfView/change-default-group/', methods=['GET'])
@@ -2584,8 +2592,7 @@ class HadoopConfView(FileUploadBaseView):
         if request.method == 'GET':
             if not os.path.islink(os.path.join(self.fs_path, self.default_group)):
                 flash('No Default Hadoop Config Group set', category='warning')
-            else:
-                groups, default_group_name = self.get_groups()
+            groups, default_group_name = self.get_groups()
             return self.render_template(
                 self.groups_template_name,
                 groups=groups,
@@ -2672,7 +2679,88 @@ class HadoopConfView(FileUploadBaseView):
             return redirect(url_for('HadoopConfView.edit_view', pathname=pathname))
 
 
-class EDAView(AirflowBaseView):
+class ExportConfigsView(AirflowBaseView, BaseApi):
+    _configs_path = [
+        settings.HADOOP_CONFIGS_FOLDER,
+        settings.SPARK_CONF_PATH,
+    ]
+
+    _dependencies_path = [
+        settings.DAGS_FOLDER,
+        settings.SPARK_DEPENDENCIES_FOLDER,
+    ]
+
+    @staticmethod
+    def filter_files(tarinfo):
+        # TODO: Filter files here.
+        return tarinfo
+        # if str(tarinfo.name).endswith('.py') .....
+
+    @staticmethod
+    def moveTree(sourceRoot, destRoot):
+        if not os.path.exists(destRoot):
+            return False
+        for path, dirs, files in os.walk(sourceRoot):
+            relPath = os.path.relpath(path, sourceRoot)
+            destPath = os.path.join(destRoot, relPath)
+            if not os.path.exists(destPath):
+                os.makedirs(destPath)
+            for file in files:
+                destFile = os.path.join(destPath, file)
+                srcFile = os.path.join(path, file)
+                os.rename(srcFile, destFile)
+
+    def export(self, export_paths):
+        f = tempfile.SpooledTemporaryFile(suffix='.tar.gz')
+        airflow_home_parent = os.path.normpath(os.path.join(AIRFLOW_HOME, os.pardir))
+        with tarfile.open(fileobj=f, mode='w:gz') as tar:
+            for path in export_paths:
+                try:
+                    tar.add(path,
+                            arcname=str(Path(path).relative_to(airflow_home_parent)),
+                            filter=self.filter_files)
+                except FileNotFoundError:
+                    pass
+
+        f.flush()
+        f.seek(0)
+        return send_file(f,
+                         as_attachment=True,
+                         conditional=True,
+                         attachment_filename='configs.tar.gz',
+                         mimetype='application/gzip')
+
+    def imprt(self, import_paths, tar):
+        # NOTE: All folder imports are from AIRFLOW_HOME/../
+        # The sent files should be overwritten and the rest files already
+        # present in the filesystem should be preserved.
+        if not tar:
+            return self.response_400('Missing "sources"')
+        airflow_home_parent = Path(AIRFLOW_HOME).parent
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tarfile.open(fileobj=tar, mode='r:gz').extractall(path=tmpdir)
+            for path in import_paths:
+                if os.path.isfile(path):
+                    shutil.copyfile(os.path.join(tmpdir,
+                                    Path(path).relative_to(airflow_home_parent)), path)
+                else:
+                    self.moveTree(os.path.join(tmpdir,
+                                  Path(path).relative_to(airflow_home_parent)), path)
+
+        return self.response(200, message="OK")
+
+    @expose('/api/configs/', methods=['GET', 'POST'])
+    # @protect(allow_browser_login=True)
+    @csrf.exempt
+    def configs(self):
+        # TODO: enable authentication.
+        if request.method == 'GET':
+            return self.export(self._configs_path)
+        if request.method == 'POST':
+            return self.imprt(self._configs_path, tar=request.files.get('sources'))
+
+
+class EDAView(AirflowBaseView, BaseApi):
     default_view = 'source_view'
     output_path = os.path.join(settings.EDA_HOME, *['outputs'])
     sources_key = 'EDA_Sources'
@@ -2686,7 +2774,34 @@ class EDAView(AirflowBaseView):
                                    default_var=[],
                                    deserialize_json=True)
 
-    def add_source(self, source):
+    def get_outputs(self):
+        outputs_folder = Path(self.output_path)
+        # Use os.scandir() instead ?
+        tree = []
+        curr = 0
+        dir_node_id = {}
+        for dirpath, dirs, files in os.walk(self.output_path):
+            root = Path(dirpath).stem
+            tree.append({'id': 'node-{}'.format(curr),
+                         'parent': '#' if not curr else dir_node_id[Path(dirpath).parts[-2]],
+                         'text': root})
+            dir_node_id[root] = 'node-{}'.format(curr)
+            curr += 1
+            for file in files:
+                if file.endswith(('.htm', '.html')):
+                    fpath = Path(os.path.join(dirpath, file))
+                    tree.append({'id': 'node-{}'.format(curr),
+                                 'parent': dir_node_id[root],
+                                 'text': file,
+                                 'type': 'dashboard',
+                                 'a_attr': {
+                                     'href': url_for('EDAView.dashboard_view',
+                                                     filename=fpath.relative_to(outputs_folder))
+                    }})
+                    curr += 1
+        return tree
+
+    def add_source(self, source: str):
         sources = set(self.get_sources())
         sources.add(source)
         sources = list(sources)
@@ -2700,18 +2815,36 @@ class EDAView(AirflowBaseView):
 
     @expose('/eda/sources/', methods=['GET', 'POST'])
     @has_access
+    @csrf.exempt
     @action_logging
     def source_view(self):
         if request.method == "GET":
             sources = self.get_sources()
-            return self.render_template('eda/eda_sources.html', sources=sources)
+            outputs = json.dumps(self.get_outputs())
+            return self.render_template('eda/eda_sources.html', sources=sources, outputs=outputs)
         path = request.form.get('path')
-        if not path or not path.lower().startswith('hdfs://'):
+        print(request.form)
+        if not path:
             flash('Invalid source path.')
         else:
             self.add_source(path)
             flash('Source Added.')
         return redirect(url_for('EDAView.source_view'))
+
+    @expose('/eda/api/', methods=['POST'])
+    # @has_access
+    @csrf.exempt
+    def source_view_api(self):
+        # print(request.form)
+        sources = request.form.get('sources')
+        if not sources:
+            return self.response_400(message='Missing `sources` in body.')
+        sources = json.loads(sources)
+        if not isinstance(sources, list):
+            sources = [sources]
+        for source in sources:
+            self.add_source(source)
+        return self.response(201)
 
     @expose('/eda/<path:source>/delete/', methods=['GET', 'POST'])
     @has_access
@@ -2761,7 +2894,7 @@ class SparkConfView(AirflowBaseView):
         from airflow.configuration import AIRFLOW_HOME
         config = CP.ConfigParser()
         config.optionxform = str
-        conf_path = AIRFLOW_HOME + '/couture-spark.conf'
+        conf_path = settings.SPARK_CONF_PATH
         setup_path = AIRFLOW_HOME + '/../jars'
         keytab_path = AIRFLOW_HOME + '/keytab'
 
@@ -3338,7 +3471,8 @@ class AddDagView(AirflowBaseView):
     def editdag(self, filename):
         fullpath = self.get_dag_file_path(filename)
         new = request.args.get('new', False)
-        if not (new or Path(fullpath).exists()) and self.regex_valid_filenames.match(Path(filename).resolve().stem):
+        if not (new or Path(fullpath).exists()) and \
+                self.regex_valid_filenames.match(Path(filename).resolve().stem):
             return make_response(('DAG not found', 404))
         if request.method == 'POST':
             code = request.form['code']
@@ -3357,7 +3491,6 @@ class AddDagView(AirflowBaseView):
             else:
                 with open(fullpath, 'r') as code_file:
                     code = code_file.read()
-
 
         return self.render_template("airflow/editdag.html",
                                     code=code,

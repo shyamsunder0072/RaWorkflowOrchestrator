@@ -1,10 +1,17 @@
 {% extends "airflow/master.html" %}
+{% block head_js %}
+{{ super() }}
+
+<script src="//cdnjs.cloudflare.com/ajax/libs/jstree/3.3.8/jstree.min.js"></script>
+{% endblock %}
+
 {% block title %}
 {{ title }}
 {% endblock %}
 
 {% block head_css %}
 {{ super() }}
+<link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/jstree/3.3.8/themes/default/style.min.css" />
 <style>
   .margin-left-md { margin-left: 1em; }
   .margin-top-md { margin-top: 1em; }
@@ -13,20 +20,28 @@
 
 {% block content %}
 {{ super() }}
-<div>
+<h2>Exploratory Data Analysis</h2>
+<div id="eda-sources">
   <div>
-    <h2 class="margin-top-md">EDA Data Sources</h2>
-    <button type="button" class="btn btn-primary pull-right margin-left-md" data-toggle="modal" data-target="#newSource">
-      Add a new data source
+    <h3 class="margin-top-md">Raw Inputs</h3>
+    <button type="button" class="btn btn-primary pull-right margin-left-md" data-toggle="modal" data-target="#newSourceHDFS">
+      HDFS
     </button>
+    <button type="button" class="btn btn-info pull-right margin-left-md" data-toggle="modal" data-target="#newSourceFileUpload">
+      Excel/CSV/TSV
+    </button>
+    <a href="http://localhost:8088/databaseview/list/?edaHelp=True" class="btn btn-warning pull-right margin-left-md">
+      Database
+    </a>
+    <h4 class="pull-right">Define the source of your data: </h4>
   </div>
   <br><br>
   <div class="input-group">
     <span class="input-group-addon">Search source: </span>
-    <input type="text" class="form-control" placeholder="hdfs://" id="sourceSearch">
+    <input type="text" class="form-control" id="sourceSearch">
   </div>
   <br>
-  <div class="table-responsive">
+  <div class="table-responsive" style="max-height: 400px;">
     <table class="table table-bordered table-hover" id="sourceTable">
       <thead>
         <tr class="table-head">
@@ -67,8 +82,35 @@
     </table>
   </div>
 </div>
+<div id="eda-outputs">
+  <h3>Processed Outputs</h3>
+  <div id="outputs-tree"></div>
+</div>
 <!-- Modal for Adding a Data Source -->
-<div class="modal fade" id="newSource" tabindex="-1" role="dialog">
+<div class="modal fade" id="newSourceHDFS" tabindex="-1" role="dialog">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+        <h4 class="modal-title" id="myModalLabel">Add a new hdfs data source</h4>
+      </div>
+      <form method="POST" action="{{ url_for('EDAView.source_view') }}">
+        <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
+        <div class="modal-body">
+        <div class="form-group">
+          <label for="path">Enter source: </label>
+          <input type="text" name="path" class="form-control" oninput="checkPath(this)" placeholder="hdfs://" required>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+        <button type="submit" class="btn btn-primary">Add</button>
+      </div>
+      </form>
+    </div>
+  </div>
+</div>
+<div class="modal fade" id="newSourceFileUpload" tabindex="-1" role="dialog">
   <div class="modal-dialog" role="document">
     <div class="modal-content">
       <div class="modal-header">
@@ -79,10 +121,11 @@
       <form method="POST" action="{{ url_for('EDAView.source_view') }}">
         <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
         <div class="modal-body">
-        <div class="form-group">
-          <label for="path">Enter source: </label>
-          <input type="text" name="path" class="form-control" oninput="checkPath(this)" placeholder="hdfs://" required>
-        </div>
+          <div class="form-group">
+            <label for="inputFile">Choose source</label>
+            <input type="file" accept=".xlsx, .xlx, .csv, .tsv">
+            <p class="help-block">Only <code>.xlsx, .xlx, .csv, .tsv</code> file extensions allowed</p>
+          </div>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
@@ -108,6 +151,25 @@
           $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1);
       });
     });
+    $('#outputs-tree').jstree({
+      'core' : {
+        'data' : {{ outputs | safe}}
+      },
+      "types" : {
+        "default" : {
+          "icon" : "fa fa-folder-open"
+        },
+        "dashboard" : {
+          "icon" : "fa fa-tachometer"
+        }
+      },
+      'plugins': ['types']
+    }).bind("changed.jstree", function (e, data) {
+      if(data.node && data.node.a_attr.href !== '#') {
+        // document.location = data.node.a_attr.href;
+        window.open(data.node.a_attr.href);
+      }
+    });;
   })
 
   function pathExists(path) {

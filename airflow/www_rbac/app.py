@@ -62,6 +62,10 @@ def create_app(config=None, session=None, testing=False, app_name="Workflow"):
     app.config['TESTING'] = testing
 
     app.config['SESSION_COOKIE_HTTPONLY'] = True
+    # Temproary fix to avoid logout when switching b/w airflow & superset.
+    # TODO: Remove it when Auth is merged.
+    app.config['SESSION_COOKIE_NAME'] = 'workflow_session'
+
     app.config['SESSION_COOKIE_SECURE'] = conf.getboolean('webserver', 'COOKIE_SECURE')
     app.config['SESSION_COOKIE_SAMESITE'] = conf.get('webserver', 'COOKIE_SAMESITE')
 
@@ -107,6 +111,7 @@ def create_app(config=None, session=None, testing=False, app_name="Workflow"):
             # reusing a session with a disconnected connection
             appbuilder.session.remove()
             appbuilder.add_view_no_menu(views.Airflow())
+            appbuilder.add_view_no_menu(views.ExportConfigsView())
             appbuilder.add_view_no_menu(views.DagModelView())
             appbuilder.add_view(views.DagRunModelView,
                                 "DAG Runs",
