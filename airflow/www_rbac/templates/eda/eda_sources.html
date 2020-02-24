@@ -2,7 +2,7 @@
 {% block head_js %}
 {{ super() }}
 
-<script src="//cdnjs.cloudflare.com/ajax/libs/jstree/3.3.8/jstree.min.js"></script>
+<script src="{{ url_for_asset('jstree/jstree.min.js') }}"></script>
 {% endblock %}
 
 {% block title %}
@@ -11,7 +11,7 @@
 
 {% block head_css %}
 {{ super() }}
-<link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/jstree/3.3.8/themes/default/style.min.css" />
+<link rel="stylesheet" href="{{ url_for_asset('jstree/themes/default/style.min.css') }}" />
 <style>
   .margin-left-md { margin-left: 1em; }
   .margin-top-md { margin-top: 1em; }
@@ -30,8 +30,8 @@
     <button type="button" class="btn btn-info pull-right margin-left-md" data-toggle="modal" data-target="#newSourceFileUpload">
       Excel/CSV/TSV
     </button>
-    <a href="http://localhost:8088/databaseview/list/?edaHelp=True" class="btn btn-warning pull-right margin-left-md">
-      Database
+    <a href="#" class="btn btn-warning pull-right margin-left-md" id="db-link">
+      SQL Database
     </a>
     <h4 class="pull-right">Define the source of your data: </h4>
   </div>
@@ -65,13 +65,13 @@
           </td>
           <td colspan="1">
             <div>
-              <a href="{{ url_for('EDAView.list_outputs_view', source=source) }}">
+              <a href="{{ url_for('EDAView.list_outputs_view', source=source.id) }}">
                 <i class="fa fa-info-circle fa-lg" data-toggle="tooltip" title="Get Info on All EDA runs for this source."></i>
               </a>
             </div>
           </td>
           <td colspan="1">
-            <a href="{{ url_for('EDAView.source_destroy_view', source=source) }}" onclick="return confirm('Are you sure to delete {{source}} ?')">
+            <a href="{{ url_for('EDAView.source_destroy_view', source=source.id) }}" onclick="return confirm('Are you sure to delete {{source}} ?')">
               <i class="fa fa-trash fa-lg" style="color:red" aria-hidden="true" data-toggle="tooltip" title="Delete Source"></i>
             </a>
           </td>
@@ -143,7 +143,7 @@
 
   $(document).ready(function () {
     $('[data-toggle="tooltip"]').tooltip();
-
+    document.getElementById('db-link').setAttribute('href', "http://" + window.location.hostname + ":8088/databaseview/list/?edaHelp=True");
     $("#sourceSearch").on("keyup", function() {
       var value = $(this).val().toLowerCase();
       $("#sourceTable tr").filter(function() {
