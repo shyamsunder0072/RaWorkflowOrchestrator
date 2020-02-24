@@ -2770,9 +2770,7 @@ class EDAView(AirflowBaseView, BaseApi):
         super().__init__(*args, **kwargs)
 
     def get_sources(self):
-        return models.Variable.get(self.sources_key,
-                                   default_var=[],
-                                   deserialize_json=True)
+        return models.EdaSource.all_sources()
 
     def get_outputs(self):
         outputs_folder = Path(self.output_path)
@@ -2801,17 +2799,16 @@ class EDAView(AirflowBaseView, BaseApi):
                     curr += 1
         return tree
 
-    def add_source(self, source: str):
-        sources = set(self.get_sources())
-        sources.add(source)
-        sources = list(sources)
-        models.Variable.set(self.sources_key, sources, serialize_json=True)
+    def add_source(self, conn_uri, source_type, tablename=None):
+        source_type = models.EdaSourcesEnum(source_type)
+        models.EdaSource.add_source(conn_uri, source_type, tablename)
+        # sources = set(self.get_sources())
+        # sources.add(source)
+        # sources = list(sources)
+        # models.Variable.set(self.sources_key, sources, serialize_json=True)
 
     def remove_source(self, source):
-        sources = set(self.get_sources())
-        sources.remove(source)
-        sources = list(sources)
-        models.Variable.set(self.sources_key, sources, serialize_json=True)
+        models.EdaSource.remove_source(source)
 
     @expose('/eda/sources/', methods=['GET', 'POST'])
     @has_access
@@ -2821,29 +2818,38 @@ class EDAView(AirflowBaseView, BaseApi):
         if request.method == "GET":
             sources = self.get_sources()
             outputs = json.dumps(self.get_outputs())
-            return self.render_template('eda/eda_sources.html', sources=sources, outputs=outputs)
-        path = request.form.get('path')
-        print(request.form)
-        if not path:
+            return self.render_template('eda/eda_sources.html',
+                                        sources=sources,
+                                        outputs=outputs)
+        conn_uri = request.form.get('path')
+        # print(request.form)
+        if not conn_uri:
             flash('Invalid source path.')
         else:
-            self.add_source(path)
+            self.add_source(conn_uri, source_type=models.EdaSourcesEnum.hdfs.value)
             flash('Source Added.')
         return redirect(url_for('EDAView.source_view'))
 
     @expose('/eda/api/', methods=['POST'])
     # @has_access
     @csrf.exempt
-    def source_view_api(self):
+    def source_view_api(self, **kwargs):
+        # TODO: Add authentication on this view.
+        # NOTE: if we create more API's we may want to switch to marshmallow
+        # for data valiation
         # print(request.form)
-        sources = request.form.get('sources')
-        if not sources:
-            return self.response_400(message='Missing `sources` in body.')
-        sources = json.loads(sources)
-        if not isinstance(sources, list):
-            sources = [sources]
-        for source in sources:
-            self.add_source(source)
+        conn_uri = request.form.get('connection_uri')
+        tablename = request.form.get('tablename')
+        source_type = request.form.get('source_type')
+        source_types = [tipe.value for tipe in models.EdaSourcesEnum]
+        if not conn_uri:
+            return self.response_400(message="Missing 'connection_uri' in body.")
+        if not source_type:
+            return self.response_400(message="Missing 'source_type' in body.")
+        if source_type not in source_types:
+            return self.response_400(message="Invalid 'source_type' in body.")
+
+        self.add_source(conn_uri, source_type, tablename)
         return self.response(201)
 
     @expose('/eda/<path:source>/delete/', methods=['GET', 'POST'])

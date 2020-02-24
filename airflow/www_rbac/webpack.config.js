@@ -130,6 +130,7 @@ const config = {
       { from: 'node_modules/datatables.net/**/**.min.*', flatten: true },
       { from: 'node_modules/datatables.net-bs/**/**.min.*', flatten: true },
       { from: 'static/codemirror-5.50.2/', to: 'codemirror' },
+      { from: 'static/jstree/', to: 'jstree' },
     ], { copyUnmodified: true }),
   ],
 };
