@@ -5,7 +5,7 @@ import datetime
 default_args = {
     'owner': '{{username}}',
     'depends_on_past': False,
-    'start_date': datetime.datetime.now(),
+    'start_date': datetime.datetime(now.year, now.month, now.day),
     'retries': 0,
 }
 

@@ -3269,11 +3269,13 @@ class JupyterNotebookView(AirflowBaseView):
                            Path(notebook).resolve().stem,
                            datetime.now().strftime("%d-%m-%Y-%H-%M-%S")])
         username = g.user.username
+        now = datetime.now()
         code = self.render_template('dags/default_jupyter_dag.jinja2',
                                     notebook=notebook,
                                     username=username,
                                     parameters=parameters,
                                     dag_id=dag_id,
+                                    now=now,
                                     schedule=schedule)
         with open(os.path.join(settings.DAGS_FOLDER, dag_id + '.py'), 'w') as dag_file:
             dag_file.write(code)
