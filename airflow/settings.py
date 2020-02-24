@@ -221,7 +221,7 @@ def configure_vars():
     DAGS_FOLDER = os.path.expanduser(conf.get('core', 'DAGS_FOLDER'))
 
     SPARK_DEPENDENCIES_FOLDER = normalize_path(os.path.join(AIRFLOW_HOME, *[os.pardir, 'jars']))
-    SPARK_CONF_PATH = normalize_path(os.path.join(AIRFLOW_HOME, *[os.pardir, 'couture-spark.conf']))
+    SPARK_CONF_PATH = normalize_path(os.path.join(AIRFLOW_HOME, 'couture-spark.conf'))
     HADOOP_CONFIGS_FOLDER = normalize_path(os.path.join(AIRFLOW_HOME, *[os.pardir,
                                                                         'setup',
                                                                         'hadoop_config_groups']))

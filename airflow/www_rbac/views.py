@@ -2708,7 +2708,7 @@ class ExportConfigsView(AirflowBaseView, BaseApi):
             for file in files:
                 destFile = os.path.join(destPath, file)
                 srcFile = os.path.join(path, file)
-                os.rename(srcFile, destFile)
+                shutil.move(srcFile, destFile)
 
     def export(self, export_paths):
         f = tempfile.SpooledTemporaryFile(suffix='.tar.gz')
