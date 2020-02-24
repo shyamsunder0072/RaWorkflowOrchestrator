@@ -14,6 +14,7 @@ class EdaSource(Base):
 
     id = Column(Integer, primary_key=True)
     connection_uri = Column(Text)
+    # Source type defined in EdaSourcesEnum.
     source_type = Column(Enum(EdaSourcesEnum), default=EdaSourcesEnum.hdfs)
     # tablename only valid for source_type = db
     tablename = Column(Text)
@@ -25,6 +26,7 @@ class EdaSource(Base):
                 self.tablename or '')
         else:
             return self.connection_uri
+
     @classmethod
     @provide_session
     def get(cls,

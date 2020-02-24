@@ -2781,6 +2781,8 @@ class EDAView(AirflowBaseView, BaseApi):
         for dirpath, dirs, files in os.walk(self.output_path):
             root = Path(dirpath).stem
             tree.append({'id': 'node-{}'.format(curr),
+                         'state': {
+                             'opened': 'true'},
                          'parent': '#' if not curr else dir_node_id[Path(dirpath).parts[-2]],
                          'text': root})
             dir_node_id[root] = 'node-{}'.format(curr)
