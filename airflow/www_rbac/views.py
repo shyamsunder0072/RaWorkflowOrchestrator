@@ -2492,7 +2492,7 @@ class FileUploadBaseView(AirflowBaseView):
             flash('File ' + pathname + ' successfully deleted.', category='warning')
         else:
             flash('File ' + pathname + ' not found.', category='error')
-        return redirect(url_for(self.__class__.__name__ + '.list_view', pathname=pathname))
+        return redirect(url_for(self.__class__.__name__ + '.list_view', pathname=''))
 
 
 class SparkDepView(FileUploadBaseView):
