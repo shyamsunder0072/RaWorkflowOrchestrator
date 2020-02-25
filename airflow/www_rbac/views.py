@@ -2698,26 +2698,35 @@ class ExportConfigsView(AirflowBaseView, BaseApi):
 
     @staticmethod
     def moveTree(sourceRoot, destRoot):
+        # COPY whole dirs(only) present in sourceRoot.
         if not os.path.exists(destRoot):
             return False
-        for path, dirs, files in os.walk(sourceRoot):
-            relPath = os.path.relpath(path, sourceRoot)
-            destPath = os.path.join(destRoot, relPath)
-            if not os.path.exists(destPath):
-                os.makedirs(destPath)
-            for file in files:
-                destFile = os.path.join(destPath, file)
-                srcFile = os.path.join(path, file)
-                shutil.move(srcFile, destFile)
+        dirs = [name for name in os.listdir(sourceRoot) if os.path.isdir(os.path.join(sourceRoot, name))]
+        for folder in dirs:
+            if not os.path.islink(os.path.join(destRoot, folder)):
+                shutil.rmtree(os.path.join(destRoot, folder), ignore_errors=True)
+            else:
+                os.unlink(os.path.join(destRoot, folder))
+
+            # else:
+                # print("folder:::", folder)
+            if os.path.islink(os.path.join(sourceRoot, folder)):
+                os.symlink(os.readlink(os.path.join(sourceRoot, folder)), os.path.join(destRoot, folder))
+            else:
+                shutil.copytree(os.path.join(sourceRoot, folder),
+                                os.path.join(destRoot, folder),
+                                copy_function=shutil.copy,
+                                symlinks=True)
 
     def export(self, export_paths):
         f = tempfile.SpooledTemporaryFile(suffix='.tar.gz')
         airflow_home_parent = os.path.normpath(os.path.join(AIRFLOW_HOME, os.pardir))
+        root_dir = Path('config')
         with tarfile.open(fileobj=f, mode='w:gz') as tar:
             for path in export_paths:
                 try:
                     tar.add(path,
-                            arcname=str(Path(path).relative_to(airflow_home_parent)),
+                            arcname=str(root_dir.joinpath(Path(path).relative_to(airflow_home_parent))),
                             filter=self.filter_files)
                 except FileNotFoundError:
                     pass
@@ -2739,13 +2748,23 @@ class ExportConfigsView(AirflowBaseView, BaseApi):
         airflow_home_parent = Path(AIRFLOW_HOME).parent
         with tempfile.TemporaryDirectory() as tmpdir:
             tarfile.open(fileobj=tar, mode='r:gz').extractall(path=tmpdir)
+            contents = [name for name in os.listdir(tmpdir) if os.path.isdir(os.path.join(tmpdir, name))]
+            if not contents:
+                return self.response_400(
+                    message="No root directory found. Keep a root directory.")
+            elif len(contents) > 1:
+                return self.response_400(
+                    message="Multiple directories in root found while extracting.\
+                            Keep only one root directory.")
+            # go inside the first directory.
+            root_dir = Path(contents[0])
             for path in import_paths:
-                if os.path.isfile(path):
-                    shutil.copyfile(os.path.join(tmpdir,
-                                    Path(path).relative_to(airflow_home_parent)), path)
-                else:
-                    self.moveTree(os.path.join(tmpdir,
-                                  Path(path).relative_to(airflow_home_parent)), path)
+                path_in_tempdir = os.path.join(tmpdir,
+                                               *[root_dir, Path(path).relative_to(airflow_home_parent)])
+                if os.path.isfile(path) and os.path.exists(path_in_tempdir):
+                    shutil.copyfile(path_in_tempdir, path, follow_symlinks=True)
+                elif os.path.isdir(path) and os.path.exists(path_in_tempdir):
+                    self.moveTree(path_in_tempdir, path)
 
         return self.response(200, message="OK")
 
