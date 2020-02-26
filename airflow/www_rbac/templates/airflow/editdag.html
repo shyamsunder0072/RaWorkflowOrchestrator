@@ -140,11 +140,8 @@
 </div>
 
 <!-- old code -->
-<textarea id="oldCode" hidden>
-  {% if not new %}
-  {{code}}
-  {% endif %}
-</textarea>
+<!-- Keep this textarea one liner -->
+<textarea id="oldCode" hidden>{% if not new %}{{code}}{% endif %}</textarea>
 {% endblock %}
 
 {% block tail_js %}
