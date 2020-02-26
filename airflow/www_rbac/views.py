@@ -2718,10 +2718,15 @@ class ExportConfigsView(AirflowBaseView, BaseApi):
                                 copy_function=shutil.copy,
                                 symlinks=True)
 
-    def export(self, export_paths):
+        files = [name for name in os.listdir(sourceRoot) if os.path.isfile(os.path.join(sourceRoot, name))]
+        for file in files:
+            shutil.copy(os.path.join(sourceRoot, file),
+                        os.path.join(destRoot, file))
+
+    def export(self, export_paths, name='configs'):
         f = tempfile.SpooledTemporaryFile(suffix='.tar.gz')
         airflow_home_parent = os.path.normpath(os.path.join(AIRFLOW_HOME, os.pardir))
-        root_dir = Path('config')
+        root_dir = Path(name)
         with tarfile.open(fileobj=f, mode='w:gz') as tar:
             for path in export_paths:
                 try:
@@ -2736,7 +2741,7 @@ class ExportConfigsView(AirflowBaseView, BaseApi):
         return send_file(f,
                          as_attachment=True,
                          conditional=True,
-                         attachment_filename='configs.tar.gz',
+                         attachment_filename='{}.tar.gz'.format(name),
                          mimetype='application/gzip')
 
     def imprt(self, import_paths, tar):
@@ -2777,6 +2782,16 @@ class ExportConfigsView(AirflowBaseView, BaseApi):
             return self.export(self._configs_path)
         if request.method == 'POST':
             return self.imprt(self._configs_path, tar=request.files.get('sources'))
+
+    @expose('/api/dependencies/', methods=['GET', 'POST'])
+    # @protect(allow_browser_login=True)
+    @csrf.exempt
+    def dependencies(self):
+        # TODO: enable authentication.
+        if request.method == 'GET':
+            return self.export(self._dependencies_path, name='dependencies')
+        if request.method == 'POST':
+            return self.imprt(self._dependencies_path, tar=request.files.get('sources'))
 
 
 class EDAView(AirflowBaseView, BaseApi):
