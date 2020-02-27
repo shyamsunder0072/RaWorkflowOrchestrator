@@ -2686,8 +2686,11 @@ class ExportConfigsView(AirflowBaseView, BaseApi):
     ]
 
     _dependencies_path = [
-        settings.DAGS_FOLDER,
         settings.SPARK_DEPENDENCIES_FOLDER,
+    ]
+
+    _dags_path = [
+        settings.DAGS_FOLDER
     ]
 
     @staticmethod
@@ -2792,6 +2795,16 @@ class ExportConfigsView(AirflowBaseView, BaseApi):
             return self.export(self._dependencies_path, name='dependencies')
         if request.method == 'POST':
             return self.imprt(self._dependencies_path, tar=request.files.get('sources'))
+
+    @expose('/api/dags/', methods=['GET', 'POST'])
+    # @protect(allow_browser_login=True)
+    @csrf.exempt
+    def dags(self):
+        # TODO: enable authentication.
+        if request.method == 'GET':
+            return self.export(self._dags_path, name='dags')
+        if request.method == 'POST':
+            return self.imprt(self._dags_path, tar=request.files.get('sources'))
 
 
 class EDAView(AirflowBaseView, BaseApi):
