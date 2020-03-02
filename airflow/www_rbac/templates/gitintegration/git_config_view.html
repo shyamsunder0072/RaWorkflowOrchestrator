@@ -1,0 +1,46 @@
+{% extends "airflow/master.html" %}
+{% block title %}
+  {{ title }}
+{% endblock %}
+{% block content %}
+  {{ super() }}
+  <h3>{{title}}</h3>
+  <p class="lead">Set your Git configuration for various sources (Dags, SparkDependencies etc..) here.</p>
+  <div class="container">
+    <div class="row">
+      <div class="col-md-9">
+        {% for section in sections %}
+          <h4>{{section}}</h4>
+          <form method="POST">
+          {% for key, valtype in keys.items() %}
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            <input type="hidden" name="section" value="{{section}}">
+            <div class="form-group">
+              <label for="config-{{key}}">
+                {{key}}
+              </label>
+              <input type="{{valtype}}"
+                    class="form-control"
+                    autocomplete="new-password"
+                    name="config-{{key}}"
+                    {% if config.has_section(section) %}
+                      value="{{config[section].get(key, '')}}"
+                    {% else %}
+                      value=""
+                    {% endif %}
+              >
+            </div>
+          {% endfor %}
+          <button type="submit" class="btn btn-primary pull-right">Save Changes</button>
+          <br>
+          </form>
+        {% endfor %}
+      </div>
+      <!-- <div class="col-md-3">
+        <ul>
+          <li>Hello</li>
+        </ul>
+      </div> -->
+    </div>
+  </div>
+{% endblock %}
