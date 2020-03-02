@@ -82,6 +82,7 @@ from airflow.www_rbac.decorators import action_logging, gzipped, has_dag_access
 from airflow.www_rbac.forms import (ConnectionForm, DagRunForm, DateTimeForm,
                                     DateTimeWithNumRunsForm,
                                     DateTimeWithNumRunsWithDagRunsForm)
+from airflow.www_rbac.mixins import GitIntegrationMixin
 from airflow.www_rbac.widgets import AirflowModelListWidget
 from airflow.www_rbac.utils import unpause_dag
 
@@ -3309,8 +3310,12 @@ class KeyTabView(AirflowBaseView):
         return send_file(path_file, as_attachment=True, conditional=True)
 
 
-class JupyterNotebookView(AirflowBaseView):
+class JupyterNotebookView(GitIntegrationMixin, AirflowBaseView):
     default_view = 'jupyter_notebook'
+    fs_path = settings.JUPYTER_HOME
+
+    # add this to global in GitIntegrationMixin
+    config_section = 'JupyterNotebook'
 
     def guess_type(self, val):
         try:
@@ -3342,9 +3347,49 @@ class JupyterNotebookView(AirflowBaseView):
     def jupyter_notebook(self):
         title = "Jupyter Notebook"
         notebooks = self.get_details(settings.JUPYTER_HOME, '.ipynb')
+        current_status = self.git_status()
+        # print(current_status)
         return self.render_template('airflow/jupyter_notebook.html',
                                     title=title,
+                                    # TODO: Load modal in template using ajax
+                                    git_template=self.get_git_template(),
+                                    current_status=current_status,
                                     notebooks=notebooks)
+
+    @expose('/jupyter/commit/', methods=['POST'])
+    @has_access
+    @action_logging
+    def commit_view(self):
+        # TODO: Move this to GitIntegrationMixin
+        form = request.form
+        files_to_commit = []
+        commit_file_prefix = 'commit-file-'
+        for key, val in form.items():
+            if key.startswith(commit_file_prefix) and val:
+                files_to_commit.append(key[len(commit_file_prefix):])
+        # print(files_to_commit)
+        self.git_add(files_to_commit)
+        self.git_commit(form['commit-msg'], g.user)
+        return redirect(url_for('JupyterNotebookView.jupyter_notebook'))
+
+    @expose('/jupyter/push/', methods=['GET', 'POST'])
+    @has_access
+    @action_logging
+    def push_view(self):
+        # TODO: Move this to GitIntegrationMixin
+        self.git_push()
+        flash('Pushed successfully!')
+        return redirect(url_for('JupyterNotebookView.jupyter_notebook'))
+
+
+    @expose('/jupyter/pull/', methods=['GET', 'POST'])
+    @has_access
+    @action_logging
+    def pull_view(self):
+        # TODO: Move this to GitIntegrationMixin
+        self.git_pull()
+        flash('Pulled successfully!')
+        return redirect(url_for('JupyterNotebookView.jupyter_notebook'))
 
     @expose('/jupyter/run-notebook/', methods=['POST'])
     @has_access
@@ -3359,7 +3404,6 @@ class JupyterNotebookView(AirflowBaseView):
                 key_no = str(key.split('-')[-1])
                 parameters[val] = self.guess_type(request.form.get('param-value-' + key_no, ''))
         schedule = request.form.get('schedule')
-        # TODO: Check if schedule is a valid cron expression. `Croniter`
         if schedule:
             try:
                 croniter(schedule)
@@ -3379,10 +3423,47 @@ class JupyterNotebookView(AirflowBaseView):
         return redirect(url_for('Airflow.graph', dag_id=dag_id))
 
 
+class GitConfigView(GitIntegrationMixin, AirflowBaseView):
+    default_view = 'git_config_view'
+    SECTIONS = ['DAGS', 'JupyterNotebook', 'SparkDependencies']
+    # SECTIONS = ['arguments']
+    KEYS = {
+        'Origin': 'url',
+        'Username': 'text',
+        'Password': 'password',
+        'Branch': 'text'
+    }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    @expose('/git-configs', methods=['GET', 'POST'])
+    @has_access
+    def git_config_view(self):
+        config = self.read_config()
+        if request.method == 'GET':
+            return self.render_template('gitintegration/git_config_view.html',
+                                        title='Git Configuration View',
+                                        sections=self.SECTIONS,
+                                        keys=self.KEYS,
+                                        config=config)
+        form = request.form
+        section = form.get('section')
+        if not section or section not in self.SECTIONS:
+            return redirect(url_for('GitConfigView.git_config_view'))
+        if not config.has_section(section):
+            config[section] = {}
+        for key in form.keys():
+            if key.startswith('config-'):
+                cleaned_key = key.split('-')[-1]
+                config[section][cleaned_key] = form[key]
+        self.write_config(config)
+        return redirect(url_for('GitConfigView.git_config_view'))
+
+
 class AddDagView(AirflowBaseView):
     default_view = 'add_dag'
 
-    # WARNING: No access control decorators found in this view.
     # TODO: Refactor this to use FileUploadBaseView
 
     # regex for validating filenames while adding new ones

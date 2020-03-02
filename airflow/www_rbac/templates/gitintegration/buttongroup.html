@@ -3,12 +3,55 @@
     Git Actions:
   </h4>
   <div class="btn-group float-right" role="group" aria-label="Git actions group">
-    <button type="button" class="btn btn-secondary">Pull</button>
-    <button type="button" class="btn btn-secondary">Push</button>
-    <button type="button" class="btn btn-secondary">Commit all changes</button>
+    <a href="{{ url_for('JupyterNotebookView.pull_view') }}" class="btn btn-primary">Pull</a>
+    <a href="{{ url_for('JupyterNotebookView.push_view') }}" class="btn btn-primary">Push</a>
+    <button type="button" class="btn btn-primary" data-target="#git-commit-modal" data-toggle="modal">
+      View And Commit changes
+    </button>
     <!-- <button type="button" class="btn btn-secondary" data-target="#gitconfigmodal" data-toggle="modal">Change git config</button> -->
   </div>
   &emsp;
+</div>
+<div class="modal fade" id="git-commit-modal" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+        <h4 class="modal-title">Commit changes.</h4>
+      </div>
+      <form role="form" id="snippetForm" method="POST" action="{{ url_for('JupyterNotebookView.commit_view') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+        <div class="modal-body">
+          <div class="table-responsive" style="max-height:300px;">
+            <table class="table">
+              <th  col="1">...</th>
+              <th  col="9">Changes</th>
+              <th  col="2">Status</th>
+              {% for file in current_status %}
+                <!-- <label for="snippetTitle"></label> -->
+                <tr>
+                  <td col="1">
+                    <input type="checkbox" name="commit-file-{{file[1]}}">
+                  </td>
+                  <td col="9">
+                    {{file[1]}}
+                  </td>
+                  <td col="2">
+                    {{file[0]}}
+                  </td>
+                </tr>
+              {% endfor %}
+            </table>
+          </div>
+          <textarea name="commit-msg" id="" rows="5" class="form-control" placeholder="Commit message" required></textarea>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+          <button type="submit" class="btn btn-primary">Commit</button>
+        </div>
+      </form>
+    </div>
+  </div>
 </div>
 
 

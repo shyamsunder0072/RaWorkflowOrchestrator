@@ -141,7 +141,7 @@ def create_app(config=None, session=None, testing=False, app_name="Workflow"):
                                 "Jupyter Notebook",
                                 category="Developer",
                                 category_icon="fa-wrench")
-            appbuilder.add_view(views.EDAView(),
+            appbuilder.add_view(views.EDAView,
                                 "Exploratory data analysis",
                                 category="Developer",
                                 category_icon="fa-wrench")
@@ -151,6 +151,10 @@ def create_app(config=None, session=None, testing=False, app_name="Workflow"):
                                 category_icon="fa-user")
             appbuilder.add_view(views.SparkConfView,
                                 "Spark Configuration",
+                                category="Admin",
+                                category_icon="fa-user")
+            appbuilder.add_view(views.GitConfigView,
+                                "Git Configuration",
                                 category="Admin",
                                 category_icon="fa-user")
             appbuilder.add_view(views.HadoopConfView,

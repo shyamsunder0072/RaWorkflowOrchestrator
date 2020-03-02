@@ -151,6 +151,7 @@ LOGGING_CLASS_PATH = None
 # CONSTANTS ADDED BY COUTURE.AI
 SPARK_DEPENDENCIES_FOLDER = None
 SPARK_CONF_PATH = None
+GIT_CONF_PATH = None
 HADOOP_CONFIGS_FOLDER = None
 CODE_ARTIFACTS_FOLDER = None
 JUPYTER_HOME = None
@@ -215,6 +216,7 @@ def configure_vars():
     global SPARK_CONF_PATH
     global HADOOP_CONFIGS_FOLDER
     global CODE_ARTIFACTS_FOLDER
+    global GIT_CONF_PATH
     global JUPYTER_HOME
     global EDA_HOME
     SQL_ALCHEMY_CONN = conf.get('core', 'SQL_ALCHEMY_CONN')
@@ -222,6 +224,7 @@ def configure_vars():
 
     SPARK_DEPENDENCIES_FOLDER = normalize_path(os.path.join(AIRFLOW_HOME, *[os.pardir, 'jars']))
     SPARK_CONF_PATH = normalize_path(os.path.join(AIRFLOW_HOME, 'couture-spark.conf'))
+    GIT_CONF_PATH = normalize_path(os.path.join(AIRFLOW_HOME, 'git.conf'))
     HADOOP_CONFIGS_FOLDER = normalize_path(os.path.join(AIRFLOW_HOME, *[os.pardir,
                                                                         'setup',
                                                                         'hadoop_config_groups']))
