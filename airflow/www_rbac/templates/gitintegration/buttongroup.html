@@ -1,14 +1,25 @@
 <div class="pull-right">
-  <h4 style="display: inline;">
-    Git Actions:
-  </h4>
-  <div class="btn-group float-right" role="group" aria-label="Git actions group">
-    <a href="{{ url_for('JupyterNotebookView.pull_view') }}" class="btn btn-primary">Pull</a>
-    <a href="{{ url_for('JupyterNotebookView.push_view') }}" class="btn btn-primary">Push</a>
-    <button type="button" class="btn btn-primary" data-target="#git-commit-modal" data-toggle="modal">
-      View And Commit changes
-    </button>
-    <!-- <button type="button" class="btn btn-secondary" data-target="#gitconfigmodal" data-toggle="modal">Change git config</button> -->
+  <div class="dropdown float-right">
+    <button class="btn btn-primary dropdown-toggle" type="button" data-toggle="dropdown">Git Actions:
+    <span class="caret"></span></button>
+    <ul class="dropdown-menu">
+      <li>
+        <a href="{{ url_for(view + '.pull_view') }}" >Pull</a>
+      </li>
+      <li>
+        <a href="{{ url_for(view + '.push_view') }}" >Push</a>
+      </li>
+      <li>
+        <a href="#" data-target="#git-commit-modal" data-toggle="modal">
+          View And Commit changes
+        </a>
+      </li>
+      <li>
+        <a href="#" data-target="#git-common-modal" data-toggle="modal">
+          Git Logs
+        </a>
+      </li>
+    </ul>
   </div>
   &emsp;
 </div>
@@ -19,39 +30,74 @@
         <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
         <h4 class="modal-title">Commit changes.</h4>
       </div>
-      <form role="form" id="snippetForm" method="POST" action="{{ url_for('JupyterNotebookView.commit_view') }}">
+      <form role="form" id="snippetForm" method="POST" action="{{ url_for(view + '.commit_view') }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
         <div class="modal-body">
+          {% if current_status %}
           <div class="table-responsive" style="max-height:300px;">
             <table class="table">
               <th  col="1">...</th>
               <th  col="9">Changes</th>
               <th  col="2">Status</th>
-              {% for file in current_status %}
-                <!-- <label for="snippetTitle"></label> -->
-                <tr>
-                  <td col="1">
-                    <input type="checkbox" name="commit-file-{{file[1]}}">
-                  </td>
-                  <td col="9">
-                    {{file[1]}}
-                  </td>
-                  <td col="2">
-                    {{file[0]}}
-                  </td>
-                </tr>
-              {% endfor %}
+                {% for file in current_status %}
+                  <tr>
+                    <td col="1">
+                      <input type="checkbox" name="commit-file-{{file['name']}}">
+                    </td>
+                    <td col="9">
+                      {{file['name']}}
+                    </td>
+                    <td col="2">
+                      {{file['status']}}
+                    </td>
+                  </tr>
+                {% endfor %}
             </table>
           </div>
           <textarea name="commit-msg" id="" rows="5" class="form-control" placeholder="Commit message" required></textarea>
+          {% else %}
+            Nothing to show.
+          {% endif %}
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+          {% if current_status %}
           <button type="submit" class="btn btn-primary">Commit</button>
+          {% endif %}
         </div>
       </form>
     </div>
   </div>
 </div>
-
+<div class="modal fade" id="git-common-modal" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+        <h4 class="modal-title">Logs.</h4>
+      </div>
+        <div class="modal-body">
+          <div class="table-responsive" style="max-height:300px;">
+            <table class="table">
+              <th  col="2">Hash</th>
+              <th  col="8">Commit Message</th>
+              {% for log in logs %}
+                <tr>
+                  <td col="2">
+                    {{ log['hash'] }}
+                  </td>
+                  <td col="8">
+                    {{ log['msg'] }}
+                  </td>
+                </tr>
+              {% endfor %}
+            </table>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+        </div>
+    </div>
+  </div>
+</div>
 

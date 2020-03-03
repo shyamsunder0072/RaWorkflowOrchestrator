@@ -3347,13 +3347,14 @@ class JupyterNotebookView(GitIntegrationMixin, AirflowBaseView):
     def jupyter_notebook(self):
         title = "Jupyter Notebook"
         notebooks = self.get_details(settings.JUPYTER_HOME, '.ipynb')
-        current_status = self.git_status()
-        # print(current_status)
+        current_status, logs = self.get_status()
         return self.render_template('airflow/jupyter_notebook.html',
                                     title=title,
                                     # TODO: Load modal in template using ajax
                                     git_template=self.get_git_template(),
+                                    view=self.__class__.__name__,
                                     current_status=current_status,
+                                    logs=logs,
                                     notebooks=notebooks)
 
     @expose('/jupyter/commit/', methods=['POST'])
@@ -3377,18 +3378,23 @@ class JupyterNotebookView(GitIntegrationMixin, AirflowBaseView):
     @action_logging
     def push_view(self):
         # TODO: Move this to GitIntegrationMixin
-        self.git_push()
-        flash('Pushed successfully!')
+        push_status = self.git_push()
+        if push_status:
+            flash('Pushed successfully!')
+        else:
+            flash('Unknown error while pushing')
         return redirect(url_for('JupyterNotebookView.jupyter_notebook'))
-
 
     @expose('/jupyter/pull/', methods=['GET', 'POST'])
     @has_access
     @action_logging
     def pull_view(self):
         # TODO: Move this to GitIntegrationMixin
-        self.git_pull()
-        flash('Pulled successfully!')
+        pull_status = self.git_pull()
+        if pull_status:
+            flash('Pulled successfully!')
+        else:
+            flash('Unknown error while pulling')
         return redirect(url_for('JupyterNotebookView.jupyter_notebook'))
 
     @expose('/jupyter/run-notebook/', methods=['POST'])
@@ -3425,14 +3431,6 @@ class JupyterNotebookView(GitIntegrationMixin, AirflowBaseView):
 
 class GitConfigView(GitIntegrationMixin, AirflowBaseView):
     default_view = 'git_config_view'
-    SECTIONS = ['DAGS', 'JupyterNotebook', 'SparkDependencies']
-    # SECTIONS = ['arguments']
-    KEYS = {
-        'Origin': 'url',
-        'Username': 'text',
-        'Password': 'password',
-        'Branch': 'text'
-    }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -3444,12 +3442,12 @@ class GitConfigView(GitIntegrationMixin, AirflowBaseView):
         if request.method == 'GET':
             return self.render_template('gitintegration/git_config_view.html',
                                         title='Git Configuration View',
-                                        sections=self.SECTIONS,
-                                        keys=self.KEYS,
+                                        sections=self.get_sections(),
+                                        keys=self.get_keys(),
                                         config=config)
         form = request.form
         section = form.get('section')
-        if not section or section not in self.SECTIONS:
+        if not section or section not in self.get_sections():
             return redirect(url_for('GitConfigView.git_config_view'))
         if not config.has_section(section):
             config[section] = {}
