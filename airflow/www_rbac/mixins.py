@@ -123,7 +123,11 @@ class GitIntegrationMixin:
         }
 
     def git_logs(self, *args):
-        return list(map(lambda s: self.__convert_logs(s), self._repo.git.log(*args).split('\n')))
+        try:
+            logs = list(map(lambda s: self.__convert_logs(s), self._repo.git.log(*args).split('\n')))
+        except git.exc.GitCommandError:
+            logs = []
+        return logs
 
         # return self._repo.log(*args)
 
