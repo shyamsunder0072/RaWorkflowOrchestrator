@@ -40,7 +40,11 @@ class GitIntegrationMixin:
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)  # forwards all unused arguments
-        self._repo = git.Repo.init(self.fs_path)
+
+        try:
+            self._repo = git.Repo.init(self.fs_path)
+        except Exception as e:
+            log.error(e)
         # creating git conf file if it doesn't exists.
         Path(GIT_CONF_PATH).touch(exist_ok=True)
 
