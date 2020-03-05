@@ -3342,7 +3342,7 @@ class JupyterNotebookView(GitIntegrationMixin, AirflowBaseView):
         return dag_id
 
     @expose('/jupyter_notebook')
-    @has_access
+    #@has_access
     @action_logging
     def jupyter_notebook(self):
         title = "Jupyter Notebook"
@@ -3358,7 +3358,7 @@ class JupyterNotebookView(GitIntegrationMixin, AirflowBaseView):
                                     notebooks=notebooks)
 
     @expose('/jupyter/commit/', methods=['POST'])
-    @has_access
+    #@has_access
     @action_logging
     def commit_view(self):
         # TODO: Move this to GitIntegrationMixin
@@ -3374,7 +3374,7 @@ class JupyterNotebookView(GitIntegrationMixin, AirflowBaseView):
         return redirect(url_for('JupyterNotebookView.jupyter_notebook'))
 
     @expose('/jupyter/push/', methods=['GET', 'POST'])
-    @has_access
+    #@has_access
     @action_logging
     def push_view(self):
         # TODO: Move this to GitIntegrationMixin
@@ -3386,7 +3386,7 @@ class JupyterNotebookView(GitIntegrationMixin, AirflowBaseView):
         return redirect(url_for('JupyterNotebookView.jupyter_notebook'))
 
     @expose('/jupyter/pull/', methods=['GET', 'POST'])
-    @has_access
+    #@has_access
     @action_logging
     def pull_view(self):
         # TODO: Move this to GitIntegrationMixin
@@ -3398,7 +3398,7 @@ class JupyterNotebookView(GitIntegrationMixin, AirflowBaseView):
         return redirect(url_for('JupyterNotebookView.jupyter_notebook'))
 
     @expose('/jupyter/run-notebook/', methods=['POST'])
-    @has_access
+    #@has_access
     @action_logging
     def run_notebook(self):
         notebook = request.form.get('notebook', None)
@@ -3436,7 +3436,7 @@ class GitConfigView(GitIntegrationMixin, AirflowBaseView):
         super().__init__(*args, **kwargs)
 
     @expose('/git-configs', methods=['GET', 'POST'])
-    @has_access
+    #@has_access
     def git_config_view(self):
         config = self.read_config()
         if request.method == 'GET':

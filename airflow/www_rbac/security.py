@@ -97,9 +97,10 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         'Jupyter Notebook',
         'JupyterNotebookView',
         'ExportConfigsView',
-        'GitConfigView'
+        'GitConfigView',
+        'Git Configuration',
         'EDAView',
-        'ExportConfigsView'
+        'Exploratory data analysis',
     }
 
     ###########################################################################
@@ -159,6 +160,8 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
     DEV_PERMS = {
         'menu_access',
         'can_jupyter_notebook',
+        'can_git_configuration',
+        'can_git_config_view',
     }
 
     # global view-menu for dag-level access
