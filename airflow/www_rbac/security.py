@@ -96,7 +96,8 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         'CodeArtifactView',
         'Jupyter Notebook',
         'JupyterNotebookView',
-        'ExportConfigsView'
+        'ExportConfigsView',
+        'GitConfigView'
     }
 
     ###########################################################################

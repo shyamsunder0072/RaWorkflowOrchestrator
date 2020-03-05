@@ -155,7 +155,7 @@ def create_app(config=None, session=None, testing=False, app_name="Workflow"):
                                 category_icon="fa-user")
             appbuilder.add_view(views.GitConfigView,
                                 "Git Configuration",
-                                category="Admin",
+                                category="Developer",
                                 category_icon="fa-user")
             appbuilder.add_view(views.HadoopConfView,
                                 "Hadoop Configuration",

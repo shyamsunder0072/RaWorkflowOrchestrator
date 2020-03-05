@@ -2,7 +2,8 @@ import configparser
 import git
 from urllib.parse import urlparse, urlunparse, quote
 from pathlib import Path
-
+import os
+from flask import g
 from airflow.settings import GIT_CONF_PATH
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -40,9 +41,13 @@ class GitIntegrationMixin:
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)  # forwards all unused arguments
-        self._repo = git.Repo.init(self.fs_path)
-        # creating git conf file if it doesn't exists.
-        Path(GIT_CONF_PATH).touch(exist_ok=True)
+        try:
+            self._repo = git.Repo.init(self.fs_path)
+            # creating git conf file if it doesn't exists.
+        except Exception as e:
+            log.error(e)
+
+        Path(GIT_CONF_PATH).mkdir(exist_ok=True)
 
         if self.config_section:
             self.sections.add(self.config_section)
@@ -160,11 +165,14 @@ class GitIntegrationMixin:
 
     def read_config(self):
         conf = configparser.ConfigParser()
-        conf.read(GIT_CONF_PATH)
+        file_path = os.path.join(GIT_CONF_PATH,  g.user.username)
+        if not os.path.exists(file_path):
+            Path(file_path).touch(exist_ok=True)
+        conf.read(file_path)
         return conf
 
     def write_config(self, config):
-        with open(GIT_CONF_PATH, 'w') as f:
+        with open(os.path.join(GIT_CONF_PATH,  g.user.username), 'w') as f:
             config.write(f)
 
     def get_section(self, section=None, config=None):
