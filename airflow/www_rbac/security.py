@@ -98,6 +98,8 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         'JupyterNotebookView',
         'ExportConfigsView',
         'GitConfigView'
+        'EDAView',
+        'ExportConfigsView'
     }
 
     ###########################################################################
@@ -197,8 +199,8 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         },
         {
             'role': 'Developer',
-            'perms': VIEWER_PERMS | USER_PERMS | OP_PERMS | DAG_PERMS | DEV_PERMS,
-            'vms': VIEWER_VMS | DAG_VMS | USER_VMS | OP_VMS | DEV_VMS,
+            'perms': VIEWER_PERMS | USER_PERMS | DAG_PERMS | DEV_PERMS,
+            'vms': VIEWER_VMS | DAG_VMS | USER_VMS | DEV_VMS,
         },
     ]
 

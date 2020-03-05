@@ -165,14 +165,11 @@ class GitIntegrationMixin:
 
     def read_config(self):
         conf = configparser.ConfigParser()
-        file_path = os.path.join(GIT_CONF_PATH,  g.user.username)
-        if not os.path.exists(file_path):
-            Path(file_path).touch(exist_ok=True)
-        conf.read(file_path)
+        conf.read(GIT_CONF_PATH)
         return conf
 
     def write_config(self, config):
-        with open(os.path.join(GIT_CONF_PATH,  g.user.username), 'w') as f:
+        with open(GIT_CONF_PATH, 'w') as f:
             config.write(f)
 
     def get_section(self, section=None, config=None):
