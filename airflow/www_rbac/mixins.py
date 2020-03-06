@@ -113,6 +113,8 @@ class GitIntegrationMixin:
 
     def git_commit(self, commit_msg, author):
         # TODO: Add a default author here.
+        self._repo.git.config('user.email', author.email)
+        self._repo.git.config('user.name', author.username)
         self._repo.git.commit('-m',
                               commit_msg,
                               '--author', '{} <{}>'.format(author.username,
