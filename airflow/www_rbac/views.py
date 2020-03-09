@@ -3371,6 +3371,8 @@ class JupyterNotebookView(GitIntegrationMixin, AirflowBaseView):
         # print(files_to_commit)
         self.git_add(files_to_commit)
         self.git_commit(form['commit-msg'], g.user)
+        # TODO: Refine flash message
+        flash('Commited files successfully')
         return redirect(url_for('JupyterNotebookView.jupyter_notebook'))
 
     @expose('/jupyter/push/', methods=['GET', 'POST'])
@@ -3456,6 +3458,8 @@ class GitConfigView(GitIntegrationMixin, AirflowBaseView):
                 cleaned_key = key.split('-')[-1]
                 config[section][cleaned_key] = form[key]
         self.write_config(config)
+        # TODO: Refine flash message.
+        flash('Git config for {}, set succesfully!'.format(section))
         return redirect(url_for('GitConfigView.git_config_view'))
 
 

@@ -41,16 +41,20 @@ class GitIntegrationMixin:
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)  # forwards all unused arguments
-        try:
-            self._repo = git.Repo.init(self.fs_path)
-            # creating git conf file if it doesn't exists.
-        except Exception as e:
-            log.error(e)
-
         Path(GIT_CONF_PATH).mkdir(exist_ok=True)
 
         if self.config_section:
             self.sections.add(self.config_section)
+
+    @property
+    def repo(self):
+        if not self._repo:
+            try:
+                # creating git conf file if it doesn't exists.
+                self._repo = git.Repo.init(self.fs_path)
+            except Exception as e:
+                log.error(e)
+        return self._repo
 
     @classmethod
     def register_section(cls, section):
@@ -88,7 +92,7 @@ class GitIntegrationMixin:
         origin = self.inject_username_and_password(origin, username, password)
         branch = section['branch']
         try:
-            self._repo.git.pull(origin, branch)
+            self.repo.git.pull(origin, branch)
         except git.exc.GitCommandError as err:
             log.error(err)
             return False
@@ -102,23 +106,23 @@ class GitIntegrationMixin:
         origin = self.inject_username_and_password(origin, username, password)
         branch = section['branch']
         try:
-            self._repo.git.push(origin, branch)
+            self.repo.git.push(origin, branch)
         except git.exc.GitCommandError as err:
             log.error(err)
             return False
         return True
 
     def git_checkout(self, branch):
-        self._repo.checkout(branch)
+        self.repo.checkout(branch)
 
     def git_commit(self, commit_msg, author):
         # TODO: Add a default author here.
-        self._repo.git.config('user.email', author.email)
-        self._repo.git.config('user.name', author.username)
-        self._repo.git.commit('-m',
-                              commit_msg,
-                              '--author', '{} <{}>'.format(author.username,
-                                                           author.email))
+        self.repo.git.config('user.email', author.email)
+        self.repo.git.config('user.name', author.username)
+        self.repo.git.commit('-m',
+                             commit_msg,
+                             '--author', '{} <{}>'.format(author.username,
+                                                          author.email))
 
     def __convert_logs(self, s):
         # s looks something like this: `13de430 Update abcd.txt`
@@ -131,7 +135,8 @@ class GitIntegrationMixin:
 
     def git_logs(self, *args):
         try:
-            logs = list(map(lambda s: self.__convert_logs(s), self._repo.git.log(*args).split('\n')))
+            logs = list(map(lambda s: self.__convert_logs(
+                s), self.repo.git.log(*args).split('\n')))
         except git.exc.GitCommandError:
             logs = []
         return logs
@@ -142,9 +147,16 @@ class GitIntegrationMixin:
         if not isinstance(files, (list, tuple)):
             files = [files]
         for file in files:
-            # TODO: change author here.
             if file:
-                self._repo.git.add(file)
+                file = file.strip('"')
+                file.translate(str.maketrans({"-": r"\-",
+                                              "]": r"\]",
+                                              "\\": r"\\",
+                                              "^": r"\^",
+                                              "$": r"\$",
+                                              "*": r"\*",
+                                              ".": r"\."}))
+                self.repo.git.add(file)
 
     def __convert_status(self, s):
         # s looks something like this: `?? filename`
@@ -158,23 +170,24 @@ class GitIntegrationMixin:
         }
 
     def git_status(self):
-        status = self._repo.git.status('--porcelain').split('\n')
+        status = self.repo.git.status('--porcelain').split('\n')
         return list(filter(lambda s: True if s['name'] else False,
                            (map(lambda s: self.__convert_status(s), status))))
 
     def git_set_origin(self, origin_url):
-        self._repo.remote('set-url', self.ORIGIN, origin_url)
+        self.repo.remote('set-url', self.ORIGIN, origin_url)
 
     def read_config(self):
         conf = configparser.ConfigParser()
-        file_path = os.path.join(GIT_CONF_PATH,  g.user.username)
+        file_path = os.path.join(GIT_CONF_PATH, g.user.username)
         if not os.path.exists(file_path):
             Path(file_path).touch(exist_ok=True)
         conf.read(file_path)
         return conf
 
     def write_config(self, config):
-        with open(os.path.join(GIT_CONF_PATH,  g.user.username), 'w') as f:
+        # The git configs are user specific.
+        with open(os.path.join(GIT_CONF_PATH, g.user.username), 'w') as f:
             config.write(f)
 
     def get_section(self, section=None, config=None):
