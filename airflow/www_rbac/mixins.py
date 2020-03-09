@@ -1,8 +1,8 @@
 import configparser
 import git
+import os
 from urllib.parse import urlparse, urlunparse, quote
 from pathlib import Path
-import os
 from flask import g
 from airflow.settings import GIT_CONF_PATH
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -21,6 +21,7 @@ class GitIntegrationMixin:
 
     # GLOBAL SECTIONS SET
     sections = set()
+    fs_paths = set()
 
     keys = {
         'Origin': 'url',
@@ -39,18 +40,25 @@ class GitIntegrationMixin:
         '?': 'Untracked '
     }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, config_section=None, fs_path=None, *args, **kwargs):
         super().__init__(*args, **kwargs)  # forwards all unused arguments
-        Path(GIT_CONF_PATH).mkdir(exist_ok=True)
+        Path(GIT_CONF_PATH).mkdir(parents=True, exist_ok=True)
+
+        if config_section:
+            self.config_section = config_section
+        if fs_path:
+            self.fs_path = fs_path
 
         if self.config_section:
             self.sections.add(self.config_section)
+        if self.fs_path:
+            self.fs_paths.add(self.fs_path)
 
     @property
     def repo(self):
         if not self._repo:
             try:
-                # creating git conf file if it doesn't exists.
+                # creating git repo if it doesn't exists.
                 self._repo = git.Repo.init(self.fs_path)
             except Exception as e:
                 log.error(e)
@@ -98,8 +106,9 @@ class GitIntegrationMixin:
             return False
         return True
 
-    def git_push(self, branch=None, origin=None):
-        section = self.get_section()
+    def git_push(self, branch=None, origin=None, section=None):
+        if not section:
+            section = self.get_section()
         origin = section['origin']
         username = section['username']
         password = section['password']
@@ -177,20 +186,25 @@ class GitIntegrationMixin:
     def git_set_origin(self, origin_url):
         self.repo.remote('set-url', self.ORIGIN, origin_url)
 
-    def read_config(self):
+    def read_config(self, rel_conf_path=None):
+        if not rel_conf_path:
+            rel_conf_path = g.user.username
         conf = configparser.ConfigParser()
-        file_path = os.path.join(GIT_CONF_PATH, g.user.username)
+        file_path = os.path.join(GIT_CONF_PATH, rel_conf_path)
         if not os.path.exists(file_path):
             Path(file_path).touch(exist_ok=True)
         conf.read(file_path)
         return conf
 
-    def write_config(self, config):
+    def write_config(self, config, rel_conf_path=None):
+        if not rel_conf_path:
+            rel_conf_path = g.user.username
         # The git configs are user specific.
-        with open(os.path.join(GIT_CONF_PATH, g.user.username), 'w') as f:
+        with open(os.path.join(GIT_CONF_PATH, rel_conf_path), 'w') as f:
             config.write(f)
 
     def get_section(self, section=None, config=None):
+        # print(config.sections())
         if not config:
             config = self.read_config()
         if not section:

@@ -70,6 +70,7 @@ from airflow.utils.log.logging_mixin import (LoggingMixin, redirect_stderr,
 from airflow.www.app import (cached_app, create_app)
 from airflow.www_rbac.app import cached_app as cached_app_rbac
 from airflow.www_rbac.app import create_app as create_app_rbac
+from airflow.www_rbac.file_watchers import GitFileSystemWatcher
 from airflow.www_rbac.app import cached_appbuilder
 
 from sqlalchemy.orm import exc
@@ -999,6 +1000,39 @@ def webserver(args):
             signal.signal(signal.SIGTERM, kill_proc)
 
             monitor_gunicorn(gunicorn_master_proc)
+
+
+@cli_utils.action_logging
+def git_repos_watcher(args):
+    # Currently not accepting any args
+    print(settings.HEADER)
+    print('Watching files ......')
+    # currently watching only JUPYTER_HOME
+    # update to_be_watched_files in `www_rbac.mixins.GitFileSystemWatcher`
+    job = GitFileSystemWatcher()
+    if args.daemon:
+        pid, stdout, stderr, log_file = setup_locations("git_repos_watcher",
+                                                        args.pid,
+                                                        args.stdout,
+                                                        args.stderr,
+                                                        args.log_file)
+        handle = setup_logging(log_file)
+        stdout = open(stdout, 'w+')
+        stderr = open(stderr, 'w+')
+
+        ctx = daemon.DaemonContext(
+            pidfile=TimeoutPIDLockFile(pid, -1),
+            files_preserve=[handle],
+            stdout=stdout,
+            stderr=stderr,
+        )
+        with ctx:
+            job.run()
+    else:
+        signal.signal(signal.SIGINT, sigint_handler)
+        signal.signal(signal.SIGTERM, sigint_handler)
+        signal.signal(signal.SIGQUIT, sigquit_handler)
+        job.run()
 
 
 @cli_utils.action_logging
@@ -2234,6 +2268,11 @@ class CLIFactory(object):
                     'https://airflow.readthedocs.io/en/stable/howto/secure-connections.html'
                     '#rotating-encryption-keys.',
             'args': (),
+        },
+        {
+            'func': git_repos_watcher,
+            'help': "Watches Git Repositories and push updates to the git repo whenever a changes occurs",
+            'args': ('daemon', )
         },
     )
     subparsers_dict = {sp['func'].__name__: sp for sp in subparsers}
