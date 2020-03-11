@@ -6,17 +6,18 @@
 {% block head_js %}
 {{ super() }}
 <script type="text/javascript">
+// Commented because this was causing unpredictable behavior
 
- window.onload = function(){
-getAllNames({{Files | safe}},'{{Arguments['jars']}}');
-showcouturecheckboxes(true);
+//  window.onload = function(){
+// getAllNames({{Files | safe}},'{{Arguments['jars']}}');
+// showcouturecheckboxes(true);
 
-Py_getAllNames({{Py_Files | safe}},'{{Arguments['py-files']}}');
- Py_showcouturecheckboxes(true);
+// Py_getAllNames({{Py_Files | safe}},'{{Arguments['py-files']}}');
+//  Py_showcouturecheckboxes(true);
 
-kt_getAllNames({{kt_Files | safe}},'{{Arguments['keytab']}}');
-kt_showcouturecheckboxes(true);
-  }
+// kt_getAllNames({{kt_Files | safe}},'{{Arguments['keytab']}}');
+// kt_showcouturecheckboxes(true);
+//   }
   </script>
 
 {% endblock %}
@@ -555,7 +556,27 @@ function kt_getAllNames(files,selected_kt) {
 }
 
 }
+$(document).ready(function () {
+    getAllNames({{Files | safe}},'{{Arguments['jars']}}');
+    showcouturecheckboxes(true);
 
+    Py_getAllNames({{Py_Files | safe}},'{{Arguments['py-files']}}');
+    Py_showcouturecheckboxes(true);
+
+    kt_getAllNames({{kt_Files | safe}},'{{Arguments['keytab']}}');
+    kt_showcouturecheckboxes(true);
+  }
+)
+// window.onload = function() {
+//     console.log("yohhoo")
+//     getAllNames({{Files | safe}},'{{Arguments['jars']}}');
+//     showcouturecheckboxes(true);
+
+//     Py_getAllNames({{Py_Files | safe}},'{{Arguments['py-files']}}');
+//     Py_showcouturecheckboxes(true);
+
+//     kt_getAllNames({{kt_Files | safe}},'{{Arguments['keytab']}}');
+//     kt_showcouturecheckboxes(true);
+// }
 </script>
-
 {% endblock %}

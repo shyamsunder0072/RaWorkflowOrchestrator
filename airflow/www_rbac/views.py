@@ -99,6 +99,7 @@ def _parse_dags(update_DagModel=False):
     else:
         dagbag = models.DagBag(os.devnull, include_examples=False)
     if update_DagModel:
+        # Check if this works b/w multiple gunicorn wokers or not.
         for dag in dagbag.dags.values():
             dag.sync_to_db()
 
@@ -2962,6 +2963,7 @@ class SparkConfView(AirflowBaseView):
 
         files = []
         py_files = []
+        # QUESTION(@ANU): Do we need os.walk here ??
         for r, d, f in os.walk(setup_path):
             for file in f:
                 if file.endswith(".jar"):
@@ -2978,19 +2980,9 @@ class SparkConfView(AirflowBaseView):
             # orderedDictionary used so that the order displayed is same as in file
             args = collections.OrderedDict(config.items('arguments'))
             configs = collections.OrderedDict(config.items('configurations'))  # dictionary created
-
-            files = []
-            py_files = []
-            for r, d, f in os.walk(setup_path):
-                for file in f:
-                    if file.endswith(".jar"):
-                        files.append(file)
-                    if file.endswith(".py") or file.endswith(".egg") or file.endswith(".zip"):
-                        py_files.append(file)
-            kt_files = []
-            for r, d, f in os.walk(keytab_path):
-                for file in f:
-                    kt_files.append(file)
+            # print(request.form.getlist('check'))
+            # print(request.form.getlist('kt_check'))
+            # print(request.form.getlist('py_check'))
             for i in args:
                 if i != 'jars' and i != 'py-files' and i != 'keytab':
                     config.set('arguments', i, request.form[i])
@@ -3078,23 +3070,12 @@ class SparkConfView(AirflowBaseView):
                 kt_Files=kt_files
             )
         else:
-            files = []
-            py_files = []
-            for r, d, f in os.walk(setup_path):
-                for file in f:
-                    if file.endswith(".jar"):
-                        files.append(file)
-                    if file.endswith(".py") or file.endswith(".egg") or file.endswith(".zip"):
-                        py_files.append(file)
-            kt_files = []
-            for r, d, f in os.walk(keytab_path):
-                for file in f:
-                    kt_files.append(file)
             len_jar = len(files)
             len_py = len(py_files)
             kt_len = len(kt_files)
             # kt_files = []
             # kt_len = 0
+            # pprint.pprint(args)
             return self.render_template(
                 'airflow/couture_config.html',
                 title=title,
