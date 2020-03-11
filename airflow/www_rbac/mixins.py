@@ -70,7 +70,7 @@ class GitIntegrationMixin:
 
     def get_status(self):
         current_status = self.git_status()
-        logs = self.git_logs('--oneline')
+        logs = self.git_logs("--pretty='format:%C(auto)%h (%s, <%ae>)'")
         return current_status, logs
 
     @classmethod

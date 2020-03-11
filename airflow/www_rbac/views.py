@@ -3338,6 +3338,26 @@ class JupyterNotebookView(GitIntegrationMixin, AirflowBaseView):
                                     logs=logs,
                                     notebooks=notebooks)
 
+    @expose('/jupyter/status')
+    # @has_access
+    @action_logging
+    def jupyter_git_status(self):
+        current_status = self.git_status()
+        return self.render_template('gitintegration/status_modal.html',
+                                    view=self.__class__.__name__,
+                                    current_status=current_status)
+
+
+    @expose('/jupyter/logs')
+    # @has_access
+    @action_logging
+    def jupyter_git_logs(self):
+        logs = self.git_logs("--pretty=%C(auto)%h (%s, <%ae>)")
+        return self.render_template('gitintegration/logs_modal.html',
+                                    view=self.__class__.__name__,
+                                    logs=logs)
+
+
     @expose('/jupyter/commit/', methods=['POST'])
     #@has_access
     @action_logging

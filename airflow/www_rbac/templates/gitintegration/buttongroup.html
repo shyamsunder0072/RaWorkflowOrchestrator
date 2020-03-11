@@ -10,12 +10,12 @@
         <a href="{{ url_for(view + '.push_view') }}" >Push</a>
       </li>
       <li>
-        <a href="#" data-target="#git-commit-modal" data-toggle="modal">
+        <a href="#" data-target="#git-commit-modal" data-toggle="modal" onclick="refreshStatus()">
           View And Commit changes
         </a>
       </li>
       <li>
-        <a href="#" data-target="#git-common-modal" data-toggle="modal">
+        <a href="#" data-target="#git-log-modal" data-toggle="modal" onclick="refreshLogs()">
           Git Logs
         </a>
       </li>
@@ -32,44 +32,14 @@
       </div>
       <form role="form" id="snippetForm" method="POST" action="{{ url_for(view + '.commit_view') }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+        <!-- HACK.. putting modal-footer and body loaded using API inside of a modal-body -->
         <div class="modal-body">
-          {% if current_status %}
-          <div class="table-responsive" style="max-height:300px;">
-            <table class="table">
-              <th  col="1">...</th>
-              <th  col="9">Changes</th>
-              <th  col="2">Status</th>
-                {% for file in current_status %}
-                  <tr>
-                    <td col="1">
-                      <input type="checkbox" name="commit-file-{{file['name']}}">
-                    </td>
-                    <td col="9">
-                      {{file['name']}}
-                    </td>
-                    <td col="2">
-                      {{file['status']}}
-                    </td>
-                  </tr>
-                {% endfor %}
-            </table>
-          </div>
-          <textarea name="commit-msg" id="" rows="5" class="form-control" placeholder="Commit message" required></textarea>
-          {% else %}
-            Nothing to show.
-          {% endif %}
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
-          {% if current_status %}
-          <button type="submit" class="btn btn-primary">Commit</button>
-          {% endif %}
         </div>
       </form>
     </div>
   </div>
 </div>
-<div class="modal fade" id="git-common-modal" tabindex="-1" role="dialog" aria-hidden="true">
+<div class="modal fade" id="git-log-modal" tabindex="-1" role="dialog" aria-hidden="true">
   <div class="modal-dialog">
     <div class="modal-content">
       <div class="modal-header">
@@ -77,22 +47,6 @@
         <h4 class="modal-title">Logs.</h4>
       </div>
         <div class="modal-body">
-          <div class="table-responsive" style="max-height:300px;">
-            <table class="table">
-              <th  col="2">Hash</th>
-              <th  col="8">Commit Message</th>
-              {% for log in logs %}
-                <tr>
-                  <td col="2">
-                    {{ log['hash'] }}
-                  </td>
-                  <td col="8">
-                    {{ log['msg'] }}
-                  </td>
-                </tr>
-              {% endfor %}
-            </table>
-          </div>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
@@ -100,4 +54,33 @@
     </div>
   </div>
 </div>
+
+<script>
+  function refreshStatus() {
+    $('#git-commit-modal .modal-body').text('Loading.....')
+
+    $.get("{{ url_for(view +'.jupyter_git_status') }}", function (data, status){
+      if (status === 'success') {
+        $('#git-commit-modal .modal-body').html(data)
+      } else {
+        $('#git-commit-modal .modal-body').text('Unknown Error. try again later.')
+      }
+    })
+
+  }
+
+  function refreshLogs() {
+    $('#git-log-modal .modal-body').text('Loading.....')
+
+    $.get("{{ url_for(view +'.jupyter_git_logs') }}", function (data, status){
+      if (status === 'success') {
+        $('#git-log-modal .modal-body').html(data)
+      } else {
+        $('#git-log-modal .modal-body').text('Unknown Error. try again later.')
+      }
+    })
+
+  }
+</script>
+
 
