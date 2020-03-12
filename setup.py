@@ -496,6 +496,7 @@ def do_setup():
             'typing-extensions>=3.7.4;python_version<"3.8"',
             'tzlocal>=1.4,<2.0.0',
             'unicodecsv>=0.14.1',
+            'watchdog==0.10.2',
             'zope.deprecation>=4.0, <5.0',
         ],
         #####################################################################################################
@@ -571,7 +572,7 @@ def do_setup():
             'vertica': vertica,
             'virtualenv': virtualenv,
             'webhdfs': webhdfs,
-            'winrm': winrm,
+            'winrm': winrm
         },
         classifiers=[
             'Development Status :: 5 - Production/Stable',
