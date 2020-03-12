@@ -3352,7 +3352,7 @@ class JupyterNotebookView(GitIntegrationMixin, AirflowBaseView):
     # @has_access
     @action_logging
     def jupyter_git_logs(self):
-        logs = self.git_logs("--pretty=%C(auto)%h %s, Author=<%aN>")
+        logs = self.git_logs("--pretty=%C(auto)%h %s, Author=<%aN>, Date=%ai")
         return self.render_template('gitintegration/logs_modal.html',
                                     view=self.__class__.__name__,
                                     logs=logs)
