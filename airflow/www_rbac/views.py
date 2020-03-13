@@ -3347,7 +3347,6 @@ class JupyterNotebookView(GitIntegrationMixin, AirflowBaseView):
                                     view=self.__class__.__name__,
                                     current_status=current_status)
 
-
     @expose('/jupyter/logs')
     # @has_access
     @action_logging
@@ -3356,7 +3355,6 @@ class JupyterNotebookView(GitIntegrationMixin, AirflowBaseView):
         return self.render_template('gitintegration/logs_modal.html',
                                     view=self.__class__.__name__,
                                     logs=logs)
-
 
     @expose('/jupyter/commit/', methods=['POST'])
     #@has_access
@@ -3464,10 +3462,86 @@ class GitConfigView(GitIntegrationMixin, AirflowBaseView):
         return redirect(url_for('GitConfigView.git_config_view'))
 
 
+class LivyConfigView(AirflowBaseView):
+    default_view = 'livy_config_view'
+
+    fs_path = Path(settings.JUPYTER_HOME).joinpath(*['.sparkmagic', 'config.json'])
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        Path(self.fs_path).parent.mkdir(exist_ok=True)
+
+    sections = [
+        'kernel_python_credentials',
+        'kernel_scala_credentials',
+        'kernel_r_credentials',
+    ]
+    keys = {
+        'username': {
+            'type': 'text',
+        },
+        'password': {
+            'type': 'text'
+        },
+        'url': {
+            'text': 'url',
+        },
+        'auth': {
+            'type': 'select',
+            'options': ['None', 'Kerberos', 'Basic_Access']
+        },
+    }
+
+    def get_sections(self):
+        return self.sections
+
+    def get_keys(self):
+        return self.keys
+
+    def read_config(self):
+        try:
+            with open(self.fs_path) as f:
+                return json.load(f)
+        except FileNotFoundError:
+            default = {}
+            for section in self.get_sections():
+                default[section] = {}
+            return default
+
+    def write_config(self, config):
+        with open(self.fs_path, 'w') as f:
+            json.dump(config, f)
+
+    @expose('/livy-configs', methods=['GET', 'POST'])
+    @has_access
+    def livy_config_view(self):
+        config = self.read_config()
+        if request.method == 'GET':
+            return self.render_template('livyconfig/livy_config_view.html',
+                                        title='Livy Configuration View',
+                                        config=self.read_config(),
+                                        keys=self.get_keys(),
+                                        sections=self.get_sections())
+        form = request.form
+        section = form.get('section')
+        if not section or section not in self.get_sections():
+            return redirect(url_for('LivyConfigView.livy_config_view'))
+
+        for key in form.keys():
+            if key.startswith('config-'):
+                cleaned_key = key.split('-')[-1]
+                config[section][cleaned_key] = form[key]
+        self.write_config(config)
+        # TODO: Refine flash message.
+        flash('Livy config for {}, set succesfully!'.format(section))
+        return redirect(url_for('LivyConfigView.livy_config_view'))
+
+
 class AddDagView(AirflowBaseView):
     default_view = 'add_dag'
 
-    # TODO: Refactor this to use FileUploadBaseView
+    # TODO: Refactor this to use FileUploadBaseView.
+    # TODO: Refactor Codebricks into its own view.
 
     # regex for validating filenames while adding new ones
     regex_valid_filenames = re.compile('^[A-Za-z0-9_@()-]+$')

@@ -1,0 +1,54 @@
+{% extends "airflow/master.html" %}
+{% block title %}
+  {{ title }}
+{% endblock %}
+{% block content %}
+  {{ super() }}
+  <h3>{{title}}</h3>
+  <p class="lead">Set your Livy configuration for Remote Spark Access in Jupyter Notebooks here.</p>
+  <div class="container">
+    <div class="row">
+      <div class="col-md-9">
+        {% for section in sections %}
+          <h4>{{section}}</h4>
+          <form method="POST">
+          {% for key, val in keys.items() %}
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            <input type="hidden" name="section" value="{{section}}">
+            <div class="form-group">
+              <label for="config-{{key}}">
+                {{key}}
+              </label>
+              {% if val['type'] == 'select' %}
+              <select name="config-{{key}}" id="" class="form-control">
+                {% for option in val['options'] %}
+                  {% if option == config[section].get(key, '') %}
+                  <option value="{{option}}" selected>{{option}}</option>
+                  {% else %}
+                  <option value="{{option}}">{{option}}</option>
+                  {% endif %}
+                {% endfor %}
+              </select>
+              {% else %}
+              <input type="{{val['type']}}"
+                    class="form-control"
+                    autocomplete="new-password"
+                    name="config-{{key}}"
+                    value="{{config[section].get(key, '')}}"
+              >
+              {% endif %}
+            </div>
+          {% endfor %}
+          <button type="submit" class="btn btn-primary pull-right">Save Changes</button>
+          <br>
+          </form>
+        {% endfor %}
+      </div>
+      <!-- <div class="col-md-3">
+        <ul>
+          <li>Hello</li>
+        </ul>
+      </div> -->
+    </div>
+  </div>
+{% endblock %}
