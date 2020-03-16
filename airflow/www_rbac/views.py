@@ -2728,7 +2728,7 @@ class TensorflowModelsView(FileUploadBaseView):
         return redirect(url_for(self.__class__.__name__ + '.list_view', pathname=''))
 
     @has_access
-    @action_logging
+    # @action_logging
     @expose('/TensorflowModelsView/extract/<path:pathname>', methods=['POST', 'GET'])
     def extract_view(self, pathname):
         file_path = self.get_file_path(pathname)
