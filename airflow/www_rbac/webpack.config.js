@@ -129,8 +129,11 @@ const config = {
       { from: 'static/js/diff_match_patch.js' },
       { from: 'node_modules/datatables.net/**/**.min.*', flatten: true },
       { from: 'node_modules/datatables.net-bs/**/**.min.*', flatten: true },
+
+      // TODO: npm install these modules, copy paste from node_modules folder
       { from: 'static/codemirror-5.50.2/', to: 'codemirror' },
       { from: 'static/jstree/', to: 'jstree' },
+      { from: 'static/dropzone/', to: 'dropzone' },
     ], { copyUnmodified: true }),
   ],
 };

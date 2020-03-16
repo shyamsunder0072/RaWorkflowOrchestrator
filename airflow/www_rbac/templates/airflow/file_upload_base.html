@@ -48,7 +48,7 @@
               {% if pathname %}
                 <a href="{{ url_for(view + '.edit_view', pathname= pathname + '/' + i) }}">
               {% else %}
-                <a href="{{ url_for(view + '.download_view', pathname= i) }}">
+                <a href="{{ url_for(view + '.edit_view', pathname= i) }}">
               {% endif %}
                 {{i}}
               </a>

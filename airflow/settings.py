@@ -157,6 +157,10 @@ CODE_ARTIFACTS_FOLDER = None
 JUPYTER_HOME = None
 EDA_HOME = None
 
+
+MAX_CHUNK_SIZE = 10000000  # bytes
+MAX_FILE_SIZE = 1025 * 1025 * 10  # megabytes
+
 engine = None
 Session = None
 

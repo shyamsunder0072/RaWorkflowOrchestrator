@@ -145,6 +145,14 @@ def create_app(config=None, session=None, testing=False, app_name="Workflow"):
                                 "Exploratory data analysis",
                                 category="Developer",
                                 category_icon="fa-wrench")
+            appbuilder.add_view(views.GitConfigView,
+                                "Git Configuration",
+                                category="Developer",
+                                category_icon="fa-user")
+            appbuilder.add_view(views.StreamingFileUploadView,
+                                "Tensorflow Models",
+                                category="Developer",
+                                category_icon="fa-user")
             appbuilder.add_view(views.ConfigurationView,
                                 "Configurations",
                                 category="Admin",
@@ -152,10 +160,6 @@ def create_app(config=None, session=None, testing=False, app_name="Workflow"):
             appbuilder.add_view(views.SparkConfView,
                                 "Spark Configuration",
                                 category="Admin",
-                                category_icon="fa-user")
-            appbuilder.add_view(views.GitConfigView,
-                                "Git Configuration",
-                                category="Developer",
                                 category_icon="fa-user")
             appbuilder.add_view(views.LivyConfigView,
                                 "Livy Configuration",

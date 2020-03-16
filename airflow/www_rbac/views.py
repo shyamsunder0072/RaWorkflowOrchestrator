@@ -224,14 +224,7 @@ class AirflowBaseView(BaseView):
                         fileStatsObj = os.stat(filePath)
                         modificationTime = time.ctime(fileStatsObj[stat.ST_MTIME])  # get last modified time
                         size_bytes = os.stat(filePath).st_size
-                        if size_bytes == 0:
-                            size = "0B"
-                        else:
-                            size_name = ("B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB")
-                            i = int(math.floor(math.log(size_bytes, 1024)))
-                            p = math.pow(1024, i)
-                            s = round(size_bytes / p, 2)
-                            size = "%s %s" % (s, size_name[i])
+                        size = AirflowBaseView.convert_size(size_bytes)
                         temp_dict = {'time': modificationTime.split(' ', 1)[1], 'size': size}
                         file_data[file_name] = temp_dict
         return file_data
@@ -2484,6 +2477,170 @@ class FileUploadBaseView(AirflowBaseView):
         return send_file(file_path, as_attachment=True, conditional=True)
 
     @has_access
+    def destroy_view(self, pathname):
+        file = Path(self.get_file_path(pathname))
+        if file.exists():
+            file.unlink()
+            AirflowBaseView.audit_logging(
+                "{}.{}".format(self.__class__.__name__, 'destroy_view'),
+                pathname, request.environ['REMOTE_ADDR'])
+            flash('File ' + pathname + ' successfully deleted.', category='warning')
+        else:
+            flash('File ' + pathname + ' not found.', category='error')
+        return redirect(url_for(self.__class__.__name__ + '.list_view', pathname=''))
+
+
+class StreamingFileUploadView(AirflowBaseView):
+    # TODO: Make this view generic for those which require streaming file upload.
+    default_view = 'list_view'
+    _temp_fs_path = os.path.join(settings.AIRFLOW_HOME, *[os.pardir, 'tmp'])
+    _fs_path = os.path.join(settings.AIRFLOW_HOME, *[os.pardir, 'tf-models'])
+    accepted_file_extensions = ('')
+    files_editable = True
+    title = 'Tensorflow Serving Models'
+    template_name = 'airflow/streaming_file_upload_base.html'
+
+    def get_file_path(self, pathname):
+        if isinstance(pathname, str):
+            path = os.path.join(self.fs_path, pathname)
+        else:
+            path = os.path.join(self.fs_path, *pathname)
+        if self.path_valid(path):
+            return path
+
+    def path_valid(self, path):
+        '''Path is valid if is inside `self.fs_path`
+        '''
+        norm_fs_path = os.path.normpath(self.fs_path)
+        norm_path = os.path.normpath(os.path.join(self.fs_path, path))
+        if norm_fs_path == norm_path[:len(norm_fs_path)]:
+            return True
+        raise Exception('Illegal Access to other directories not allowed.')
+
+    @property
+    def temp_fs_path(self):
+        if not os.path.exists(self._temp_fs_path):
+            os.makedirs(self._temp_fs_path, exist_ok=True)
+        return self._temp_fs_path
+
+    @property
+    def fs_path(self):
+        if not os.path.exists(self._fs_path):
+            os.makedirs(self._fs_path, exist_ok=True)
+        return self._fs_path
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    @has_access
+    @action_logging
+    @expose('/streaming-upload/tf/<path:pathname>', methods=['GET'])
+    @expose('/streaming-upload/tf/', methods=['GET'])
+    def list_view(self, pathname=None):
+        # self.check_attr_is_set(self.fs_path, self.accepted_file_extensions)
+        if pathname:
+            path = self.get_file_path(pathname)
+        else:
+            path = self.fs_path
+            pathname = ''  # required for path concatenation in file_upload_base.html
+        files = self.get_details(path, self.accepted_file_extensions)
+        dirs = [name for name in os.listdir(path) if os.path.isdir(os.path.join(path, name))]
+        # print(dirs, os.listdir(self.fs_path))
+        for d in dirs:
+            fileStatsObj = os.stat(os.path.join(path, d))
+            modificationTime = time.ctime(fileStatsObj[stat.ST_MTIME])  # get last modified time
+            size_bytes = fileStatsObj.st_size
+            size = AirflowBaseView.convert_size(size_bytes)
+            temp_dict = {'time': modificationTime.split(' ', 1)[1], 'size': size, 'dir': True}
+            files[d] = temp_dict
+        # print(files)
+        return self.render_template(
+            self.template_name,
+            files=files,
+            view=self.__class__.__name__,
+            accepted_file_extensions=self.accepted_file_extensions,
+            title=self.title,
+            dirs=dirs,
+            files_editable=self.files_editable,
+            pathname=pathname,
+            max_chunk_size=settings.MAX_CHUNK_SIZE,
+            max_file_size=settings.MAX_FILE_SIZE
+        )
+
+    @has_access
+    @action_logging
+    @expose('/streaming-upload/tf/upload/', methods=['POST'])
+    @expose('/streaming-upload/tf/upload/<path:pathname>', methods=['POST'])
+    def upload_view(self, pathname=None):
+        file = request.files['file']
+        total_chunks = int(request.form['dztotalchunkcount'])
+        temp_save_path = os.path.join(self.temp_fs_path, request.form['dzuuid'])
+        current_chunk = int(request.form['dzchunkindex'])
+
+        # if os.path.exists(temp_save_path) and current_chunk == 0:
+        #     print("herrererer")
+        #     os.remove(temp_save_path)
+
+        try:
+            temp_file = open(temp_save_path, 'a+b')
+            # print("printing tempfile name and size:::", temp_file.name)
+            temp_file.seek(int(request.form['dzchunkbyteoffset']))
+            temp_file.write(file.stream.read())
+        except Exception as e:
+            print(e)
+            return make_response(('Error while writing file to disk', 500))
+
+        if current_chunk + 1 == total_chunks:
+            # This was the last chunk, the file should be complete and the size we expect
+            if os.path.getsize(temp_save_path) != int(request.form['dztotalfilesize']):
+                print(os.path.getsize(temp_save_path), int(request.form['dztotalfilesize']))
+                return make_response(('Size mismatch', 500))
+            else:
+                # COPY files from temp to correct location
+                final_loc = os.path.join(self.fs_path, file.filename)
+                shutil.move(temp_save_path, final_loc)
+
+        return make_response(('ok', 200))
+
+    @has_access
+    @action_logging
+    @expose('/streaming-upload/tf/download/<path:pathname>', methods=['POST', 'GET'])
+    def download_view(self, pathname):
+        file_path = self.get_file_path(pathname)
+        AirflowBaseView.audit_logging(
+            "{}.{}".format(self.__class__.__name__, 'download_view'),
+            pathname, request.environ['REMOTE_ADDR'])
+        return send_file(file_path, as_attachment=True, conditional=True)
+
+    @has_access
+    @action_logging
+    @expose('/streaming-upload/tf/extract/<path:pathname>', methods=['POST', 'GET'])
+    def extract_view(self, pathname):
+        file_path = self.get_file_path(pathname)
+        AirflowBaseView.audit_logging(
+            "{}.{}".format(self.__class__.__name__, 'extract_view'),
+            pathname, request.environ['REMOTE_ADDR'])
+        with tarfile.open(Path(file_path)) as tar:
+            for content in tar:
+                # print(content)
+                try:
+                    tar.extract(content, path=self.fs_path)
+                except Exception as e:
+                    print(e)
+                    existing_content = Path(self.fs_path).joinpath(content)
+                    if existing_content.is_dir():
+                        shutil.rmtree(existing_content)
+                    else:
+                        existing_content.unlink()
+                    tar.extract(content, path=self.fs_path)
+                finally:
+                    content_path = Path(self.fs_path).joinpath(content.name)
+                    os.chmod(content_path, content.mode)
+        return redirect(url_for(self.__class__.__name__ + '.list_view', pathname=''))
+
+    @has_access
+    @action_logging
+    @expose('/streaming-upload/tf/destroy/<path:pathname>', methods=['POST', 'GET'])
     def destroy_view(self, pathname):
         file = Path(self.get_file_path(pathname))
         if file.exists():

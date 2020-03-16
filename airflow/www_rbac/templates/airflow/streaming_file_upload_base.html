@@ -1,0 +1,149 @@
+{% extends "airflow/master.html" %}
+{% block title %}
+{{ title }}
+{% endblock %}
+
+{% block head_css %}
+<meta name="google" content="notranslate">
+{{ super() }}
+<style>
+  .margin-left-md { margin-left: 1em; }
+  .margin-top-md { margin-top: 1em; }
+  a.disabled :hover{
+    cursor:not-allowed
+  }
+</style>
+<link rel=stylesheet href="{{url_for_asset('dropzone/basic.min.css')}}">
+<link rel=stylesheet href="{{url_for_asset('dropzone/dropzone.min.css')}}">
+{% endblock %}
+
+{% block head_js %}
+{{ super() }}
+<script src="{{ url_for('static', filename='dropzone/dropzone.min.js') }}"></script>
+{% endblock %}
+
+{% block content %}
+{{ super() }}
+<div class="container">
+  <div>
+    <h2 class="margin-top-md">{{ title }} {% if pathname %} - {{pathname}} {% endif %}</h2>
+    {% if not pathname %}
+    <form method="POST" action="{{ url_for(view + '.upload_view', pathname=pathname) }}" class="dropzone"
+      id="dropper" enctype="multipart/form-data">
+      <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
+    </form>
+    {% endif %}
+  </div>
+  <br><br>
+  <div class="input-group">
+    <span class="input-group-addon">Search file: </span>
+    <input type="text" class="form-control" placeholder="filename" id="fileSearch">
+  </div>
+  <br>
+  <div class="table-responsive">
+    <table class="table table-bordered table-hover" id="filesTable">
+      <thead>
+        <tr class="table-head">
+          <th colspan="14">Filename/Foldername</th>
+          <th colspan="2">Last modified</th>
+          <th colspan="2">Size</th>
+          <th colspan="3">Links</th>
+        </tr>
+      </thead>
+      <tbody>
+      <div>
+        {% for i in files %}
+        <tr>
+          <td colspan="14">
+            {% if files[i]['dir'] %}
+            <b>{{i}}</b>
+            {% else %}
+              {{i}}
+            {% endif %}
+          </td>
+          <td colspan="2">{{files[i]['time']}}</td>
+          <td colspan="2">{{files[i]['size']}}</td>
+          {% if files[i]['dir'] %}
+          <td colspan="1">
+            <div>
+            {% if pathname %}
+            <a href="{{ url_for(view + '.list_view', pathname= pathname + '/' + i) }}">
+            {% else %}
+            <a href="{{ url_for(view + '.list_view', pathname= i) }}">
+            {% endif %}
+              <i class="fa fa-eye fa-lg" data-toggle="tooltip" title="View Contents"></i>
+            </a>
+            </div>
+          </td>
+          {% else %}
+          <td colspan="1">
+            <div>
+              {% if pathname %}
+              <a href="{{ url_for(view + '.download_view', pathname= pathname + '/' + i) }}">
+              {% else %}
+              <a href="{{ url_for(view + '.download_view', pathname= i) }}">
+              {% endif %}
+                <i class="fa fa-cloud-download fa-lg" data-toggle="tooltip" title="Download"></i>
+              </a>
+            </div>
+          </td>
+          <td colspan="1">
+            {% if i.endswith(('.tar', '.tar.gz')) %}
+              {% if pathname %}
+              <a
+              href="{{ url_for(view + '.extract_view', pathname= pathname + '/' + i) }}"
+              onclick="return confirm('Are you sure to extract {{i}} ?. The existing files/folders which match the contents of tar will be overwritten.')">
+              {% else %}
+              <a
+              href="{{ url_for(view + '.extract_view', pathname= i) }}"
+              onclick="return confirm('Are you sure to extract {{i}} ?. The existing files/folders which match the contents of tar will be overwritten.')">
+              {% endif %}
+              <i
+              class="fa fa-external-link-square fa-lg disabled"
+              style="color:blue"
+              aria-hidden="true"
+              data-toggle="tooltip" title="Extract File"></i>
+            {% else %}
+            <a href="#" class="disabled">
+              <i
+              class="fa fa-external-link-square fa-lg disabled"
+              style="color:grey"
+              aria-hidden="true"
+              data-toggle="tooltip" title="Extract File"></i>
+            {% endif %}
+
+            </a>
+          </td>
+          <td colspan="1">
+            {% if pathname %}
+            <a href="{{ url_for(view + '.destroy_view', pathname= pathname + '/' + i) }}" onclick="return confirm('Are you sure to delete {{i}} ?')">
+            {% else %}
+            <a href="{{ url_for(view + '.destroy_view', pathname= i) }}" onclick="return confirm('Are you sure to delete {{i}} ?')">
+            {% endif %}
+              <i class="fa fa-trash fa-lg" style="color:red" aria-hidden="true" data-toggle="tooltip" title="Delete File"></i>
+            </a>
+          </td>
+          {% endif %}
+        </tr>
+        {% endfor %}
+      </div>
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+{% block tail_js %}
+{{ super() }}
+<!-- </body> -->
+<script type="text/javascript">
+  Dropzone.options.dropper = {
+      paramName: 'file',
+      chunking: true,
+      forceChunking: true,
+      retryChunks: true,
+      url: '{{ url_for(view + '.upload_view', pathname=pathname) }}',
+      maxFilesize: {{max_file_size}}, // megabytes (10 GB)
+      chunkSize: {{max_chunk_size}}, // bytes
+  }
+</script>
+{% endblock %}
