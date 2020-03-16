@@ -2669,6 +2669,12 @@ class CodeArtifactView(FileUploadBaseView):
     title = 'Code Artifacts'
 
 
+class TensorflowModelsView(FileUploadBaseView):
+    fs_path = os.path.join(settings.AIRFLOW_HOME, *[os.pardir, 'model_servers'])
+    accepted_file_extensions = ('',)
+    title = 'Tensorflow Models'
+
+
 class HadoopConfView(FileUploadBaseView):
     # TODO: Merge this with file upload baseview.
     default_view = 'groups_view'
