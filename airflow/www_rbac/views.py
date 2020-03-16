@@ -2391,30 +2391,37 @@ class FileUploadBaseView(AirflowBaseView):
         @functools.wraps(f)
         def wrapper(*args, **kwargs):
 
-            with create_session() as session:
-                if g.user.is_anonymous:
-                    user = 'anonymous'
-                else:
-                    user = g.user.username
+            try:
+                with create_session() as session:
+                    if g.user.is_anonymous:
+                        user = 'anonymous'
+                    else:
+                        user = g.user.username
 
-                log = Log(
-                    event="{}.{}".format(args[0].__class__.__name__, f.__name__)[:30],
-                    task_instance=None,
-                    owner=user,
-                    extra=str(list(request.args.items())),
-                    task_id=request.args.get('task_id'),
-                    dag_id=request.args.get('dag_id'),
-                    source_ip=request.environ['REMOTE_ADDR'])
+                    log = Log(
+                        event="{}.{}".format(args[0].__class__.__name__, f.__name__)[:30],
+                        task_instance=None,
+                        owner=user,
+                        extra=str(list(request.args.items())),
+                        task_id=request.args.get('task_id'),
+                        dag_id=request.args.get('dag_id'),
+                        source_ip=request.environ['REMOTE_ADDR'])
 
-                if 'execution_date' in request.args:
-                    log.execution_date = pendulum.parse(
-                        request.args.get('execution_date'))
+                    if 'execution_date' in request.args:
+                        log.execution_date = pendulum.parse(
+                            request.args.get('execution_date'))
 
-                session.add(log)
+                    session.add(log)
 
-            return f(*args, **kwargs)
+                return f(*args, **kwargs)
+            except Exception as e:
+                print(e)
 
         return wrapper
+
+    def extra_files(self, files):
+        # use this view to add other objects to file dict here.
+        return files
 
     @has_access
     @action_logger
@@ -2426,6 +2433,7 @@ class FileUploadBaseView(AirflowBaseView):
             path = self.fs_path
             # pathname = ''  # required for path concatenation in file_upload_base.html
         files = self.get_details(path, self.accepted_file_extensions)
+        files = self.extra_files(files)
         return self.render_template(
             self.template_name,
             files=files,
@@ -2449,9 +2457,12 @@ class FileUploadBaseView(AirflowBaseView):
                 else:
                     destination = self.get_file_path(filename)
                 upload.save(destination)
-                AirflowBaseView.audit_logging(
-                    "{}.{}".format(self.__class__.__name__, 'upload_view'),
-                    filename, request.environ['REMOTE_ADDR'])
+                try:
+                    AirflowBaseView.audit_logging(
+                        "{}.{}".format(self.__class__.__name__, 'upload_view'),
+                        filename, request.environ['REMOTE_ADDR'])
+                except Exception:
+                    pass
                 files_uploaded += 1
             else:
                 flash('File, ' + filename + ' not allowed', 'error')
@@ -2568,7 +2579,7 @@ class StreamingFileUploadView(AirflowBaseView):
         )
 
     @has_access
-    @action_logging
+    # @action_logging
     @expose('/streaming-upload/tf/upload/', methods=['POST'])
     @expose('/streaming-upload/tf/upload/<path:pathname>', methods=['POST'])
     def upload_view(self, pathname=None):
@@ -2603,13 +2614,13 @@ class StreamingFileUploadView(AirflowBaseView):
         return make_response(('ok', 200))
 
     @has_access
-    @action_logging
+    # @action_logging
     @expose('/streaming-upload/tf/download/<path:pathname>', methods=['POST', 'GET'])
     def download_view(self, pathname):
         file_path = self.get_file_path(pathname)
-        AirflowBaseView.audit_logging(
-            "{}.{}".format(self.__class__.__name__, 'download_view'),
-            pathname, request.environ['REMOTE_ADDR'])
+        # AirflowBaseView.audit_logging(
+        #     "{}.{}".format(self.__class__.__name__, 'download_view'),
+        #     pathname, request.environ['REMOTE_ADDR'])
         return send_file(file_path, as_attachment=True, conditional=True)
 
     @has_access
@@ -2617,9 +2628,6 @@ class StreamingFileUploadView(AirflowBaseView):
     @expose('/streaming-upload/tf/extract/<path:pathname>', methods=['POST', 'GET'])
     def extract_view(self, pathname):
         file_path = self.get_file_path(pathname)
-        AirflowBaseView.audit_logging(
-            "{}.{}".format(self.__class__.__name__, 'extract_view'),
-            pathname, request.environ['REMOTE_ADDR'])
         with tarfile.open(Path(file_path)) as tar:
             for content in tar:
                 # print(content)
@@ -2670,9 +2678,77 @@ class CodeArtifactView(FileUploadBaseView):
 
 
 class TensorflowModelsView(FileUploadBaseView):
-    fs_path = os.path.join(settings.AIRFLOW_HOME, *[os.pardir, 'model_servers'])
+    fs_path = settings.MODEL_SERVERS
     accepted_file_extensions = ('',)
     title = 'Tensorflow Models'
+    template_name = 'airflow/tf_file_upload_base.html'
+
+    def extra_files(self, files):
+        dirs = [name for name in os.listdir(self.fs_path) if os.path.isdir(os.path.join(self.fs_path, name))]
+        # print(dirs)
+        for d in dirs:
+            fileStatsObj = os.stat(os.path.join(self.fs_path, d))
+            modificationTime = time.ctime(fileStatsObj[stat.ST_MTIME])  # get last modified time
+            size_bytes = fileStatsObj.st_size
+            size = AirflowBaseView.convert_size(size_bytes)
+            temp_dict = {'time': modificationTime.split(' ', 1)[1], 'size': size, 'dir': True}
+            files[d] = temp_dict
+        return files
+
+    @has_access
+    # @action_logger
+    def download_view(self, pathname):
+        file_path = self.get_file_path(pathname)
+        # print(file_path, type(file_path))
+        if os.path.isdir(file_path):
+            f = tempfile.SpooledTemporaryFile(suffix='.tar.gz')
+            with tarfile.open(fileobj=f, mode='w:gz') as tar:
+                tar.add(file_path, arcname=pathname)
+
+            f.flush()
+            f.seek(0)
+            return send_file(f,
+                             as_attachment=True,
+                             conditional=True,
+                             attachment_filename='{}.tar.gz'.format(pathname),
+                             mimetype='application/gzip')
+        return send_file(file_path, as_attachment=True, conditional=True)
+
+    @has_access
+    def destroy_view(self, pathname):
+        file = Path(self.get_file_path(pathname))
+        if file.is_file() and file.exists():
+            file.unlink()
+            flash('File ' + pathname + ' successfully deleted.', category='warning')
+        elif file.is_dir() and file.exists():
+            shutil.rmtree(file)
+            flash('Folder ' + pathname + ' successfully deleted.', category='warning')
+        else:
+            flash('File/Folder ' + pathname + ' not found.', category='error')
+        return redirect(url_for(self.__class__.__name__ + '.list_view', pathname=''))
+
+    @has_access
+    @action_logging
+    @expose('/TensorflowModelsView/extract/<path:pathname>', methods=['POST', 'GET'])
+    def extract_view(self, pathname):
+        file_path = self.get_file_path(pathname)
+        with tarfile.open(Path(file_path)) as tar:
+            for content in tar:
+                # print(content)
+                try:
+                    tar.extract(content, path=self.fs_path)
+                except Exception as e:
+                    print(e)
+                    existing_content = Path(self.fs_path).joinpath(content)
+                    if existing_content.is_dir():
+                        shutil.rmtree(existing_content)
+                    else:
+                        existing_content.unlink()
+                    tar.extract(content, path=self.fs_path)
+                finally:
+                    content_path = Path(self.fs_path).joinpath(content.name)
+                    os.chmod(content_path, content.mode)
+        return redirect(url_for(self.__class__.__name__ + '.list_view', pathname=''))
 
 
 class HadoopConfView(FileUploadBaseView):

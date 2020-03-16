@@ -156,6 +156,7 @@ HADOOP_CONFIGS_FOLDER = None
 CODE_ARTIFACTS_FOLDER = None
 JUPYTER_HOME = None
 EDA_HOME = None
+MODEL_SERVERS = None
 
 
 MAX_CHUNK_SIZE = 10000000  # bytes
@@ -223,6 +224,7 @@ def configure_vars():
     global GIT_CONF_PATH
     global JUPYTER_HOME
     global EDA_HOME
+    global MODEL_SERVERS
     SQL_ALCHEMY_CONN = conf.get('core', 'SQL_ALCHEMY_CONN')
     DAGS_FOLDER = os.path.expanduser(conf.get('core', 'DAGS_FOLDER'))
 
@@ -236,6 +238,7 @@ def configure_vars():
     CODE_ARTIFACTS_FOLDER = normalize_path(os.path.join(AIRFLOW_HOME, *[os.pardir, 'code']))
     JUPYTER_HOME = normalize_path(os.path.join(AIRFLOW_HOME, *[os.pardir, 'jupyter']))
     EDA_HOME = normalize_path(os.path.join(AIRFLOW_HOME, *[os.pardir, 'eda']))
+    MODEL_SERVERS = normalize_path(os.path.join(AIRFLOW_HOME, *[os.pardir, 'model_servers']))
 
     PLUGINS_FOLDER = conf.get(
         'core',
