@@ -2709,7 +2709,7 @@ class TensorflowModelsView(FileUploadBaseView):
             print(dname)
             config += '''config: {
                             name: "%s",
-                            base_path: "%s",
+                            base_path: "/usr/local/couture/tf-models/%s",
                             model_platform: "tensorflow"
                         },''' % (dname, dname)
         config += '}'
