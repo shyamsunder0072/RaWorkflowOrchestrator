@@ -127,5 +127,17 @@
       maxFilesize: {{max_file_size}}, // megabytes (10 GB)
       chunkSize: {{max_chunk_size}}, // bytes
   }
+
+  $(document).ready(function () {
+    $('[data-toggle="tooltip"]').tooltip();
+
+    $("#fileSearch").on("keyup", function() {
+      var value = $(this).val().toLowerCase();
+      $("#filesTable tr").filter(function() {
+        if ( !$(this).hasClass('table-head'))
+          $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1);
+      });
+    });
+  })
 </script>
 {% endblock %}
