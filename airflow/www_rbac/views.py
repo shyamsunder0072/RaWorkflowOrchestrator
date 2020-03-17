@@ -2519,6 +2519,27 @@ class StreamingFileUploadView(AirflowBaseView):
         if self.path_valid(path):
             return path
 
+    def set_config(self, config):
+        try:
+            with open(os.path.join(self.fs_path, 'models.config'), 'w') as f:
+                f.write(config)
+        except Exception as e:
+            print(e)
+
+    def update_models_config(self):
+        config = 'model_config_list: {'
+        dirs = [name for name in os.listdir(self.fs_path) if os.path.isdir(os.path.join(self.fs_path, name))]
+        for dname in dirs:
+            print(dname)
+            config += '''config: {
+                            name: "%s",
+                            base_path: "/usr/local/couture/tf-models/%s",
+                            model_platform: "tensorflow"
+                        },''' % (dname, dname)
+        config += '}'
+        flash('All tensorflow servers have been updated')
+        self.set_config(config)
+
     def path_valid(self, path):
         '''Path is valid if is inside `self.fs_path`
         '''
@@ -2565,6 +2586,8 @@ class StreamingFileUploadView(AirflowBaseView):
             temp_dict = {'time': modificationTime.split(' ', 1)[1], 'size': size, 'dir': True}
             files[d] = temp_dict
         # print(files)
+
+        files.pop('models.config', None)
         return self.render_template(
             self.template_name,
             files=files,
@@ -2577,6 +2600,33 @@ class StreamingFileUploadView(AirflowBaseView):
             max_chunk_size=settings.MAX_CHUNK_SIZE,
             max_file_size=settings.MAX_FILE_SIZE
         )
+
+    def extra_work_after_file_save(self, pathname):
+        if str(pathname).endswith(('.tar', '.tar.gz')):
+            file_path = self.get_file_path(pathname)
+            with tarfile.open(Path(file_path)) as tar:
+                for content in tar:
+                    # print(content)
+                    try:
+                        tar.extract(content, path=self.fs_path)
+                    except Exception as e:
+                        print(e)
+                        existing_content = Path(self.fs_path).joinpath(content)
+                        if existing_content.is_dir():
+                            shutil.rmtree(existing_content)
+                        else:
+                            existing_content.unlink()
+                        tar.extract(content, path=self.fs_path)
+                        flash('{} already exists, overwriting'.format(content), category='warning')
+
+                        # # after extracting, update models.config
+                        # if existing_content.isdir():
+                    finally:
+                        content_path = Path(self.fs_path).joinpath(content.name)
+                        os.chmod(content_path, content.mode)
+        # flash('Extracted {}'.format(pathname))
+            Path(str(pathname)).unlink()
+            self.update_models_config()
 
     @has_access
     # @action_logging
@@ -2605,11 +2655,13 @@ class StreamingFileUploadView(AirflowBaseView):
             # This was the last chunk, the file should be complete and the size we expect
             if os.path.getsize(temp_save_path) != int(request.form['dztotalfilesize']):
                 print(os.path.getsize(temp_save_path), int(request.form['dztotalfilesize']))
-                return make_response(('Size mismatch', 500))
+                return make_response(('Size mismatch at the server. Probably the file got corrupted during transfer.', 500))
             else:
                 # COPY files from temp to correct location
                 final_loc = os.path.join(self.fs_path, file.filename)
                 shutil.move(temp_save_path, final_loc)
+                # if tar.gz or tar, extract file
+                self.extra_work_after_file_save(final_loc)
 
         return make_response(('ok', 200))
 
@@ -2635,38 +2687,16 @@ class StreamingFileUploadView(AirflowBaseView):
 
     @has_access
     # @action_logging
-    @expose('/streaming-upload/tf/extract/<path:pathname>', methods=['POST', 'GET'])
-    def extract_view(self, pathname):
-        file_path = self.get_file_path(pathname)
-        with tarfile.open(Path(file_path)) as tar:
-            for content in tar:
-                # print(content)
-                try:
-                    tar.extract(content, path=self.fs_path)
-                except Exception as e:
-                    print(e)
-                    existing_content = Path(self.fs_path).joinpath(content)
-                    if existing_content.is_dir():
-                        shutil.rmtree(existing_content)
-                    else:
-                        existing_content.unlink()
-                    tar.extract(content, path=self.fs_path)
-                finally:
-                    content_path = Path(self.fs_path).joinpath(content.name)
-                    os.chmod(content_path, content.mode)
-        return redirect(url_for(self.__class__.__name__ + '.list_view', pathname=''))
-
-    @has_access
-    # @action_logging
     @expose('/streaming-upload/tf/destroy/<path:pathname>', methods=['POST', 'GET'])
     def destroy_view(self, pathname):
         file = Path(self.get_file_path(pathname))
-        if file.is_file() and file.exists():
+        if file.exists() and file.is_file():
             file.unlink()
             flash('File ' + pathname + ' successfully deleted.', category='warning')
-        elif file.is_dir() and file.exists():
+        elif file.exists() and file.is_dir():
             shutil.rmtree(file)
             flash('Folder ' + pathname + ' successfully deleted.', category='warning')
+            self.update_models_config()
         else:
             flash('File/Folder ' + pathname + ' not found.', category='error')
         return redirect(url_for(self.__class__.__name__ + '.list_view', pathname=''))

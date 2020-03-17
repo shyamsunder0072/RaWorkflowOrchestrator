@@ -159,7 +159,7 @@ EDA_HOME = None
 MODEL_SERVERS = None
 
 
-MAX_CHUNK_SIZE = 10000000  # bytes
+MAX_CHUNK_SIZE = 512000  # bytes
 MAX_FILE_SIZE = 1025 * 1025 * 10  # megabytes
 
 engine = None
