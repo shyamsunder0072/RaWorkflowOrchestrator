@@ -2505,7 +2505,7 @@ class StreamingFileUploadView(AirflowBaseView):
     # TODO: Make this view generic for those which require streaming file upload.
     default_view = 'list_view'
     _temp_fs_path = os.path.join(settings.AIRFLOW_HOME, *[os.pardir, 'tmp'])
-    _fs_path = os.path.join(settings.AIRFLOW_HOME, *[os.pardir, 'model_servers'])
+    _fs_path = os.path.join(settings.AIRFLOW_HOME, *[os.pardir, 'tf-models'])
     accepted_file_extensions = ('')
     files_editable = True
     title = 'Tensorflow Serving Models'
