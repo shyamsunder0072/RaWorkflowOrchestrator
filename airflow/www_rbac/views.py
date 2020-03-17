@@ -2444,6 +2444,9 @@ class FileUploadBaseView(AirflowBaseView):
             pathname=pathname
         )
 
+    def extra_work_after_file_save(self, filedest):
+        return
+
     @has_access
     @action_logger
     def upload_view(self, pathname=None):
@@ -2457,6 +2460,7 @@ class FileUploadBaseView(AirflowBaseView):
                 else:
                     destination = self.get_file_path(filename)
                 upload.save(destination)
+                self.extra_work_after_file_save(destination)
                 try:
                     AirflowBaseView.audit_logging(
                         "{}.{}".format(self.__class__.__name__, 'upload_view'),
@@ -2684,6 +2688,7 @@ class TensorflowModelsView(FileUploadBaseView):
     template_name = 'airflow/tf_file_upload_base.html'
 
     def extra_files(self, files):
+        # also removing `models.config` which we don't want to show
         dirs = [name for name in os.listdir(self.fs_path) if os.path.isdir(os.path.join(self.fs_path, name))]
         # print(dirs)
         for d in dirs:
@@ -2693,6 +2698,8 @@ class TensorflowModelsView(FileUploadBaseView):
             size = AirflowBaseView.convert_size(size_bytes)
             temp_dict = {'time': modificationTime.split(' ', 1)[1], 'size': size, 'dir': True}
             files[d] = temp_dict
+        # remove models.config
+        files.pop('models.config', None)
         return files
 
     def set_config(self, config):
@@ -2715,6 +2722,33 @@ class TensorflowModelsView(FileUploadBaseView):
         config += '}'
         flash('All tensorflow servers have been updated')
         self.set_config(config)
+
+    def extra_work_after_file_save(self, pathname):
+        if str(pathname).endswith(('.tar', '.tar.gz')):
+            file_path = self.get_file_path(pathname)
+            with tarfile.open(Path(file_path)) as tar:
+                for content in tar:
+                    # print(content)
+                    try:
+                        tar.extract(content, path=self.fs_path)
+                    except Exception as e:
+                        print(e)
+                        existing_content = Path(self.fs_path).joinpath(content)
+                        if existing_content.is_dir():
+                            shutil.rmtree(existing_content)
+                        else:
+                            existing_content.unlink()
+                        tar.extract(content, path=self.fs_path)
+                        flash('{} already exists, overwriting'.format(content), category='warning')
+
+                        # # after extracting, update models.config
+                        # if existing_content.isdir():
+                    finally:
+                        content_path = Path(self.fs_path).joinpath(content.name)
+                        os.chmod(content_path, content.mode)
+        # flash('Extracted {}'.format(pathname))
+            Path(str(pathname)).unlink()
+            self.update_models_config()
 
     # @has_access
     # @action_logger
@@ -2751,33 +2785,33 @@ class TensorflowModelsView(FileUploadBaseView):
 
     # @has_access
     # @action_logging
-    @expose('/TensorflowModelsView/extract/<path:pathname>', methods=['POST', 'GET'])
-    def extract_view(self, pathname):
-        file_path = self.get_file_path(pathname)
-        with tarfile.open(Path(file_path)) as tar:
-            for content in tar:
-                # print(content)
-                try:
-                    tar.extract(content, path=self.fs_path)
-                except Exception as e:
-                    print(e)
-                    existing_content = Path(self.fs_path).joinpath(content)
-                    if existing_content.is_dir():
-                        shutil.rmtree(existing_content)
-                    else:
-                        existing_content.unlink()
-                    tar.extract(content, path=self.fs_path)
-                    flash('{} already exists, overwriting'.format(content), category='warning')
+    # @expose('/TensorflowModelsView/extract/<path:pathname>', methods=['POST', 'GET'])
+    # def extract_view(self, pathname):
+    #     file_path = self.get_file_path(pathname)
+    #     with tarfile.open(Path(file_path)) as tar:
+    #         for content in tar:
+    #             # print(content)
+    #             try:
+    #                 tar.extract(content, path=self.fs_path)
+    #             except Exception as e:
+    #                 print(e)
+    #                 existing_content = Path(self.fs_path).joinpath(content)
+    #                 if existing_content.is_dir():
+    #                     shutil.rmtree(existing_content)
+    #                 else:
+    #                     existing_content.unlink()
+    #                 tar.extract(content, path=self.fs_path)
+    #                 flash('{} already exists, overwriting'.format(content), category='warning')
 
-                    # # after extracting, update models.config
-                    # if existing_content.isdir():
-                finally:
-                    content_path = Path(self.fs_path).joinpath(content.name)
-                    os.chmod(content_path, content.mode)
-        flash('Extracted {}'.format(pathname))
+    #                 # # after extracting, update models.config
+    #                 # if existing_content.isdir():
+    #             finally:
+    #                 content_path = Path(self.fs_path).joinpath(content.name)
+    #                 os.chmod(content_path, content.mode)
+    #     # flash('Extracted {}'.format(pathname))
 
-        self.update_models_config()
-        return redirect(url_for(self.__class__.__name__ + '.destroy_view', pathname=pathname))
+    #     self.update_models_config()
+    #     return redirect(url_for(self.__class__.__name__ + '.destroy_view', pathname=pathname))
         # return redirect(url_for(self.__class__.__name__ + '.list_view', pathname=''))
 
 
