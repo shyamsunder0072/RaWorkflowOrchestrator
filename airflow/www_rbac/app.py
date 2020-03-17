@@ -149,14 +149,14 @@ def create_app(config=None, session=None, testing=False, app_name="Workflow"):
                                 "Git Configuration",
                                 category="Developer",
                                 category_icon="fa-user")
-            # appbuilder.add_view(views.StreamingFileUploadView,
-            #                     "Tensorflow Models",
-            #                     category="Developer",
-            #                     category_icon="fa-user")
-            appbuilder.add_view(views.TensorflowModelsView,
+            appbuilder.add_view(views.StreamingFileUploadView,
                                 "Tensorflow Models",
                                 category="Developer",
                                 category_icon="fa-user")
+            # appbuilder.add_view(views.TensorflowModelsView,
+            #                     "Tensorflow Models",
+            #                     category="Developer",
+            #                     category_icon="fa-user")
             appbuilder.add_view(views.ConfigurationView,
                                 "Configurations",
                                 category="Admin",

@@ -55,27 +55,10 @@
         {% for i in files %}
         <tr>
           <td colspan="14">
-            {% if files[i]['dir'] %}
-            <b>{{i}}</b>
-            {% else %}
               {{i}}
-            {% endif %}
           </td>
           <td colspan="2">{{files[i]['time']}}</td>
           <td colspan="2">{{files[i]['size']}}</td>
-          {% if files[i]['dir'] %}
-          <td colspan="1">
-            <div>
-            {% if pathname %}
-            <a href="{{ url_for(view + '.list_view', pathname= pathname + '/' + i) }}">
-            {% else %}
-            <a href="{{ url_for(view + '.list_view', pathname= i) }}">
-            {% endif %}
-              <i class="fa fa-eye fa-lg" data-toggle="tooltip" title="View Contents"></i>
-            </a>
-            </div>
-          </td>
-          {% else %}
           <td colspan="1">
             <div>
               {% if pathname %}
@@ -123,7 +106,6 @@
               <i class="fa fa-trash fa-lg" style="color:red" aria-hidden="true" data-toggle="tooltip" title="Delete File"></i>
             </a>
           </td>
-          {% endif %}
         </tr>
         {% endfor %}
       </div>

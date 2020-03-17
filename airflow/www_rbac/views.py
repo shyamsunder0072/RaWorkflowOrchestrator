@@ -2544,7 +2544,7 @@ class StreamingFileUploadView(AirflowBaseView):
         super().__init__(*args, **kwargs)
 
     @has_access
-    @action_logging
+    # @action_logging
     @expose('/streaming-upload/tf/<path:pathname>', methods=['GET'])
     @expose('/streaming-upload/tf/', methods=['GET'])
     def list_view(self, pathname=None):
@@ -2598,7 +2598,7 @@ class StreamingFileUploadView(AirflowBaseView):
             temp_file.seek(int(request.form['dzchunkbyteoffset']))
             temp_file.write(file.stream.read())
         except Exception as e:
-            print(e)
+            print("Exception:", e)
             return make_response(('Error while writing file to disk', 500))
 
         if current_chunk + 1 == total_chunks:
@@ -2618,13 +2618,23 @@ class StreamingFileUploadView(AirflowBaseView):
     @expose('/streaming-upload/tf/download/<path:pathname>', methods=['POST', 'GET'])
     def download_view(self, pathname):
         file_path = self.get_file_path(pathname)
-        # AirflowBaseView.audit_logging(
-        #     "{}.{}".format(self.__class__.__name__, 'download_view'),
-        #     pathname, request.environ['REMOTE_ADDR'])
+        # print(file_path, type(file_path))
+        if os.path.isdir(file_path):
+            f = tempfile.SpooledTemporaryFile(suffix='.tar.gz')
+            with tarfile.open(fileobj=f, mode='w:gz') as tar:
+                tar.add(file_path, arcname=pathname)
+
+            f.flush()
+            f.seek(0)
+            return send_file(f,
+                             as_attachment=True,
+                             conditional=True,
+                             attachment_filename='{}.tar.gz'.format(pathname),
+                             mimetype='application/gzip')
         return send_file(file_path, as_attachment=True, conditional=True)
 
     @has_access
-    @action_logging
+    # @action_logging
     @expose('/streaming-upload/tf/extract/<path:pathname>', methods=['POST', 'GET'])
     def extract_view(self, pathname):
         file_path = self.get_file_path(pathname)
@@ -2647,18 +2657,18 @@ class StreamingFileUploadView(AirflowBaseView):
         return redirect(url_for(self.__class__.__name__ + '.list_view', pathname=''))
 
     @has_access
-    @action_logging
+    # @action_logging
     @expose('/streaming-upload/tf/destroy/<path:pathname>', methods=['POST', 'GET'])
     def destroy_view(self, pathname):
         file = Path(self.get_file_path(pathname))
-        if file.exists():
+        if file.is_file() and file.exists():
             file.unlink()
-            AirflowBaseView.audit_logging(
-                "{}.{}".format(self.__class__.__name__, 'destroy_view'),
-                pathname, request.environ['REMOTE_ADDR'])
             flash('File ' + pathname + ' successfully deleted.', category='warning')
+        elif file.is_dir() and file.exists():
+            shutil.rmtree(file)
+            flash('Folder ' + pathname + ' successfully deleted.', category='warning')
         else:
-            flash('File ' + pathname + ' not found.', category='error')
+            flash('File/Folder ' + pathname + ' not found.', category='error')
         return redirect(url_for(self.__class__.__name__ + '.list_view', pathname=''))
 
 
