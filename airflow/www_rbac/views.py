@@ -2695,7 +2695,28 @@ class TensorflowModelsView(FileUploadBaseView):
             files[d] = temp_dict
         return files
 
-    @has_access
+    def set_config(self, config):
+        try:
+            with open(os.path.join(self.fs_path, 'models.config'), 'w') as f:
+                f.write(config)
+        except Exception as e:
+            print(e)
+
+    def update_models_config(self):
+        config = 'model_config_list: {'
+        dirs = [name for name in os.listdir(self.fs_path) if os.path.isdir(os.path.join(self.fs_path, name))]
+        for dname in dirs:
+            print(dname)
+            config += '''config: {
+                            name: "%s",
+                            base_path: "%s",
+                            model_platform: "tensorflow"
+                        },''' % (dname, dname)
+        config += '}'
+        flash('All tensorflow servers have been updated')
+        self.set_config(config)
+
+    # @has_access
     # @action_logger
     def download_view(self, pathname):
         file_path = self.get_file_path(pathname)
@@ -2714,20 +2735,21 @@ class TensorflowModelsView(FileUploadBaseView):
                              mimetype='application/gzip')
         return send_file(file_path, as_attachment=True, conditional=True)
 
-    @has_access
+    # @has_access
     def destroy_view(self, pathname):
         file = Path(self.get_file_path(pathname))
-        if file.is_file() and file.exists():
+        if file.exists() and file.is_file():
             file.unlink()
             flash('File ' + pathname + ' successfully deleted.', category='warning')
-        elif file.is_dir() and file.exists():
+        elif file.exists() and file.is_dir():
             shutil.rmtree(file)
             flash('Folder ' + pathname + ' successfully deleted.', category='warning')
+            self.update_models_config()
         else:
             flash('File/Folder ' + pathname + ' not found.', category='error')
         return redirect(url_for(self.__class__.__name__ + '.list_view', pathname=''))
 
-    @has_access
+    # @has_access
     # @action_logging
     @expose('/TensorflowModelsView/extract/<path:pathname>', methods=['POST', 'GET'])
     def extract_view(self, pathname):
@@ -2745,10 +2767,18 @@ class TensorflowModelsView(FileUploadBaseView):
                     else:
                         existing_content.unlink()
                     tar.extract(content, path=self.fs_path)
+                    flash('{} already exists, overwriting'.format(content), category='warning')
+
+                    # # after extracting, update models.config
+                    # if existing_content.isdir():
                 finally:
                     content_path = Path(self.fs_path).joinpath(content.name)
                     os.chmod(content_path, content.mode)
-        return redirect(url_for(self.__class__.__name__ + '.list_view', pathname=''))
+        flash('Extracted {}'.format(pathname))
+
+        self.update_models_config()
+        return redirect(url_for(self.__class__.__name__ + '.destroy_view', pathname=pathname))
+        # return redirect(url_for(self.__class__.__name__ + '.list_view', pathname=''))
 
 
 class HadoopConfView(FileUploadBaseView):
