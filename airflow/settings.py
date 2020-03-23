@@ -238,7 +238,7 @@ def configure_vars():
     CODE_ARTIFACTS_FOLDER = normalize_path(os.path.join(AIRFLOW_HOME, *[os.pardir, 'code']))
     JUPYTER_HOME = normalize_path(os.path.join(AIRFLOW_HOME, *[os.pardir, 'jupyter']))
     EDA_HOME = normalize_path(os.path.join(AIRFLOW_HOME, *[os.pardir, 'eda']))
-    MODEL_SERVERS = normalize_path(os.path.join(AIRFLOW_HOME, *[os.pardir, 'model_servers']))
+    MODEL_SERVERS = normalize_path(os.path.join(AIRFLOW_HOME, *[os.pardir, 'tf-models']))
 
     PLUGINS_FOLDER = conf.get(
         'core',

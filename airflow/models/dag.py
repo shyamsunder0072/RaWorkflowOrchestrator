@@ -949,6 +949,39 @@ class DAG(BaseDag, LoggingMixin):
                 get_tis=True,
                 session=session,
             ))
+        to_clear_dags = set()
+        dagbag = DagBag(dag_folder=self.fileloc)
+        for t in tis:
+            # print(t, t.operator)
+            try:
+                # print(self.get_task(t.task_id), self.get_task(t.task_id).run_dag_id)
+                run_dag = dagbag.get_dag(self.get_task(t.task_id).run_dag_id)
+                if run_dag:
+                    to_clear_dags.add(run_dag)
+            except Exception as e:
+                self.log.info(e)
+
+        for __dag in to_clear_dags:
+            runs = __dag.get_dagruns_between(session=session,
+                                            start_date=start_date,
+                                            end_date=end_date,
+                                            )
+            tis = tis.union(__dag.clear(
+                start_date=start_date, end_date=end_date,
+                only_failed=only_failed,
+                only_running=only_running,
+                confirm_prompt=confirm_prompt,
+                include_subdags=include_subdags,
+                include_parentdag=False,
+                reset_dag_runs=reset_dag_runs,
+                get_tis=True,
+                session=session,
+            ))
+            for run in runs:
+                print("DAGRUN: ", run)
+                session.query(DagRun).filter(
+                    DagRun.id == run.id,
+                    ).delete()
 
         if start_date:
             tis = tis.filter(TI.execution_date >= start_date)
@@ -982,10 +1015,49 @@ class DAG(BaseDag, LoggingMixin):
             do_it = utils.helpers.ask_yesno(question)
 
         if do_it:
+            #to_clear_dags = []
+            #dagbag = DagBag(dag_folder=self.fileloc)
+            #for t in tis:
+                # print(t, t.operator)
+            #    try:
+                    # print(self.get_task(t.task_id), self.get_task(t.task_id).run_dag_id)
+            #        run_dag = dagbag.get_dag(self.get_task(t.task_id).run_dag_id)
+            #        if run_dag:
+            #            to_clear_dags.append(run_dag)
+            #    except Exception as e:
+            #        self.log.info(e)
             clear_task_instances(tis.all(),
                                  session,
                                  dag=self,
                                  )
+            self.log.info('Clearing number of dags: %d', len(to_clear_dags))
+            # self.clear_dags(to_clear_dags,
+            #                start_date=start_date,
+            #                end_date=end_date)
+            # remove dag_run instances too:
+            # for dag in to_clear_dags:
+            #    dag.set_dag_runs_state(session=session,
+            #                           start_date=start_date,
+            #                           end_date=end_date,
+            #                           )
+            # self.clear_dags(to_clear_dags,
+            #                start_date=start_date,
+            #                end_date=end_date)
+           # remove dag_run instances too:
+           # if reset_dag_runs:
+           #    for dag in to_clear_dags:
+           #        runs = dag.get_dagruns_between(session=session,
+           #                                       start_date=start_date,
+           #                                       end_date=end_date,
+           #                                       )
+           #         for run in runs:
+           #            print("DELETING DAGRUN: ", run)
+           #            session.query(DagRun).filter(
+           #                DagRun.id == run.id,
+           #                ).delete()
+           # self.clear_dags(to_clear_dags,
+           #                 start_date=start_date,
+           #                 end_date=end_date)
             if reset_dag_runs:
                 self.set_dag_runs_state(session=session,
                                         start_date=start_date,
@@ -1720,3 +1792,4 @@ class DagModel(Base):
         except Exception:
             session.rollback()
             raise
+
