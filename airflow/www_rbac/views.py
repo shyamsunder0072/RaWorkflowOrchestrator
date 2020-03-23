@@ -1489,6 +1489,7 @@ class Airflow(AirflowBaseView):
     @provide_session
     def graph(self, session=None):
         dag_id = request.args.get('dag_id')
+        allow_tasks_actions = request.args.get('allow_tasks_actions', 'true') == 'true'
         blur = conf.getboolean('webserver', 'demo_mode')
         dag = dagbag.get_dag(dag_id)
         if not dag:
@@ -1532,6 +1533,7 @@ class Airflow(AirflowBaseView):
             get_downstream(t)
 
         dt_nr_dr_data = get_date_time_num_runs_dag_runs_form_data(request, session, dag)
+        # print(dt_nr_dr_data)
         dt_nr_dr_data['arrange'] = arrange
         dttm = dt_nr_dr_data['dttm']
 
@@ -1568,6 +1570,7 @@ class Airflow(AirflowBaseView):
             if hasattr(dag, 'doc_md') and dag.doc_md else ''
 
         external_logs = conf.get('elasticsearch', 'frontend')
+        # print(allow_tasks_actions)
         return self.render_template(
             'airflow/graph.html',
             dag=dag,
@@ -1586,6 +1589,7 @@ class Airflow(AirflowBaseView):
             tasks=tasks,
             nodes=nodes,
             edges=edges,
+            allow_tasks_actions=allow_tasks_actions,
             show_external_logs=bool(external_logs))
 
     @expose('/graph-popover')
@@ -4002,6 +4006,8 @@ class AddDagView(AirflowBaseView):
                     filename, request.environ['REMOTE_ADDR'])
                 if new:
                     _parse_dags(update_DagModel=True)
+                    # TODO Unpause dag here.
+                    # unpause_dag(dag_id)
             return redirect(url_for('AddDagView.editdag', filename=filename))
         else:
             if new:

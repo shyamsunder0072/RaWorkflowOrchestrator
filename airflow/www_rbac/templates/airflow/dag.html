@@ -183,6 +183,7 @@
             <hr/>
             <hr/>
           </div>
+          {% if allow_tasks_actions %}
           <form method="POST">
             <input name="csrf_token" type="hidden" value="{{ csrf_token() }}"/>
             <input name="dag_id" type="hidden">
@@ -295,6 +296,7 @@
               </label>
             </span>
           </form>
+          {% endif %}
           <hr/>
             <span class="btn-group" id="extra_links">
             </span>
@@ -459,7 +461,6 @@ function updateQueryStringParameter(uri, key, value) {
           </li>`
         );
       }
-
       if (extra_links && extra_links.length > 0){
         var markupArr = [];
 
@@ -575,6 +576,7 @@ function updateQueryStringParameter(uri, key, value) {
     $("#btn_rundag").click(function(){
       url = "{{ url_for( 'Airflow.graph' ) }}" +
         "?dag_id=" + encodeURIComponent(rundag_id) +
+        "&allow_tasks_actions=false" +
         "&execution_date=" + encodeURIComponent(execution_date);
       window.location = url;
     });
