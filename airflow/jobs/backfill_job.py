@@ -55,6 +55,8 @@ class BackfillJob(BaseJob):
     ID_FORMAT_PREFIX = ID_PREFIX + '{0}'
     STATES_COUNT_AS_RUNNING = (State.RUNNING, State.QUEUED)
 
+    ID_PREFIX_RUNDAG = 'backfill_rundag_'
+
     __mapper_args__ = {
         'polymorphic_identity': 'BackfillJob'
     }
@@ -318,7 +320,9 @@ class BackfillJob(BaseJob):
 
         # explicitly mark as backfill and running
         run.state = State.RUNNING
-        run.run_id = run_id
+        # Don't change run_id for dagrun
+        if not str(run.run_id).startswith(BackfillJob.ID_PREFIX_RUNDAG):
+            run.run_id = run_id
         run.verify_integrity(session=session)
         return run
 
@@ -398,7 +402,7 @@ class BackfillJob(BaseJob):
 
         while ((len(ti_status.to_run) > 0 or len(ti_status.running) > 0) and
                 len(ti_status.deadlocked) == 0):
-            self.log.debug("*** Clearing out not_ready list ***")
+            self.log.info("*** Clearing out not_ready list ***")
             ti_status.not_ready.clear()
 
             # we need to execute the tasks bottom to top
@@ -415,21 +419,21 @@ class BackfillJob(BaseJob):
                 ignore_depends_on_past = (
                     self.ignore_first_depends_on_past and
                     ti.execution_date == (start_date or ti.start_date))
-                self.log.debug(
+                self.log.info(
                     "Task instance to run %s state %s", ti, ti.state)
 
                 # The task was already marked successful or skipped by a
                 # different Job. Don't rerun it.
                 if ti.state == State.SUCCESS:
                     ti_status.succeeded.add(key)
-                    self.log.debug("Task instance %s succeeded. Don't rerun.", ti)
+                    self.log.info("Task instance %s succeeded. Don't rerun.", ti)
                     ti_status.to_run.pop(key)
                     if key in ti_status.running:
                         ti_status.running.pop(key)
                     return
                 elif ti.state == State.SKIPPED:
                     ti_status.skipped.add(key)
-                    self.log.debug("Task instance %s skipped. Don't rerun.", ti)
+                    self.log.info("Task instance %s skipped. Don't rerun.", ti)
                     ti_status.to_run.pop(key)
                     if key in ti_status.running:
                         ti_status.running.pop(key)
