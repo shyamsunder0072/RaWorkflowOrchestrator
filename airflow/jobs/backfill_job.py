@@ -321,7 +321,7 @@ class BackfillJob(BaseJob):
         # explicitly mark as backfill and running
         run.state = State.RUNNING
         # Don't change run_id for dagrun
-        if not str(run.run_id).startswith(BackfillJob.ID_FORMAT_PREFIX):
+        if not str(run.run_id).startswith(BackfillJob.ID_PREFIX_RUNDAG):
             run.run_id = run_id
         run.verify_integrity(session=session)
         return run
