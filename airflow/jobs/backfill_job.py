@@ -55,6 +55,9 @@ class BackfillJob(BaseJob):
     ID_FORMAT_PREFIX = ID_PREFIX + '{0}'
     STATES_COUNT_AS_RUNNING = (State.RUNNING, State.QUEUED)
 
+    # ID_PREFIX_RUNDAG = 'backfill_subdag_'
+    # ID_FORMAT_PREFIX_RUNDAG = ID_PREFIX_RUNDAG + '{0}'
+
     __mapper_args__ = {
         'polymorphic_identity': 'BackfillJob'
     }
@@ -319,7 +322,7 @@ class BackfillJob(BaseJob):
         # explicitly mark as backfill and running
         run.state = State.RUNNING
         # Don't change run_id for dagrun
-        if not str(run.run_id).startswith('dagrun__'):
+        if not str(run.run_id).startswith('backfill_rundag_'):
             run.run_id = run_id
         run.verify_integrity(session=session)
         return run

@@ -1556,7 +1556,7 @@ class Airflow(AirflowBaseView):
         # NOTE: Special case when we don't want the actions to be
         # performed on dag runs made by DAG Operator.
         dagrun = dag.get_dagrun(execution_date=dttm)
-        allow_tasks_actions = str(dagrun.run_id).startswith('dagrun__') is not True
+        allow_tasks_actions = str(dagrun.run_id).startswith('backfill_rundag_') is not True
         # print(allow_tasks_actions, dagrun.run_id)
 
         tasks = {
