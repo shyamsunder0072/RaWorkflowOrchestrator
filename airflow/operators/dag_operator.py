@@ -2,6 +2,7 @@ from airflow.models import BaseOperator
 from airflow.utils import timezone
 from airflow.utils.decorators import apply_defaults
 from airflow.api.common.experimental.run_dag import run_dag
+from airflow.jobs.backfill_job import BackfillJob
 import datetime
 import six
 import json
@@ -64,7 +65,7 @@ class SkippableDagOperator(BaseOperator):
             self.log.info("Skipped this, moving on")
             # self.__setstate__(State.SUCCESS)
         else:
-            run_id = 'backfill_rundag_' + exe_date
+            run_id = BackfillJob.ID_PREFIX_RUNDAG + exe_date
 
             dro = DagRunOrder(run_id=run_id)
             if self.python_callable is not None:

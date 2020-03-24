@@ -66,6 +66,7 @@ from airflow import models, jobs
 from airflow import settings, configuration
 from airflow.api.common.experimental.mark_tasks import (set_dag_run_state_to_success,
                                                         set_dag_run_state_to_failed)
+from airflow.jobs.backfill_job import BackfillJob
 from airflow.models import Connection, DagModel, DagRun, errors, Log, SlaMiss, TaskFail, XCom
 from airflow.ti_deps.dep_context import RUNNING_DEPS, SCHEDULER_QUEUED_DEPS, DepContext
 from airflow.utils import timezone
@@ -1556,7 +1557,7 @@ class Airflow(AirflowBaseView):
         # NOTE: Special case when we don't want the actions to be
         # performed on dag runs made by DAG Operator.
         dagrun = dag.get_dagrun(execution_date=dttm)
-        allow_tasks_actions = str(dagrun.run_id).startswith('backfill_rundag_') is not True
+        allow_tasks_actions = str(dagrun.run_id).startswith(BackfillJob.ID_PREFIX_RUNDAG) is not True
         # print(allow_tasks_actions, dagrun.run_id)
 
         tasks = {
