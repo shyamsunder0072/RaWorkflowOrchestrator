@@ -1489,7 +1489,7 @@ class Airflow(AirflowBaseView):
     @provide_session
     def graph(self, session=None):
         dag_id = request.args.get('dag_id')
-        allow_tasks_actions = request.args.get('allow_tasks_actions', 'true') == 'true'
+        # allow_tasks_actions = request.args.get('allow_tasks_actions', 'true') == 'true'
         blur = conf.getboolean('webserver', 'demo_mode')
         dag = dagbag.get_dag(dag_id)
         if not dag:
@@ -1532,6 +1532,7 @@ class Airflow(AirflowBaseView):
         for t in dag.roots:
             get_downstream(t)
 
+        # print(nodes, edges)
         dt_nr_dr_data = get_date_time_num_runs_dag_runs_form_data(request, session, dag)
         # print(dt_nr_dr_data)
         dt_nr_dr_data['arrange'] = arrange
@@ -1551,6 +1552,12 @@ class Airflow(AirflowBaseView):
         task_instances = {
             ti.task_id: alchemy_to_dict(ti)
             for ti in dag.get_task_instances(dttm, dttm, session=session)}
+
+        # NOTE: Special case when we don't want the actions to be
+        # performed on dag runs made by DAG Operator.
+        dagrun = dag.get_dagrun(execution_date=dttm)
+        allow_tasks_actions = str(dagrun.run_id).startswith('dagrun__') is not True
+        # print(allow_tasks_actions, dagrun.run_id)
 
         tasks = {
             t.task_id: {
