@@ -18,78 +18,80 @@
 {% block content %}
 {{ super() }}
 <div class="container">
-  <div>
-    <h2 class="margin-top-md">{{ title }} {% if pathname %} - {{pathname}} {% endif %}</h2>
-    <form id="upload-form" action="{{ url_for(view + '.upload_view', pathname=pathname) }}" method="post" enctype="multipart/form-data">
-      <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
-        <input type="file" name="file" id="cout-file-picker" class="inputfile" multiple style="display: none;" accept="{% for ext in accepted_file_extensions %}{{ ext }},{% endfor %}"/>
-        <label for="cout-file-picker" class="btn btn-success pull-right">Upload file(s)</label>
-    </form>
-  </div>
-  <br><br>
-  <div class="input-group">
-    <span class="input-group-addon">Search file: </span>
-    <input type="text" class="form-control" placeholder="filename" id="fileSearch">
-  </div>
-  <br>
-  <div class="table-responsive">
-    <table class="table table-bordered table-hover" id="filesTable">
-      <thead>
-        <tr class="table-head">
-          <th colspan="14">File / Directory</th>
-          <th colspan="2">Last modified</th>
-          <th colspan="2">Size</th>
-          <th colspan="2">Links</th>
-        </tr>
-      </thead>
-      <tbody>
+  <div class="row">
+    <div class="col-md-3">
+      <div class="list-group">
+        <span href="#" class="list-group-item active">
+            Trained Models
+        </span>
+        {% for fs_path_key in files %}
+          <a href="#{{fs_path_key}}-h4" class="list-group-item"> {{fs_path_key.replace('-', ' ').upper()}} </a>
+        {% endfor %}
+
+    </div>
+
+    </div>
+    <div class="col-md-8">
       <div>
-        {% for i in files %}
-        <tr>
-          <td colspan="14">
-            {% if files_editable %}
-              {% if pathname %}
-                <a href="{{ url_for(view + '.edit_view', pathname= pathname + '/' + i) }}">
-              {% else %}
-                <a href="{{ url_for(view + '.edit_view', pathname= i) }}">
-              {% endif %}
-                {{i}}
-              </a>
-            {% else %}
-              {% if files[i]['dir'] %}
-              <b>{{i}}</b>
-              {% else %}
-              {{i}}
-              {% endif %}
-            {% endif %}
-          </td>
-          <td colspan="2">{{files[i]['time']}}</td>
-          <td colspan="2">{{files[i]['size']}}</td>
-          <td colspan="1">
-            <div>
-              {% if pathname %}
-              <a href="{{ url_for(view + '.download_view', pathname= pathname + '/' + i) }}">
-              {% else %}
-              <a href="{{ url_for(view + '.download_view', pathname= i) }}">
-              {% endif %}
-                <i class="fa fa-cloud-download fa-lg" data-toggle="tooltip" title="Download"></i>
-              </a>
-            </div>
-          </td>
-          <td colspan="1">
-            {% if pathname %}
-            <a href="{{ url_for(view + '.destroy_view', pathname= pathname + '/' + i) }}" onclick="return confirm('Are you sure to delete {{i}} ?')">
-            {% else %}
-            <a href="{{ url_for(view + '.destroy_view', pathname= i) }}" onclick="return confirm('Are you sure to delete {{i}} ?')">
-            {% endif %}
-              <i class="fa fa-trash fa-lg" style="color:red" aria-hidden="true" data-toggle="tooltip" title="Delete"></i>
-            </a>
-          </td>
-        </tr>
+        <h2 class="margin-top-md">{{ title }}</h2> <br>
+      </div>
+        {% for fs_path_key in files %}
+        <h4> <a id="{{fs_path_key}}-h4">{{fs_path_key.replace('-', ' ').upper()}} </a></h4>
+        <form id="{{fs_path_key}}-form" action="{{ url_for(view + '.upload_view', pathname=fs_path_key) }}" method="post" enctype="multipart/form-data">
+          <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
+          <input type="file" name="file" id="{{fs_path_key}}" class="inputfile" multiple style="display: none;" accept="{% for i in fs_mapping[fs_path_key]['accept_extensions'] %} {{i}}, {% endfor %}" />
+          <label for="{{fs_path_key}}" class="btn btn-success pull-right">Upload model</label>
+        </form>
+      <br><br>
+      <div class="input-group">
+        <span class="input-group-addon">Search file: </span>
+        <input type="text" class="form-control" placeholder="filename" id="{{fs_path_key}}-fileSearch">
+      </div>
+      <br>
+      <div class="table-responsive">
+        <table class="table table-bordered table-hover" id="{{fs_path_key}}-filesTable">
+          <thead>
+            <tr class="table-head">
+              <th colspan="14">File / Directory</th>
+              <th colspan="2">Last modified</th>
+              <th colspan="2">Size</th>
+              <th colspan="2">Links</th>
+            </tr>
+          </thead>
+          <tbody>
+          <div>
+            {% for i in files[fs_path_key] %}
+            <tr>
+              <td colspan="14">
+                {% if files[fs_path_key][i]['dir'] %}
+                  <b>{{i}}</b>
+                {% else %}
+                  {{i}}
+                {% endif %}
+              </td>
+              <td colspan="2">{{files[fs_path_key][i]['time']}}</td>
+              <td colspan="2">{{files[fs_path_key][i]['size']}}</td>
+              <td colspan="1">
+                <div>
+                  <a href="{{ url_for(view + '.download_view', pathname= fs_path_key + '/' + i) }}">
+                    <i class="fa fa-cloud-download fa-lg" data-toggle="tooltip" title="Download"></i>
+                  </a>
+                </div>
+              </td>
+              <td colspan="1">
+                <a href="{{ url_for(view + '.destroy_view', pathname= fs_path_key + '/' + i) }}" onclick="return confirm('Are you sure to delete {{i}} ?')">
+                  <i class="fa fa-trash fa-lg" style="color:red" aria-hidden="true" data-toggle="tooltip" title="Delete"></i>
+                </a>
+              </td>
+            </tr>
+            {% endfor %}
+          </div>
+          </tbody>
+        </table>
+        <br>
         {% endfor %}
       </div>
-      </tbody>
-    </table>
+    </div>
   </div>
 </div>
 {% endblock %}
@@ -99,18 +101,21 @@
 <script type="text/javascript">
 
   $(document).ready(function () {
-    document.getElementById('cout-file-picker').onchange = function() {
-      document.getElementById('upload-form').submit();
-    };
+    {% for fs_path_key in files %}
+      document.getElementById('{{fs_path_key}}').onchange = function() {
+        document.getElementById('{{fs_path_key}}-form').submit();
+      };
+      $("#{{fs_path_key}}-fileSearch").on("keyup", function() {
+        var value = $(this).val().toLowerCase();
+        $("#{{fs_path_key}}-filesTable tr").filter(function() {
+          if ( !$(this).hasClass('table-head'))
+            $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1);
+        });
+      });
+    {% endfor %}
     $('[data-toggle="tooltip"]').tooltip();
 
-    $("#fileSearch").on("keyup", function() {
-      var value = $(this).val().toLowerCase();
-      $("#filesTable tr").filter(function() {
-        if ( !$(this).hasClass('table-head'))
-          $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1);
-      });
-    });
+
   })
 </script>
 {% endblock %}
