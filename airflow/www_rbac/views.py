@@ -2472,7 +2472,9 @@ class FileUploadBaseView(AirflowBaseView):
                 else:
                     destination = self.get_file_path(filename)
                 upload.save(destination)
+                # print("Extra work")
                 self.extra_work_after_file_save(destination)
+                # print("Extra work done")
                 try:
                     AirflowBaseView.audit_logging(
                         "{}.{}".format(self.__class__.__name__, 'upload_view'),
@@ -2483,9 +2485,12 @@ class FileUploadBaseView(AirflowBaseView):
             else:
                 flash('File, ' + filename + ' not allowed', 'error')
         if files_uploaded:
-            flash(str(files_uploaded) + ' files uploaded!!', 'success')
+            self.flash_on_upload_done(files_uploaded)
         self.on_save_complete()
         return redirect(url_for(self.__class__.__name__ + '.list_view', pathname=pathname))
+
+    def flash_on_upload_done(self, files_uploaded):
+        flash(str(files_uploaded) + ' files uploaded!!', 'success')
 
     @has_access
     @action_logger
@@ -2523,7 +2528,7 @@ class StreamingFileUploadView(AirflowBaseView):
     _temp_fs_path = os.path.join(settings.AIRFLOW_HOME, *[os.pardir, 'tmp'])
     _fs_path = os.path.join(settings.AIRFLOW_HOME, *[os.pardir, 'tf-models'])
     accepted_file_extensions = ('')
-    files_editable = True
+    files_editable = False
     title = 'Tensorflow Serving Models'
     template_name = 'airflow/streaming_file_upload_base.html'
 
@@ -2693,18 +2698,79 @@ class CodeArtifactView(FileUploadBaseView):
     title = 'Code Artifacts'
 
 
-class TensorflowModelsView(FileUploadBaseView):
+class TrainedModelsView(FileUploadBaseView):
+    base_fs_path = settings.MODEL_SERVERS
     fs_path = settings.MODEL_SERVERS
+    # accepted_file_extensions = ('.tar', '.tar.gz')
     accepted_file_extensions = ('',)
-    title = 'Tensorflow Models'
+    title = 'Trained Models'
     template_name = 'airflow/tf_file_upload_base.html'
 
-    def extra_files(self, files):
+    fs_mapping = {
+        'tf-models': {
+            'path': os.path.join(base_fs_path, 'tf-models'),
+            'extract_on_upload': True,
+            'update_config': True,
+            'accept_extensions': ('.tar', '.gz')
+        },
+        'spark-models': {
+            'path': os.path.join(base_fs_path, 'spark-models'),
+            'extract_on_upload': False,
+            'update_config': False,
+            'accept_extensions': ('.tar', '.gz')
+        },
+        'other-models': {
+            'path': os.path.join(base_fs_path, 'other-models'),
+            'extract_on_upload': True,
+            'update_config': False,
+            'accept_extensions': ('.tar', '.gz')
+        }
+    }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        for key, val in self.fs_mapping.items():
+            os.makedirs(val['path'], exist_ok=True)
+
+    def flash_on_upload_done(self, files_uploaded):
+        return
+
+    def list_view(self, pathname=None):
+        # THIS view should return the same content irrespective of pathname
+        if pathname:
+            return redirect(url_for(self.__class__.__name__ + '.list_view', pathname=''))
+
+        files = {}
+        for key, val in self.fs_mapping.items():
+            # print(key, val)
+            files[key] = {}
+            pth = val['path']
+            # print(pth)
+            files[key] = self.get_details(pth, ('', ))
+            files[key] = self.extra_files(files[key], pth)
+            # print("KEY====>>>>", key, files[key])
+        # for i in files:
+        #     print(files[i])
+        return self.render_template(
+            self.template_name,
+            files=files,
+            view=self.__class__.__name__,
+            title=self.title,
+            files_editable=False,
+            pathname=None,
+            fs_mapping=self.fs_mapping
+        )
+
+    def extra_files(self, files, fs_path=None):
+        # print(fs_path)
+        if not fs_path:
+            fs_path = self.fs_path
         # also removing `models.config` which we don't want to show
-        dirs = [name for name in os.listdir(self.fs_path) if os.path.isdir(os.path.join(self.fs_path, name))]
-        # print(dirs)
+        dirs = [name for name in os.listdir(fs_path) if os.path.isdir(os.path.join(fs_path, name))]
+        # print("Dirs ===>>>", dirs)
         for d in dirs:
-            fileStatsObj = os.stat(os.path.join(self.fs_path, d))
+            fileStatsObj = os.stat(os.path.join(fs_path, d))
             modificationTime = time.ctime(fileStatsObj[stat.ST_MTIME])  # get last modified time
             size_bytes = fileStatsObj.st_size
             size = AirflowBaseView.convert_size(size_bytes)
@@ -2712,65 +2778,82 @@ class TensorflowModelsView(FileUploadBaseView):
             files[d] = temp_dict
         # remove models.config
         files.pop('models.config', None)
+        # print("fiels", files)
         return files
 
-    def set_config(self, config):
+    def set_config(self, config, pathname):
         try:
-            with open(os.path.join(self.fs_path, 'models.config'), 'w') as f:
+            with open(os.path.join(pathname, 'models.config'), 'w') as f:
                 f.write(config)
         except Exception as e:
             print(e)
 
-    def update_models_config(self):
+    def get_file_path(self, pathname):
+        if isinstance(pathname, list):
+            fs_path = self.fs_mapping.get(pathname[0], self.fs_mapping['other-models'])['path']
+            # print("FS_PATh ====>", fs_path)
+            return os.path.join(fs_path, pathname[1])
+        else:
+            return os.path.join(self.fs_path, pathname)
+
+    def update_models_config(self, pathname):
         config = 'model_config_list: {'
-        dirs = [name for name in os.listdir(self.fs_path) if os.path.isdir(os.path.join(self.fs_path, name))]
+        dirs = [name for name in os.listdir(pathname) if os.path.isdir(os.path.join(pathname, name))]
         for dname in dirs:
-            print(dname)
+            # print(dname)
             config += '''config: {
                             name: "%s",
-                            base_path: "/usr/local/couture/tf-models/%s",
+                            base_path: "/usr/local/couture/trained-models/%s/%s",
                             model_platform: "tensorflow"
-                        },''' % (dname, dname)
+                        },''' % (dname, 'tf-models', dname)
         config += '}'
-        flash('All tensorflow servers have been updated')
-        self.set_config(config)
+        flash('All Model servers have been updated')
+        self.set_config(config, pathname)
 
     def extra_work_after_file_save(self, pathname):
+        # TODO: MODIFY THIS HACK.
+        # print("hererre......", pathname)
+        pth = Path(pathname).parent
+        fs_key = pth.stem
+        fs_path = self.fs_mapping[fs_key]['path']
+        if not self.fs_mapping[fs_key]['extract_on_upload']:
+            return
+
         if str(pathname).endswith(('.tar', '.tar.gz')):
             file_path = self.get_file_path(pathname)
             with tarfile.open(Path(file_path)) as tar:
                 for content in tar:
-                    # print(content)
                     try:
-                        tar.extract(content, path=self.fs_path)
+                        tar.extract(content, path=fs_path)
                     except Exception as e:
                         print(e)
-                        existing_content = Path(self.fs_path).joinpath(content)
+                        existing_content = Path(fs_path).joinpath(content)
                         if existing_content.is_dir():
                             shutil.rmtree(existing_content)
                         else:
                             existing_content.unlink()
-                        tar.extract(content, path=self.fs_path)
+                        tar.extract(content, path=fs_path)
                         flash('{} already exists, overwriting'.format(content), category='warning')
 
                         # # after extracting, update models.config
                         # if existing_content.isdir():
                     finally:
-                        content_path = Path(self.fs_path).joinpath(content.name)
+                        content_path = Path(fs_path).joinpath(content.name)
                         os.chmod(content_path, content.mode)
-        # flash('Extracted {}'.format(pathname))
+            # flash('Extracted {}'.format(pathname))
             Path(str(pathname)).unlink()
-            self.update_models_config()
+            if self.fs_mapping[fs_key]['update_config']:
+                self.update_models_config(fs_path)
 
     # @has_access
     # @action_logger
     def download_view(self, pathname):
         file_path = self.get_file_path(pathname)
-        # print(file_path, type(file_path))
+        arcname = pathname.split('/')[-1]
         if os.path.isdir(file_path):
             f = tempfile.SpooledTemporaryFile(suffix='.tar.gz')
             with tarfile.open(fileobj=f, mode='w:gz') as tar:
-                tar.add(file_path, arcname=pathname)
+                tar.add(file_path, arcname=arcname)
 
             f.flush()
             f.seek(0)
@@ -2790,41 +2873,12 @@ class TensorflowModelsView(FileUploadBaseView):
         elif file.exists() and file.is_dir():
             shutil.rmtree(file)
             flash('Folder ' + pathname + ' successfully deleted.', category='warning')
-            self.update_models_config()
+            pth = pathname.split('/')[0]
+            if self.fs_mapping[pth]['update_config']:
+                self.update_models_config(self.fs_mapping[pth]['path'])
         else:
             flash('File/Folder ' + pathname + ' not found.', category='error')
         return redirect(url_for(self.__class__.__name__ + '.list_view', pathname=''))
-
-    # @has_access
-    # @action_logging
-    # @expose('/TensorflowModelsView/extract/<path:pathname>', methods=['POST', 'GET'])
-    # def extract_view(self, pathname):
-    #     file_path = self.get_file_path(pathname)
-    #     with tarfile.open(Path(file_path)) as tar:
-    #         for content in tar:
-    #             # print(content)
-    #             try:
-    #                 tar.extract(content, path=self.fs_path)
-    #             except Exception as e:
-    #                 print(e)
-    #                 existing_content = Path(self.fs_path).joinpath(content)
-    #                 if existing_content.is_dir():
-    #                     shutil.rmtree(existing_content)
-    #                 else:
-    #                     existing_content.unlink()
-    #                 tar.extract(content, path=self.fs_path)
-    #                 flash('{} already exists, overwriting'.format(content), category='warning')
-
-    #                 # # after extracting, update models.config
-    #                 # if existing_content.isdir():
-    #             finally:
-    #                 content_path = Path(self.fs_path).joinpath(content.name)
-    #                 os.chmod(content_path, content.mode)
-    #     # flash('Extracted {}'.format(pathname))
-
-    #     self.update_models_config()
-    #     return redirect(url_for(self.__class__.__name__ + '.destroy_view', pathname=pathname))
-        # return redirect(url_for(self.__class__.__name__ + '.list_view', pathname=''))
 
 
 class HadoopConfView(FileUploadBaseView):

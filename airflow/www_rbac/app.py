@@ -153,8 +153,8 @@ def create_app(config=None, session=None, testing=False, app_name="Workflow"):
             #                     "Tensorflow Models",
             #                     category="Developer",
             #                     category_icon="fa-user")
-            appbuilder.add_view(views.TensorflowModelsView,
-                                "Tensorflow Models",
+            appbuilder.add_view(views.TrainedModelsView,
+                                "Trained Models",
                                 category="Developer",
                                 category_icon="fa-user")
             appbuilder.add_view(views.ConfigurationView,
