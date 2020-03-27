@@ -2604,6 +2604,7 @@ class StreamingFileUploadView(AirflowBaseView):
     def extra_work_after_file_save(self, pathname):
         if str(pathname).endswith(('.tar', '.tar.gz')):
             file_path = self.get_file_path(pathname)
+            print("EXTRA WORK:", file_path)
             with tarfile.open(Path(file_path)) as tar:
                 for content in tar:
                     # print(content)
@@ -2644,7 +2645,6 @@ class StreamingFileUploadView(AirflowBaseView):
 
         try:
             temp_file = open(temp_save_path, 'a+b')
-            # print("printing tempfile name and size:::", temp_file.name)
             temp_file.seek(int(request.form['dzchunkbyteoffset']))
             temp_file.write(file.stream.read())
         except Exception as e:
@@ -2653,6 +2653,8 @@ class StreamingFileUploadView(AirflowBaseView):
 
         if current_chunk + 1 == total_chunks:
             # This was the last chunk, the file should be complete and the size we expect
+            print("printing tempfile name and size:::", temp_file.name)
+            print("TEMP SAVE PATH", temp_save_path)
             if os.path.getsize(temp_save_path) != int(request.form['dztotalfilesize']):
                 print(os.path.getsize(temp_save_path), int(request.form['dztotalfilesize']))
                 return make_response(('Size mismatch at the server. Probably the file got corrupted during transfer.', 500))
@@ -2661,6 +2663,7 @@ class StreamingFileUploadView(AirflowBaseView):
                 final_loc = os.path.join(self.fs_path, file.filename)
                 shutil.move(temp_save_path, final_loc)
                 # if tar.gz or tar, extract file
+                prin("FINAL LOC: ", final_loc)
                 self.extra_work_after_file_save(final_loc)
 
         return make_response(('ok', 200))
