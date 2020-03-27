@@ -2637,6 +2637,7 @@ class StreamingFileUploadView(AirflowBaseView):
     # @action_logging
     @expose('/streaming-upload/tf/upload/', methods=['POST'])
     @expose('/streaming-upload/tf/upload/<path:pathname>', methods=['POST'])
+    @csrf.exempt
     def upload_view(self, pathname=None):
         file = request.files['file']
         total_chunks = int(request.form['dztotalchunkcount'])
