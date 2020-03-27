@@ -100,6 +100,7 @@
       chunking: true,
       forceChunking: true,
       retryChunks: true,
+      parallelChunkUploads: false,
       url: '{{ url_for(view + '.upload_view', pathname=pathname) }}',
       maxFilesize: {{max_file_size}}, // megabytes (10 GB)
       chunkSize: {{max_chunk_size}}, // bytes

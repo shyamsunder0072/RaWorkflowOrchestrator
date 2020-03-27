@@ -32,6 +32,7 @@ import stat
 import tarfile
 import tempfile
 import time
+import threading
 import traceback
 from collections import defaultdict
 from datetime import timedelta, datetime
@@ -2601,10 +2602,13 @@ class StreamingFileUploadView(AirflowBaseView):
             max_file_size=settings.MAX_FILE_SIZE
         )
 
-    def extra_work_after_file_save(self, pathname):
+    def extra_work_after_file_save(self, temp_save_path, file):
+        pathname = os.path.join(self.fs_path, file.filename)
+        shutil.move(temp_save_path, pathname)
+
         if str(pathname).endswith(('.tar', '.tar.gz')):
             file_path = self.get_file_path(pathname)
-            print("EXTRA WORK:", file_path)
+            # print("EXTRA WORK:", file_path)
             with tarfile.open(Path(file_path)) as tar:
                 for content in tar:
                     # print(content)
@@ -2622,9 +2626,9 @@ class StreamingFileUploadView(AirflowBaseView):
 
                         # # after extracting, update models.config
                         # if existing_content.isdir():
-                    finally:
-                        content_path = Path(self.fs_path).joinpath(content.name)
-                        os.chmod(content_path, content.mode)
+                    # finally:
+                    #     content_path = Path(self.fs_path).joinpath(content.name)
+                        # os.chmod(content_path, content.mode)
         # flash('Extracted {}'.format(pathname))
             Path(str(pathname)).unlink()
             self.update_models_config()
@@ -2650,21 +2654,29 @@ class StreamingFileUploadView(AirflowBaseView):
         except Exception as e:
             print("Exception:", e)
             return make_response(('Error while writing file to disk', 500))
+        finally:
+            temp_file.close()
 
         if current_chunk + 1 == total_chunks:
             # This was the last chunk, the file should be complete and the size we expect
-            print("printing tempfile name and size:::", temp_file.name)
-            print("TEMP SAVE PATH", temp_save_path)
-            if os.path.getsize(temp_save_path) != int(request.form['dztotalfilesize']):
-                print(os.path.getsize(temp_save_path), int(request.form['dztotalfilesize']))
+            # print("TEMP SAVE PATH, Size", temp_save_path, os.path.getsize(temp_save_path), int(request.form['dztotalfilesize']))
+            # search for log file that the insert happened or not:
+            if Path(temp_save_path + '.success').exists():
+                return make_response(('ok', 200))
+            elif os.path.getsize(temp_save_path) != int(request.form['dztotalfilesize']):
+                # print(os.path.getsize(temp_save_path), int(request.form['dztotalfilesize']))
                 return make_response(('Size mismatch at the server. Probably the file got corrupted during transfer.', 500))
             else:
                 # COPY files from temp to correct location
-                final_loc = os.path.join(self.fs_path, file.filename)
-                shutil.move(temp_save_path, final_loc)
+
                 # if tar.gz or tar, extract file
-                prin("FINAL LOC: ", final_loc)
-                self.extra_work_after_file_save(final_loc)
+                # print("FINAL LOC: ", final_loc)
+                t1 = threading.Thread(target=self.extra_work_after_file_save, args=(temp_save_path, file,))
+                t1.start()
+                # flash('File uploaded successfully.')
+                # self.extra_work_after_file_save(file)
+                # create a success file at the location:
+                Path(temp_save_path + '.success').touch(exist_ok=True)
 
         return make_response(('ok', 200))
 
