@@ -97,12 +97,27 @@
 <script type="text/javascript">
   Dropzone.options.dropper = {
       paramName: 'file',
+      init: function () {
+        this.on("complete", function (file) {
+          $.post('{{ url_for(view + '.extract_view', pathname=pathname) }}',
+            {
+              dzuuid: file.upload.uuid,
+              file: file.name,
+              totalChunkCount: file.upload.totalChunkCount
+            },
+            function(result){
+              console.log(result);
+              console.log(file, "complete");
+            }
+          );
+        });
+      },
       chunking: true,
       forceChunking: true,
       retryChunks: true,
-      parallelChunkUploads: false,
+      parallelChunkUploads: true,
       url: '{{ url_for(view + '.upload_view', pathname=pathname) }}',
-      maxFilesize: {{max_file_size}}, // megabytes (10 GB)
+      maxFilesize: {{max_file_size}}, // megabytes
       chunkSize: {{max_chunk_size}}, // bytes
   }
 
