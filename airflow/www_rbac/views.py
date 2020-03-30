@@ -2619,25 +2619,25 @@ class StreamingFileUploadView(AirflowBaseView):
 
         # shutil.move(temp_save_path, pathname)
 
-        if str(pathname).endswith(('.tar', '.tar.gz')):
-            file_path = self.get_file_path(pathname)
-            # print("EXTRA WORK:", file_path)
-            with tarfile.open(Path(file_path)) as tar:
-                for content in tar:
-                    # print(content)
-                    try:
-                        tar.extract(content, path=self.fs_path)
-                    except Exception as e:
-                        logging.exception(str(e))
-                        existing_content = Path(self.fs_path).joinpath(content)
-                        if existing_content.is_dir():
-                            shutil.rmtree(existing_content)
-                        else:
-                            existing_content.unlink()
-                        tar.extract(content, path=self.fs_path)
-                        flash('{} already exists, overwriting'.format(content), category='warning')
+        # if str(pathname).endswith(('.tar', '.tar.gz')):
+        #     file_path = self.get_file_path(pathname)
+        #     # print("EXTRA WORK:", file_path)
+        #     with tarfile.open(Path(file_path)) as tar:
+        #         for content in tar:
+        #             # print(content)
+        #             try:
+        #                 tar.extract(content, path=self.fs_path)
+        #             except Exception as e:
+        #                 logging.exception(str(e))
+        #                 existing_content = Path(self.fs_path).joinpath(content)
+        #                 if existing_content.is_dir():
+        #                     shutil.rmtree(existing_content)
+        #                 else:
+        #                     existing_content.unlink()
+        #                 tar.extract(content, path=self.fs_path)
+        #                 flash('{} already exists, overwriting'.format(content), category='warning')
 
-            Path(str(pathname)).unlink()
+        #     Path(str(pathname)).unlink()
             # self.update_models_config()
 
     @has_access
