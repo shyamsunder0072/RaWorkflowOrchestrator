@@ -32,6 +32,7 @@ import stat
 import tarfile
 import tempfile
 import time
+import threading
 import traceback
 from collections import defaultdict
 from datetime import timedelta, datetime
@@ -2540,6 +2541,27 @@ class StreamingFileUploadView(AirflowBaseView):
         if self.path_valid(path):
             return path
 
+    def set_config(self, config):
+        try:
+            with open(os.path.join(self.fs_path, 'models.config'), 'w') as f:
+                f.write(config)
+        except Exception as e:
+            print(e)
+
+    def update_models_config(self):
+        config = 'model_config_list: {'
+        dirs = [name for name in os.listdir(self.fs_path) if os.path.isdir(os.path.join(self.fs_path, name))]
+        for dname in dirs:
+            print(dname)
+            config += '''config: {
+                            name: "%s",
+                            base_path: "/usr/local/couture/tf-models/%s",
+                            model_platform: "tensorflow"
+                        },''' % (dname, dname)
+        config += '}'
+        flash('All tensorflow servers have been updated')
+        self.set_config(config)
+
     def path_valid(self, path):
         '''Path is valid if is inside `self.fs_path`
         '''
@@ -2565,7 +2587,7 @@ class StreamingFileUploadView(AirflowBaseView):
         super().__init__(*args, **kwargs)
 
     @has_access
-    @action_logging
+    # @action_logging
     @expose('/streaming-upload/tf/<path:pathname>', methods=['GET'])
     @expose('/streaming-upload/tf/', methods=['GET'])
     def list_view(self, pathname=None):
@@ -2586,6 +2608,8 @@ class StreamingFileUploadView(AirflowBaseView):
             temp_dict = {'time': modificationTime.split(' ', 1)[1], 'size': size, 'dir': True}
             files[d] = temp_dict
         # print(files)
+
+        files.pop('models.config', None)
         return self.render_template(
             self.template_name,
             files=files,
@@ -2599,87 +2623,141 @@ class StreamingFileUploadView(AirflowBaseView):
             max_file_size=settings.MAX_FILE_SIZE
         )
 
+    def extra_work_after_file_save(self, temp_save_path, file, total_chunks):
+        pathname = os.path.join(self.fs_path, file)
+        # TODO: check if lock or semaphore is required here.
+
+        # assuming all chunks exists:
+        with open(pathname, 'wb') as f:
+            for chunk_index in range(0, total_chunks):
+                with open(os.path.join(temp_save_path, str(chunk_index)), 'rb') as chunk:
+                    f.write(chunk.read())
+
+        # delete the temp files
+        shutil.rmtree(temp_save_path)
+
+        logging.info(f'Final Size: {os.path.getsize(pathname)}')
+
+        # shutil.move(temp_save_path, pathname)
+
+        # if str(pathname).endswith(('.tar', '.tar.gz')):
+        #     file_path = self.get_file_path(pathname)
+        #     # print("EXTRA WORK:", file_path)
+        #     with tarfile.open(Path(file_path)) as tar:
+        #         for content in tar:
+        #             # print(content)
+        #             try:
+        #                 tar.extract(content, path=self.fs_path)
+        #             except Exception as e:
+        #                 logging.exception(str(e))
+        #                 existing_content = Path(self.fs_path).joinpath(content)
+        #                 if existing_content.is_dir():
+        #                     shutil.rmtree(existing_content)
+        #                 else:
+        #                     existing_content.unlink()
+        #                 tar.extract(content, path=self.fs_path)
+        #                 flash('{} already exists, overwriting'.format(content), category='warning')
+
+        #     Path(str(pathname)).unlink()
+            # self.update_models_config()
+
     @has_access
     # @action_logging
     @expose('/streaming-upload/tf/upload/', methods=['POST'])
     @expose('/streaming-upload/tf/upload/<path:pathname>', methods=['POST'])
+    @csrf.exempt
     def upload_view(self, pathname=None):
+        # print(request.form)
         file = request.files['file']
         total_chunks = int(request.form['dztotalchunkcount'])
         temp_save_path = os.path.join(self.temp_fs_path, request.form['dzuuid'])
         current_chunk = int(request.form['dzchunkindex'])
 
-        # if os.path.exists(temp_save_path) and current_chunk == 0:
-        #     print("herrererer")
-        #     os.remove(temp_save_path)
+        def create_chunks_folder():
+            os.makedirs(temp_save_path, exist_ok=True)
 
-        try:
-            temp_file = open(temp_save_path, 'a+b')
-            # print("printing tempfile name and size:::", temp_file.name)
-            temp_file.seek(int(request.form['dzchunkbyteoffset']))
-            temp_file.write(file.stream.read())
-        except Exception as e:
-            print(e)
-            return make_response(('Error while writing file to disk', 500))
+        create_chunks_folder()
+        logging.info('{} chunk recieved, chunk index {}'.format(
+            file.filename,
+            current_chunk)
+        )
+        # print(request.form)
 
-        if current_chunk + 1 == total_chunks:
-            # This was the last chunk, the file should be complete and the size we expect
-            if os.path.getsize(temp_save_path) != int(request.form['dztotalfilesize']):
-                print(os.path.getsize(temp_save_path), int(request.form['dztotalfilesize']))
-                return make_response(('Size mismatch', 500))
-            else:
-                # COPY files from temp to correct location
-                final_loc = os.path.join(self.fs_path, file.filename)
-                shutil.move(temp_save_path, final_loc)
+        # save the chunk using its index
+        # TODO: check if lock is required here.
+        with open(os.path.join(temp_save_path, str(current_chunk)), 'wb') as f:
+            f.write(file.stream.read())
 
-        return make_response(('ok', 200))
+        # if current_chunk + 1 == total_chunks:
+        #     # This was the last chunk, the file should be complete and the size we expect
+
+        #     # if os.path.getsize(temp_save_path) != int(request.form['dztotalfilesize']):
+        #     #     # print(os.path.getsize(temp_save_path), int(request.form['dztotalfilesize']))
+        #     #     return make_response(('Size mismatch at the server. Probably the file got corrupted during transfer.', 500))
+        #     # else:
+        #     #     # COPY files from temp to correct location
+
+        #     #     # if tar.gz or tar, extract file
+        #     #     # print("FINAL LOC: ", final_loc)
+        #     t1 = threading.Thread(target=self.extra_work_after_file_save, args=(temp_save_path, file, total_chunks))
+        #     t1.start()
+            # flash('File uploaded successfully.')
+            # self.extra_work_after_file_save(file)
+            # create a success file at the location:
+            # Path(temp_save_path + '.success').touch(exist_ok=True)
+
+        return make_response(('Chunk {} saved.'.format(current_chunk), 200))
+
+    @has_access
+    # @action_logging
+    @expose('/streaming-upload/tf/extract/', methods=['POST'])
+    @expose('/streaming-upload/tf/extract/<path:pathname>', methods=['POST'])
+    @csrf.exempt
+    def extract_view(self, pathname=None):
+        # return make_response(('Thread to combine files has started.', 400))
+        temp_save_path = os.path.join(self.temp_fs_path, request.form['dzuuid'])
+        file = request.form['file']
+        total_chunks = int(request.form['totalChunkCount'])
+        combine_chunks_thread = threading.Thread(
+            target=self.extra_work_after_file_save,
+            args=(temp_save_path, file, total_chunks))
+        combine_chunks_thread.start()
+        return make_response(('Thread to combine files has started.', 200))
 
     @has_access
     # @action_logging
     @expose('/streaming-upload/tf/download/<path:pathname>', methods=['POST', 'GET'])
     def download_view(self, pathname):
         file_path = self.get_file_path(pathname)
-        # AirflowBaseView.audit_logging(
-        #     "{}.{}".format(self.__class__.__name__, 'download_view'),
-        #     pathname, request.environ['REMOTE_ADDR'])
+        # print(file_path, type(file_path))
+        if os.path.isdir(file_path):
+            f = tempfile.SpooledTemporaryFile(suffix='.tar.gz')
+            with tarfile.open(fileobj=f, mode='w:gz') as tar:
+                tar.add(file_path, arcname=pathname)
+
+            f.flush()
+            f.seek(0)
+            return send_file(f,
+                             as_attachment=True,
+                             conditional=True,
+                             attachment_filename='{}.tar.gz'.format(pathname),
+                             mimetype='application/gzip')
         return send_file(file_path, as_attachment=True, conditional=True)
 
     @has_access
-    @action_logging
-    @expose('/streaming-upload/tf/extract/<path:pathname>', methods=['POST', 'GET'])
-    def extract_view(self, pathname):
-        file_path = self.get_file_path(pathname)
-        with tarfile.open(Path(file_path)) as tar:
-            for content in tar:
-                # print(content)
-                try:
-                    tar.extract(content, path=self.fs_path)
-                except Exception as e:
-                    print(e)
-                    existing_content = Path(self.fs_path).joinpath(content)
-                    if existing_content.is_dir():
-                        shutil.rmtree(existing_content)
-                    else:
-                        existing_content.unlink()
-                    tar.extract(content, path=self.fs_path)
-                finally:
-                    content_path = Path(self.fs_path).joinpath(content.name)
-                    os.chmod(content_path, content.mode)
-        return redirect(url_for(self.__class__.__name__ + '.list_view', pathname=''))
-
-    @has_access
-    @action_logging
+    # @action_logging
     @expose('/streaming-upload/tf/destroy/<path:pathname>', methods=['POST', 'GET'])
     def destroy_view(self, pathname):
         file = Path(self.get_file_path(pathname))
-        if file.exists():
+        if file.exists() and file.is_file():
             file.unlink()
-            AirflowBaseView.audit_logging(
-                "{}.{}".format(self.__class__.__name__, 'destroy_view'),
-                pathname, request.environ['REMOTE_ADDR'])
             flash('File ' + pathname + ' successfully deleted.', category='warning')
+        elif file.exists() and file.is_dir():
+            shutil.rmtree(file)
+            flash('Folder ' + pathname + ' successfully deleted.', category='warning')
+            self.update_models_config()
         else:
-            flash('File ' + pathname + ' not found.', category='error')
+            flash('File/Folder ' + pathname + ' not found.', category='error')
         return redirect(url_for(self.__class__.__name__ + '.list_view', pathname=''))
 
 
