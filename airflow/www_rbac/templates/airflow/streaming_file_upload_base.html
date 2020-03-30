@@ -97,25 +97,34 @@
 <script type="text/javascript">
   Dropzone.options.dropper = {
       paramName: 'file',
-      init: function () {
-        this.on("complete", function (file) {
-          $.post('{{ url_for(view + '.extract_view', pathname=pathname) }}',
-            {
-              dzuuid: file.upload.uuid,
-              file: file.name,
-              totalChunkCount: file.upload.totalChunkCount
-            },
-            function(result){
-              console.log(result);
-              console.log(file, "complete");
-            }
-          );
-        });
-      },
       chunking: true,
       forceChunking: true,
       retryChunks: true,
       parallelChunkUploads: true,
+      chunksUploaded: function(file, done){
+        // console.log("herererer", file, done);
+        $.ajax({
+            type: "POST",
+            url: '{{ url_for(view + '.extract_view', pathname=pathname) }}',
+            data: {
+              dzuuid: file.upload.uuid,
+              file: file.name,
+              totalChunkCount: file.upload.totalChunkCount
+            },
+            success: function(msg){
+              // console.log(msg);
+              // console.log(file, "complete");
+              done();
+            },
+            error: function(XMLHttpRequest, textStatus, errorThrown) {
+              // console.log(textStatus);
+              // file.status = Dropzone.ERROR;
+              // console.log(file, "error");
+              Dropzone.forElement('#dropper').defaultOptions.error(file, 'An error occurred!');
+              done();
+            }
+          });
+      },
       url: '{{ url_for(view + '.upload_view', pathname=pathname) }}',
       maxFilesize: {{max_file_size}}, // megabytes
       chunkSize: {{max_chunk_size}}, // bytes
@@ -123,7 +132,6 @@
 
   $(document).ready(function () {
     $('[data-toggle="tooltip"]').tooltip();
-
     $("#fileSearch").on("keyup", function() {
       var value = $(this).val().toLowerCase();
       $("#filesTable tr").filter(function() {

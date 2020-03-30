@@ -2646,6 +2646,7 @@ class StreamingFileUploadView(AirflowBaseView):
     @expose('/streaming-upload/tf/upload/<path:pathname>', methods=['POST'])
     @csrf.exempt
     def upload_view(self, pathname=None):
+        # print(request.form)
         file = request.files['file']
         total_chunks = int(request.form['dztotalchunkcount'])
         temp_save_path = os.path.join(self.temp_fs_path, request.form['dzuuid'])
@@ -2692,6 +2693,7 @@ class StreamingFileUploadView(AirflowBaseView):
     @expose('/streaming-upload/tf/extract/<path:pathname>', methods=['POST'])
     @csrf.exempt
     def extract_view(self, pathname=None):
+        # return make_response(('Thread to combine files has started.', 400))
         temp_save_path = os.path.join(self.temp_fs_path, request.form['dzuuid'])
         file = request.form['file']
         total_chunks = int(request.form['totalChunkCount'])
