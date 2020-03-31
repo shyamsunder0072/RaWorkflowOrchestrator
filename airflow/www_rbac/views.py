@@ -1558,7 +1558,9 @@ class Airflow(AirflowBaseView):
         # NOTE: Special case when we don't want the actions to be
         # performed on dag runs made by DAG Operator.
         dagrun = dag.get_dagrun(execution_date=dttm)
-        allow_tasks_actions = str(dagrun.run_id).startswith(BackfillJob.ID_PREFIX_RUNDAG) is not True
+        allow_tasks_actions = True
+        if dagrun:
+            allow_tasks_actions = str(dagrun.run_id).startswith(BackfillJob.ID_PREFIX_RUNDAG) is not True
         # print(allow_tasks_actions, dagrun.run_id)
 
         tasks = {
@@ -2457,7 +2459,7 @@ class FileUploadBaseView(AirflowBaseView):
             pathname=pathname
         )
 
-    def extra_work_after_file_save(self, filedest):
+    def extra_work_after_file_save(self, filedest, *args, **kwargs):
         return
 
     @has_access
@@ -2512,6 +2514,7 @@ class FileUploadBaseView(AirflowBaseView):
     @has_access
     def destroy_view(self, pathname):
         file = Path(self.get_file_path(pathname))
+        print(file)
         if file.exists():
             file.unlink()
             AirflowBaseView.audit_logging(
@@ -2520,245 +2523,9 @@ class FileUploadBaseView(AirflowBaseView):
             flash('File ' + pathname + ' successfully deleted.', category='warning')
         else:
             flash('File ' + pathname + ' not found.', category='error')
-        return redirect(url_for(self.__class__.__name__ + '.list_view', pathname=''))
 
-
-class StreamingFileUploadView(AirflowBaseView):
-    # TODO: Make this view generic for those which require streaming file upload.
-    default_view = 'list_view'
-    _temp_fs_path = os.path.join(settings.AIRFLOW_HOME, *[os.pardir, 'tmp'])
-    _fs_path = os.path.join(settings.AIRFLOW_HOME, *[os.pardir, 'tf-models'])
-    accepted_file_extensions = ('')
-    files_editable = False
-    title = 'Tensorflow Serving Models'
-    template_name = 'airflow/streaming_file_upload_base.html'
-
-    def get_file_path(self, pathname):
-        if isinstance(pathname, str):
-            path = os.path.join(self.fs_path, pathname)
-        else:
-            path = os.path.join(self.fs_path, *pathname)
-        if self.path_valid(path):
-            return path
-
-    def set_config(self, config):
-        try:
-            with open(os.path.join(self.fs_path, 'models.config'), 'w') as f:
-                f.write(config)
-        except Exception as e:
-            print(e)
-
-    def update_models_config(self):
-        config = 'model_config_list: {'
-        dirs = [name for name in os.listdir(self.fs_path) if os.path.isdir(os.path.join(self.fs_path, name))]
-        for dname in dirs:
-            print(dname)
-            config += '''config: {
-                            name: "%s",
-                            base_path: "/usr/local/couture/tf-models/%s",
-                            model_platform: "tensorflow"
-                        },''' % (dname, dname)
-        config += '}'
-        flash('All tensorflow servers have been updated')
-        self.set_config(config)
-
-    def path_valid(self, path):
-        '''Path is valid if is inside `self.fs_path`
-        '''
-        norm_fs_path = os.path.normpath(self.fs_path)
-        norm_path = os.path.normpath(os.path.join(self.fs_path, path))
-        if norm_fs_path == norm_path[:len(norm_fs_path)]:
-            return True
-        raise Exception('Illegal Access to other directories not allowed.')
-
-    @property
-    def temp_fs_path(self):
-        if not os.path.exists(self._temp_fs_path):
-            os.makedirs(self._temp_fs_path, exist_ok=True)
-        return self._temp_fs_path
-
-    @property
-    def fs_path(self):
-        if not os.path.exists(self._fs_path):
-            os.makedirs(self._fs_path, exist_ok=True)
-        return self._fs_path
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-    @has_access
-    # @action_logging
-    @expose('/streaming-upload/tf/<path:pathname>', methods=['GET'])
-    @expose('/streaming-upload/tf/', methods=['GET'])
-    def list_view(self, pathname=None):
-        # self.check_attr_is_set(self.fs_path, self.accepted_file_extensions)
-        if pathname:
-            path = self.get_file_path(pathname)
-        else:
-            path = self.fs_path
-            pathname = ''  # required for path concatenation in file_upload_base.html
-        files = self.get_details(path, self.accepted_file_extensions)
-        dirs = [name for name in os.listdir(path) if os.path.isdir(os.path.join(path, name))]
-        # print(dirs, os.listdir(self.fs_path))
-        for d in dirs:
-            fileStatsObj = os.stat(os.path.join(path, d))
-            modificationTime = time.ctime(fileStatsObj[stat.ST_MTIME])  # get last modified time
-            size_bytes = fileStatsObj.st_size
-            size = AirflowBaseView.convert_size(size_bytes)
-            temp_dict = {'time': modificationTime.split(' ', 1)[1], 'size': size, 'dir': True}
-            files[d] = temp_dict
-        # print(files)
-
-        files.pop('models.config', None)
-        return self.render_template(
-            self.template_name,
-            files=files,
-            view=self.__class__.__name__,
-            accepted_file_extensions=self.accepted_file_extensions,
-            title=self.title,
-            dirs=dirs,
-            files_editable=self.files_editable,
-            pathname=pathname,
-            max_chunk_size=settings.MAX_CHUNK_SIZE,
-            max_file_size=settings.MAX_FILE_SIZE
-        )
-
-    def extra_work_after_file_save(self, temp_save_path, file, total_chunks):
-        pathname = os.path.join(self.fs_path, file)
-        # TODO: check if lock or semaphore is required here.
-
-        # assuming all chunks exists:
-        with open(pathname, 'wb') as f:
-            for chunk_index in range(0, total_chunks):
-                with open(os.path.join(temp_save_path, str(chunk_index)), 'rb') as chunk:
-                    f.write(chunk.read())
-
-        # delete the temp files
-        shutil.rmtree(temp_save_path)
-
-        logging.info(f'Final Size: {os.path.getsize(pathname)}')
-
-        # shutil.move(temp_save_path, pathname)
-
-        # if str(pathname).endswith(('.tar', '.tar.gz')):
-        #     file_path = self.get_file_path(pathname)
-        #     # print("EXTRA WORK:", file_path)
-        #     with tarfile.open(Path(file_path)) as tar:
-        #         for content in tar:
-        #             # print(content)
-        #             try:
-        #                 tar.extract(content, path=self.fs_path)
-        #             except Exception as e:
-        #                 logging.exception(str(e))
-        #                 existing_content = Path(self.fs_path).joinpath(content)
-        #                 if existing_content.is_dir():
-        #                     shutil.rmtree(existing_content)
-        #                 else:
-        #                     existing_content.unlink()
-        #                 tar.extract(content, path=self.fs_path)
-        #                 flash('{} already exists, overwriting'.format(content), category='warning')
-
-        #     Path(str(pathname)).unlink()
-            # self.update_models_config()
-
-    @has_access
-    # @action_logging
-    @expose('/streaming-upload/tf/upload/', methods=['POST'])
-    @expose('/streaming-upload/tf/upload/<path:pathname>', methods=['POST'])
-    @csrf.exempt
-    def upload_view(self, pathname=None):
-        # print(request.form)
-        file = request.files['file']
-        total_chunks = int(request.form['dztotalchunkcount'])
-        temp_save_path = os.path.join(self.temp_fs_path, request.form['dzuuid'])
-        current_chunk = int(request.form['dzchunkindex'])
-
-        def create_chunks_folder():
-            os.makedirs(temp_save_path, exist_ok=True)
-
-        create_chunks_folder()
-        logging.info('{} chunk recieved, chunk index {}'.format(
-            file.filename,
-            current_chunk)
-        )
-        # print(request.form)
-
-        # save the chunk using its index
-        # TODO: check if lock is required here.
-        with open(os.path.join(temp_save_path, str(current_chunk)), 'wb') as f:
-            f.write(file.stream.read())
-
-        # if current_chunk + 1 == total_chunks:
-        #     # This was the last chunk, the file should be complete and the size we expect
-
-        #     # if os.path.getsize(temp_save_path) != int(request.form['dztotalfilesize']):
-        #     #     # print(os.path.getsize(temp_save_path), int(request.form['dztotalfilesize']))
-        #     #     return make_response(('Size mismatch at the server. Probably the file got corrupted during transfer.', 500))
-        #     # else:
-        #     #     # COPY files from temp to correct location
-
-        #     #     # if tar.gz or tar, extract file
-        #     #     # print("FINAL LOC: ", final_loc)
-        #     t1 = threading.Thread(target=self.extra_work_after_file_save, args=(temp_save_path, file, total_chunks))
-        #     t1.start()
-            # flash('File uploaded successfully.')
-            # self.extra_work_after_file_save(file)
-            # create a success file at the location:
-            # Path(temp_save_path + '.success').touch(exist_ok=True)
-
-        return make_response(('Chunk {} saved.'.format(current_chunk), 200))
-
-    @has_access
-    # @action_logging
-    @expose('/streaming-upload/tf/extract/', methods=['POST'])
-    @expose('/streaming-upload/tf/extract/<path:pathname>', methods=['POST'])
-    @csrf.exempt
-    def extract_view(self, pathname=None):
-        # return make_response(('Thread to combine files has started.', 400))
-        temp_save_path = os.path.join(self.temp_fs_path, request.form['dzuuid'])
-        file = request.form['file']
-        total_chunks = int(request.form['totalChunkCount'])
-        combine_chunks_thread = threading.Thread(
-            target=self.extra_work_after_file_save,
-            args=(temp_save_path, file, total_chunks))
-        combine_chunks_thread.start()
-        return make_response(('Thread to combine files has started.', 200))
-
-    @has_access
-    # @action_logging
-    @expose('/streaming-upload/tf/download/<path:pathname>', methods=['POST', 'GET'])
-    def download_view(self, pathname):
-        file_path = self.get_file_path(pathname)
-        # print(file_path, type(file_path))
-        if os.path.isdir(file_path):
-            f = tempfile.SpooledTemporaryFile(suffix='.tar.gz')
-            with tarfile.open(fileobj=f, mode='w:gz') as tar:
-                tar.add(file_path, arcname=pathname)
-
-            f.flush()
-            f.seek(0)
-            return send_file(f,
-                             as_attachment=True,
-                             conditional=True,
-                             attachment_filename='{}.tar.gz'.format(pathname),
-                             mimetype='application/gzip')
-        return send_file(file_path, as_attachment=True, conditional=True)
-
-    @has_access
-    # @action_logging
-    @expose('/streaming-upload/tf/destroy/<path:pathname>', methods=['POST', 'GET'])
-    def destroy_view(self, pathname):
-        file = Path(self.get_file_path(pathname))
-        if file.exists() and file.is_file():
-            file.unlink()
-            flash('File ' + pathname + ' successfully deleted.', category='warning')
-        elif file.exists() and file.is_dir():
-            shutil.rmtree(file)
-            flash('Folder ' + pathname + ' successfully deleted.', category='warning')
-            self.update_models_config()
-        else:
-            flash('File/Folder ' + pathname + ' not found.', category='error')
-        return redirect(url_for(self.__class__.__name__ + '.list_view', pathname=''))
+        redirect_pathname = Path(pathname).parent.stem
+        return redirect(url_for(self.__class__.__name__ + '.list_view', pathname=redirect_pathname))
 
 
 class SparkDepView(FileUploadBaseView):
@@ -2778,6 +2545,8 @@ class CodeArtifactView(FileUploadBaseView):
 
 class TrainedModelsView(FileUploadBaseView):
     base_fs_path = settings.MODEL_SERVERS
+    temp_fs_path = os.path.join(settings.MODEL_SERVERS, 'tmp')
+
     fs_path = settings.MODEL_SERVERS
     # accepted_file_extensions = ('.tar', '.tar.gz')
     accepted_file_extensions = ('',)
@@ -2785,19 +2554,19 @@ class TrainedModelsView(FileUploadBaseView):
     template_name = 'airflow/tf_file_upload_base.html'
 
     fs_mapping = {
-        'tf-models': {
+        'tf_models': {
             'path': os.path.join(base_fs_path, 'tf-models'),
             'extract_on_upload': True,
             'update_config': True,
             'accept_extensions': ('.tar', '.gz')
         },
-        'spark-models': {
+        'spark_models': {
             'path': os.path.join(base_fs_path, 'spark-models'),
             'extract_on_upload': False,
             'update_config': False,
             'accept_extensions': ('.tar', '.gz')
         },
-        'other-models': {
+        'other_models': {
             'path': os.path.join(base_fs_path, 'other-models'),
             'extract_on_upload': True,
             'update_config': False,
@@ -2837,8 +2606,50 @@ class TrainedModelsView(FileUploadBaseView):
             title=self.title,
             files_editable=False,
             pathname=None,
-            fs_mapping=self.fs_mapping
+            fs_mapping=self.fs_mapping,
+            max_chunk_size=settings.MAX_CHUNK_SIZE,
+            max_file_size=settings.MAX_FILE_SIZE
         )
+
+    @csrf.exempt
+    def upload_view(self, pathname=None):
+        # print(request.form)
+        file = request.files['file']
+        temp_save_path = os.path.join(self.temp_fs_path, request.form['dzuuid'])
+        current_chunk = int(request.form['dzchunkindex'])
+
+        def create_chunks_folder():
+            os.makedirs(temp_save_path, exist_ok=True)
+
+        create_chunks_folder()
+        logging.info('{} chunk recieved, chunk index {}'.format(
+            file.filename,
+            current_chunk)
+        )
+
+        # save the chunk using its index
+        # TODO: check if lock is required here.
+        with open(os.path.join(temp_save_path, str(current_chunk)), 'wb') as f:
+            f.write(file.stream.read())
+
+        return make_response(('Chunk {} saved.'.format(current_chunk), 200))
+
+    @has_access
+    # @action_logging
+    @expose('/TrainedModelsView/extract/', methods=['POST'])
+    @expose('/TrainedModelsView/extract/<path:pathname>', methods=['POST'])
+    @csrf.exempt
+    def extract_view(self, pathname=None):
+        # return make_response(('Thread to combine files has started.', 400))
+        temp_save_path = os.path.join(self.temp_fs_path, request.form['dzuuid'])
+        file = request.form['file']
+        total_chunks = int(request.form['totalChunkCount'])
+        # print(pathname)
+        combine_chunks_thread = threading.Thread(
+            target=self.extra_work_after_file_save,
+            args=(temp_save_path, file, total_chunks, pathname))
+        combine_chunks_thread.start()
+        return make_response(('Thread to combine files has started.', 200))
 
     def extra_files(self, files, fs_path=None):
         # print(fs_path)
@@ -2868,7 +2679,7 @@ class TrainedModelsView(FileUploadBaseView):
 
     def get_file_path(self, pathname):
         if isinstance(pathname, list):
-            fs_path = self.fs_mapping.get(pathname[0], self.fs_mapping['other-models'])['path']
+            fs_path = self.fs_mapping.get(pathname[0], self.fs_mapping['other_models'])['path']
             # print("FS_PATh ====>", fs_path)
             return os.path.join(fs_path, pathname[1])
         else:
@@ -2885,15 +2696,27 @@ class TrainedModelsView(FileUploadBaseView):
                             model_platform: "tensorflow"
                         },''' % (dname, 'tf-models', dname)
         config += '}'
-        flash('All Model servers have been updated')
+        # flash('All Model servers have been updated')
         self.set_config(config, pathname)
 
-    def extra_work_after_file_save(self, pathname):
+    def extra_work_after_file_save(self, temp_save_path, file, total_chunks, pathname):
         # TODO: MODIFY THIS HACK.
-        # print("hererre......", pathname)
-        pth = Path(pathname).parent
-        fs_key = pth.stem
+        fs_key = pathname
         fs_path = self.fs_mapping[fs_key]['path']
+        pathname = os.path.join(fs_path, file)
+        # TODO: check if lock or semaphore is required here.
+
+        # assuming all chunks exists:
+        with open(pathname, 'wb') as f:
+            for chunk_index in range(0, total_chunks):
+                with open(os.path.join(temp_save_path, str(chunk_index)), 'rb') as chunk:
+                    f.write(chunk.read())
+
+        # delete the temp files
+        shutil.rmtree(temp_save_path)
+
+        logging.info(f'Final Size of file {file}: {os.path.getsize(pathname)}')
+
         if not self.fs_mapping[fs_key]['extract_on_upload']:
             return
 
@@ -2926,7 +2749,7 @@ class TrainedModelsView(FileUploadBaseView):
     # @has_access
     # @action_logger
     def download_view(self, pathname):
-        file_path = self.get_file_path(pathname)
+        file_path = self.get_file_path(str(pathname).split('/'))
         arcname = pathname.split('/')[-1]
         if os.path.isdir(file_path):
             f = tempfile.SpooledTemporaryFile(suffix='.tar.gz')
@@ -2944,7 +2767,7 @@ class TrainedModelsView(FileUploadBaseView):
 
     # @has_access
     def destroy_view(self, pathname):
-        file = Path(self.get_file_path(pathname))
+        file = Path(self.get_file_path(str(pathname).split('/')))
         if file.exists() and file.is_file():
             file.unlink()
             flash('File ' + pathname + ' successfully deleted.', category='warning')
