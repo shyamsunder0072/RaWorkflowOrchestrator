@@ -2666,7 +2666,7 @@ class TrainedModelsView(FileUploadBaseView):
             temp_dict = {'time': modificationTime.split(' ', 1)[1], 'size': size, 'dir': True}
             files[d] = temp_dict
         # remove models.config
-        for file in files:
+        for file in list(files.keys()):
             if file.endswith('.config'):
                 files.pop(file, None)
 
