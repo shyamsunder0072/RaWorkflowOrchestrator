@@ -2,7 +2,6 @@
 {% block title %}
 {{ title }}
 {% endblock %}
-
 {% block head_css %}
 <meta name="google" content="notranslate">
 {{ super() }}
@@ -13,6 +12,13 @@
     cursor:not-allowed
   }
 </style>
+<link rel=stylesheet href="{{url_for_asset('dropzone/basic.min.css')}}">
+<link rel=stylesheet href="{{url_for_asset('dropzone/dropzone.min.css')}}">
+{% endblock %}
+
+{% block head_js %}
+{{ super() }}
+<script src="{{ url_for('static', filename='dropzone/dropzone.min.js') }}"></script>
 {% endblock %}
 
 {% block content %}
@@ -37,10 +43,13 @@
       </div>
         {% for fs_path_key in files %}
         <h4> <a id="{{fs_path_key}}-h4">{{fs_path_key.replace('-', ' ').upper()}} </a></h4>
-        <form id="{{fs_path_key}}-form" action="{{ url_for(view + '.upload_view', pathname=fs_path_key) }}" method="post" enctype="multipart/form-data">
+        <!-- <form id="{{fs_path_key}}-form" action="{{ url_for(view + '.upload_view', pathname=fs_path_key) }}" method="post" enctype="multipart/form-data">
           <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
           <input type="file" name="file" id="{{fs_path_key}}" class="inputfile" multiple style="display: none;" accept="{% for i in fs_mapping[fs_path_key]['accept_extensions'] %} {{i}}, {% endfor %}" />
           <label for="{{fs_path_key}}" class="btn btn-success pull-right">Upload model</label>
+        </form> -->
+        <form method="POST" id="{{fs_path_key}}_form" class="dropzone" enctype="multipart/form-data">
+          <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
         </form>
       <br><br>
       <div class="input-group">
@@ -99,12 +108,47 @@
 {{ super() }}
 <!-- </body> -->
 <script type="text/javascript">
+  Dropzone.autoDiscover = false;
+  {% for fs_path_key in files %}
+    $('#{{fs_path_key}}_form').dropzone({
+      timeout: 1800000,
+      paramName: 'file',
+      chunking: true,
+      forceChunking: true,
+      retryChunks: true,
+      parallelChunkUploads: true,
+      chunksUploaded: function(file, done){
+        // console.log("herererer", file, done);
+        $.ajax({
+            type: "POST",
+            url: '{{ url_for(view + '.extract_view', pathname=fs_path_key) }}',
+            data: {
+              dzuuid: file.upload.uuid,
+              file: file.name,
+              totalChunkCount: file.upload.totalChunkCount
+            },
+            success: function(msg){
+              // console.log(msg);
+              // console.log(file, "complete");
+              done();
+            },
+            error: function(XMLHttpRequest, textStatus, errorThrown) {
+              // console.log(textStatus);
+              // file.status = Dropzone.ERROR;
+              // console.log(file, "error");
+              Dropzone.forElement('#{{fs_path_key}}_form').defaultOptions.error(file, 'An error occurred!');
+              done();
+            }
+          });
+      },
+      url: '{{ url_for(view + '.upload_view', pathname=fs_path_key) }}',
+      maxFilesize: {{max_file_size}}, // megabytes
+      chunkSize: {{max_chunk_size}}, // bytes
+    });
+  {% endfor %}
 
   $(document).ready(function () {
     {% for fs_path_key in files %}
-      document.getElementById('{{fs_path_key}}').onchange = function() {
-        document.getElementById('{{fs_path_key}}-form').submit();
-      };
       $("#{{fs_path_key}}-fileSearch").on("keyup", function() {
         var value = $(this).val().toLowerCase();
         $("#{{fs_path_key}}-filesTable tr").filter(function() {
