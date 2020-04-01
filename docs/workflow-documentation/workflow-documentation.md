@@ -836,6 +836,36 @@ A `DagRun` is the instance of a `DAG` that will run at a time. When it runs, a
 
 ![dag_runs](./images/dag_runs.png)
 
+# Trained Models
+
+Workflow Orchestrator allows us to upload Machine Learning models and expose them via an API so that they can be used by clients. Currently, we support 3 different types of models, i.e Tensorflow Models, Spark Models and Other Models. To upload a trained model, visit `Developer->Trained Models`. You will see an UI as attached below:
+
+![trained_models](./images/trained_models.png)
+
+## Default Behavior of different Models
+
+- `Tensorflow Models`: Upload a `.tar` or `.tar.gz` archive of your model. The archive will be extracted in the background, and in < 10 minutes, A new API will be exposed with corresponding model. For details on how to access serving APIs, visit [TFX serving guide](https://www.tensorflow.org/tfx/guide/serving). Note that, if you delete one of your models, then your API for may return errors for about 10 minutes before completely getting removed by the Orchestrator.
+- `Spark Models`: Any file can be uploaded in this section. Models added in this section are currently not exposed by an API.
+- `Other Models`: There might be some models which you don't want to serve, but might still need. You can upload a `.tar` or `.tar.gz` of your model and the archive will be extracted in the background. However, Models added in this section are not exposed by an API.
+
+# Exploratory Data Analysis
+
+Workflow Orchestrator allows us to add and perform Exploratory Data Analysis (EDA) on a SQL database, TSV or CSV file and HDFS data sources. To perform `EDA` on a data source, go to `Developer->Exploratory Data Analysis`. 
+
+## Steps to perform EDA
+
+1. Navigate to `Developer->Exploratory Data Analysis` Page.
+
+2. Add a new Data Source. The data source can be any one of `SQL Database`, `CSV/ TSV`, or `HDFS Source` (optional).
+
+   1. If you select to use `SQL Database`, you will be redirected to `Couture Dashboard`, where you will have to select a table from one of the existing databases from SQL Lab view.
+
+3. Once you have your required Data source added, you need to click on the `play` button to start `EDA`.
+
+   ![eda_run](./images/eda_run.png)
+
+4. Once an output of EDA is generated, it will be in the `Processed Outputs` Section of the same page. Click on the output and you will be redirected to a new tab showing the EDA Results.
+
 # Connections
 
 The connection information to external systems is stored in the workflow metadata database and managed in the UI (`Menu` -\> `Admin` -\> `Connections`). A `conn_id` is defined there and `hostname / login / password /` `schema` information attached to it. Pipelines can simply refer to the centrally managed `conn_id` without having to hard code any of this information anywhere.

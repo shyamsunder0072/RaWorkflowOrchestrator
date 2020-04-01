@@ -130,6 +130,8 @@ const config = {
       { from: 'node_modules/datatables.net/**/**.min.*', flatten: true },
       { from: 'node_modules/datatables.net-bs/**/**.min.*', flatten: true },
 
+      { from: 'static/Couture_AI_Workflow_Orchestrator.pdf' },
+
       // TODO: npm install these modules, copy paste from node_modules folder
       { from: 'static/codemirror-5.50.2/', to: 'codemirror' },
       { from: 'static/jstree/', to: 'jstree' },

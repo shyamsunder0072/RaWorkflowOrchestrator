@@ -3407,9 +3407,7 @@ class HelpView(AirflowBaseView):
     @has_access
     def help(self):
         try:
-            return send_file('templates/airflow/Couture_AI_Workflow_Orchestrator.pdf',
-                             'application/pdf',
-                             as_attachment=False)
+            return redirect(url_for('static', filename='Couture_AI_Workflow_Orchestrator.pdf'))
         except Exception as e:
             return str(e)
 
