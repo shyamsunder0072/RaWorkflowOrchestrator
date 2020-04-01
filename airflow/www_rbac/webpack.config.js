@@ -131,6 +131,9 @@ const config = {
       { from: 'node_modules/datatables.net-bs/**/**.min.*', flatten: true },
 
       // TODO: npm install these modules, copy paste from node_modules folder
+      // TODO: Check if these copies are need to be made, since we serve everything
+      // present in the static folder (so no need to copy everything to dist).
+      // ONLY NEED TO COPY when doing npm install
       { from: 'static/codemirror-5.50.2/', to: 'codemirror' },
       { from: 'static/jstree/', to: 'jstree' },
       { from: 'static/dropzone/', to: 'dropzone' },
