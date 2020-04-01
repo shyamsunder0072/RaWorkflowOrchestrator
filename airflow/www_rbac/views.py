@@ -3409,9 +3409,7 @@ class HelpView(AirflowBaseView):
     @has_access
     def help(self):
         try:
-            return send_file('templates/airflow/Couture_AI_Workflow_Orchestrator.pdf',
-                             'application/pdf',
-                             as_attachment=False)
+            return redirect(url_for('static', filename='Couture_AI_Workflow_Orchestrator.pdf'))
         except Exception as e:
             return str(e)
 
@@ -3737,7 +3735,7 @@ class GitConfigView(GitIntegrationMixin, AirflowBaseView):
 class LivyConfigView(AirflowBaseView):
     default_view = 'livy_config_view'
 
-    fs_path = Path(settings.JUPYTER_HOME).joinpath(*['.sparkmagic', 'config.json'])
+    fs_path = Path(settings.LIVY_CONF_PATH)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
