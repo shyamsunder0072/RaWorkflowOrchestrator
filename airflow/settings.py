@@ -152,6 +152,7 @@ LOGGING_CLASS_PATH = None
 SPARK_DEPENDENCIES_FOLDER = None
 SPARK_CONF_PATH = None
 GIT_CONF_PATH = None
+LIVY_CONF_PATH = None
 HADOOP_CONFIGS_FOLDER = None
 CODE_ARTIFACTS_FOLDER = None
 JUPYTER_HOME = None
@@ -225,6 +226,7 @@ def configure_vars():
     global JUPYTER_HOME
     global EDA_HOME
     global MODEL_SERVERS
+    global LIVY_CONF_PATH
     SQL_ALCHEMY_CONN = conf.get('core', 'SQL_ALCHEMY_CONN')
     DAGS_FOLDER = os.path.expanduser(conf.get('core', 'DAGS_FOLDER'))
 
@@ -239,6 +241,7 @@ def configure_vars():
     JUPYTER_HOME = normalize_path(os.path.join(AIRFLOW_HOME, *[os.pardir, 'jupyter']))
     EDA_HOME = normalize_path(os.path.join(AIRFLOW_HOME, *[os.pardir, 'eda']))
     MODEL_SERVERS = normalize_path(os.path.join(AIRFLOW_HOME, *[os.pardir, 'trained-models']))
+    LIVY_CONF_PATH = normalize_path(os.path.join(JUPYTER_HOME, *['.sparkmagic', 'config.json']))
 
     PLUGINS_FOLDER = conf.get(
         'core',

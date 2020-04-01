@@ -3735,7 +3735,7 @@ class GitConfigView(GitIntegrationMixin, AirflowBaseView):
 class LivyConfigView(AirflowBaseView):
     default_view = 'livy_config_view'
 
-    fs_path = Path(settings.JUPYTER_HOME).joinpath(*['.sparkmagic', 'config.json'])
+    fs_path = Path(settings.LIVY_CONF_PATH)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
