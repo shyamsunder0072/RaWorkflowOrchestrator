@@ -241,9 +241,7 @@ def configure_vars():
     JUPYTER_HOME = normalize_path(os.path.join(AIRFLOW_HOME, *[os.pardir, 'jupyter']))
     EDA_HOME = normalize_path(os.path.join(AIRFLOW_HOME, *[os.pardir, 'eda']))
     MODEL_SERVERS = normalize_path(os.path.join(AIRFLOW_HOME, *[os.pardir, 'trained-models']))
-    # This is kept inside JUPYTER_HOME AS IT IS THE ONLY WAY CURRENTLY TO MOUNT TO JUPYTERHUB
-    # DOCKER SPAWNED IMAGES
-    LIVY_CONF_PATH = normalize_path(os.path.join(JUPYTER_HOME, *['.sparkmagic', 'config.json']))
+    LIVY_CONF_PATH = normalize_path(os.path.join(AIRFLOW_HOME, 'livy-config.json'))
 
     PLUGINS_FOLDER = conf.get(
         'core',
