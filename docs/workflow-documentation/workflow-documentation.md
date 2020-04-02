@@ -1118,7 +1118,7 @@ Workflow Orchestrator allows us to upload Machine Learning models and expose the
 
 ## Default Behavior of different Models
 
-- `Tensorflow Models`: Upload a `.tar` or `.tar.gz` archive of your model. The archive will be extracted in the background, and in < 10 minutes, A new API will be exposed with corresponding model. For details on how to access serving APIs, visit [TFX serving guide](https://www.tensorflow.org/tfx/guide/serving). Note that, if you delete one of your models, then your API for may return errors for about 10 minutes before completely getting removed by the Orchestrator.
+- `Tensorflow Models`: Upload a `.tar` or `.tar.gz` archive of your model. The archive will be extracted in the background, and in < 10 minutes, the model will be exposed via the serving APIs on ports ` 8500` for `gRPC`, `8501` for `REST`. For details on how to access serving APIs, visit [TFX serving guide](https://www.tensorflow.org/tfx/guide/serving). 
 - `Spark Models`: Any file can be uploaded in this section. Models added in this section are currently not exposed by an API.
 - `Other Models`: There might be some models which you don't want to serve, but might still need. You can upload a `.tar` or `.tar.gz` of your model and the archive will be extracted in the background. However, Models added in this section are not exposed by an API.
 
