@@ -2,8 +2,6 @@
 
 [TOC]
 
-
-
 # Introduction
 
 **Workflow Orchestrator** is a platform to programmatically author, schedule, and monitor workflows.
@@ -25,7 +23,7 @@ The rich user interface makes it easy to visualize pipelines running in producti
 -   **Running orchestrator**:
     -   Go to the directory where `docker-compose.yml` file is located.
     -   Run the following command:
-        - `sudo COUTURE_WORKFLOW_USER=<your name> docker-compose up -d worker` 
+        - `sudo COUTURE_WORKFLOW_USER=<your name> docker-compose up -d worker`
 
 ## Installing workflow orchestrator (without Internet)
 
@@ -37,7 +35,7 @@ The rich user interface makes it easy to visualize pipelines running in producti
 
   ```json
   {
-    "insecure-registries" : ["CR1:5005"] 
+    "insecure-registries" : ["CR1:5005"]
   }
   ```
 
@@ -73,7 +71,7 @@ The rich user interface makes it easy to visualize pipelines running in producti
 
   - Go to the directory where `docker-compose.yml` file is located.
   - Run the following command:
-    - `sudo COUTURE_WORKFLOW_USER=<your name> docker-compose up -d worker` 
+    - `sudo COUTURE_WORKFLOW_USER=<your name> docker-compose up -d worker`
 
   - Note that `COUTURE_WORKFLOW_USER` is optional and can be used to have personalized `dags` view.
 
@@ -128,7 +126,7 @@ In the top navigation bar, go to `Admin` -\> `Hadoop Configuration`.
 
    ![hadoop_conf_files](./images/hadoop_conf_files.png)
 
-3. New `hadoop conf` files can be added to that group using `Upload file(s)` option. Please note that only XML files are allowed. 
+3. New `hadoop conf` files can be added to that group using `Upload file(s)` option. Please note that only XML files are allowed.
 
 4. The configurations within a file can be updated by clicking on the respective file name.
 
@@ -178,6 +176,30 @@ Configurations required for ldap can be done by following the below steps:
 | `AUTH_LDAP_TLS_CACERTFILE`    | CA Certificate file to check peer certificate.               |
 | `AUTH_LDAP_TLS_CERTFILE`      | Certificate file for client auth use with `AUTH_LDAP_TLS_KEYFILE` |
 | `AUTH_LDAP_TLS_KEYFILE`       | Certificate key file for `client` auth.                      |
+
+## Livy Configuration
+
+<a name="livy-configuration"></a>
+
+ [Livy](https://livy.incubator.apache.org/) enables programmatic, fault-tolerant, multi-tenant submission of Spark jobs from web/mobile apps. To configure default endpoints of sparkmagic kernels present in Jupyterhub, Admin will have to configure Livy Endpoints. To configure `Livy` from the UI, go to (`Admin`->`Livy Configuration`).
+
+![livy_config](./images/livy_config.png)
+
+## Git Configuration
+
+Developers can configure Workflow Orchestrator to connect their JupyterHub files to a remote repository and perform common git operators such as commiting files, pushing to remote repository, viewing logs etc.
+
+To connect the remote repository, from the UI, go to (Developer -> Git Configuration) and enter the details.
+
+![git_config](./images/git_config.png)
+
+
+
+After saving the files, they can execute common git actions via the `Git Actions` button in (`Developer`->`Jupyter Notebook`) View.
+
+![git_actions](./images/git_actions.png)
+
+
 
 ## Code Artifacts
 
@@ -496,7 +518,7 @@ Workflow provides `API` to directly import/export various `configurations`, `DAG
     		--form 'sources=@/path/to/configs.tar.gz'
     ```
 
-    
+
 
   - To import `configs` to server:
 
@@ -528,7 +550,7 @@ Workflow provides `API` to directly import/export various `configurations`, `DAG
 
     ```bash
     curl --location --request GET 'http://<server-ip>:8080/api/dags/' > dags.tar.gz
-    
+
     ```
 
   - To import `DAGS`:
@@ -539,7 +561,348 @@ Workflow provides `API` to directly import/export various `configurations`, `DAG
     		--form 'sources=@/path/to/dags.tar.gz'
     ```
 
-    
+
+
+# Operators
+
+While DAGs describe how to run a workflow, Operators determine what actually gets done by a task.
+
+An operator describes a single task in a workflow. Operators are usually (but not always) atomic, meaning they can stand on their own and don’t need to share resources with any other operators. The DAG will make sure that operators run in the correct order; other than those dependencies, operators generally run independently. In fact, they may run on two completely different machines.
+
+Workflow provides operators for many common tasks, including:
+## BashOperator
+
+Use the BashOperator to execute commands in a Bash shell.
+```python
+from airflow.operators.bash_operator import BashOperator
+
+run_this = BashOperator(
+    task_id='run_after_loop',
+    bash_command='echo 1',
+    dag=dag,
+)
+```
+
+## PythonOperator
+
+Use the PythonOperator to execute Python callables.
+```
+def print_context(ds, **kwargs):
+    pprint(kwargs)
+    print(ds)
+    return 'Whatever you return gets printed in the logs'
+```
+
+
+```python
+run_this = PythonOperator(
+    task_id='print_the_context',
+    provide_context=True,
+    python_callable=print_context,
+    dag=dag,
+)
+```
+## SparkOperator
+
+Use SparkOperator to create and submit a spark job on spark master. Task ID and DAG ID are passed as spark configuration `spark.workflow.taskId` and `spark.workflow.dagId` respectively. Application arguments can be defined here in a list format, which are passed to the main method of the main class, if any.
+
+Name of the application should be passed through 'app_name' . It will be overridden if also defined within the Main class of the application.
+
+For Java and Scala applications, the fully qualified classname of the class containing the main method of the application should be provided through 'class_path'. For example, org.apache.spark.examples.SparkPi
+
+All the configurations defined under Admin -> Spark Configuration are considered while running the application. The developer code should be uploaded through Developer -> Code Artifacts and one can refer the same under 'code_artifact'.
+
+```python
+  from airflow.operators import SparkOperator
+
+  LoadData = SparkOperator(
+      task_id='LoadData',
+      app_name=appName,
+      class_path='org.apache.spark.examples.SparkPi',
+      code_artifact='spark-examples_2.11-2.3.1.jar',
+      application_arguments=[],
+      dag=dag,
+      description='This task was inserted from the code bricks available on from 				Developer -> Manage Dags. The task name have been updated according to the 				scenario'
+  )
+```
+
+## CoutureSparkOperator
+
+Use CoutureSparkOperator to create and submit a spark job on spark master. This operator differs from SparkOperator in terms of optional parameters.
+
+Optional Parameters:
+
+- `task_args_dict` : Arguments required for main method of the main class. To be passed in dictionary format.
+
+- `input_base_dir_path` : Base directory path for input files. This has to be a string
+
+- `output_base_dir_path` : Base directory path for output files. This has to be a string
+
+- `input_filenames_dict` : Relative file paths for input files w.r.t input base directory. To be passed in dictionary format.
+
+- `output_filenames_dict` : Relative file paths for output files w.r.t output base directory. To be passed in dictionary format.
+
+  All the optional parameters, if present, are dumped as json which is passed on as string in the main method of main class. Task id and DAG id are also present in this json as `task_id` and `dag_id` respectively.
+
+  Example of final output:
+
+```json
+'{"task_id": "fetch_videos", "dag_id": "video_embedding_dag", "task_args_dict": {"task_strategy": "parallel"}, "input_base_dir_path": "/usr/local/couture/input/", "output_base_dir_path": "/usr/local/couture/processed/", "input_filenames_dict": {"tags_file": "video_tags.csv"}, "output_filenames_dict": {"tags_file": "video_tags.csv"}}'
+```
+
+  Name of the application should be passed through 'app_name' . It will be overridden if also defined within the Main class of the application.
+
+  For Java and Scala applications, the fully qualified classname of the class containing the main method of the application should be provided through 'class_path'. For example, org.apache.spark.examples.SparkPi
+
+  All the configurations defined under Admin -> Spark Configuration are considered while running the application. The developer code should be uploaded through Developer -> Code Artifacts and one can refer the same under 'code_artifact'.
+
+  ```python
+    from airflow.operators import CoutureSparkOperator
+  
+    LoadData = CoutureSparkOperator(
+        task_id='LoadData',
+        app_name=appName,
+        class_path='org.apache.spark.examples.SparkPi',
+        code_artifact='spark-examples_2.11-2.3.1.jar',
+        input_base_dir_path="/usr/local/couture/input/",
+    		output_base_dir_path="/usr/local/couture/processed/",
+    		output_filenames_dict={'tags_file': "video_tags.csv"},
+    		input_filenames_dict={'tags_file': "video_tags.csv"},
+    		task_args_dict={'task_strategy': "parallel"},
+        dag=dag,
+        description='This task was inserted from the code bricks available on from 					Developer -> Manage Dags. The task name have been updated according to the 					scenario'
+    )
+  ```
+
+## CoutureDaskYarnOperator
+
+Dask-Yarn deploys Dask on [YARN](https://hadoop.apache.org/docs/current/hadoop-yarn/hadoop-yarn-site/YARN.html) clusters and mark the worflow task pass/fail according to the run status of the job.
+
+Optional Parameters:
+
+- `task_args_dict` : Arguments required for main method of the main class. To be passed in dictionary format.
+
+- `input_base_dir_path` : Base directory path for input files. This has to be a string
+
+- `output_base_dir_path` : Base directory path for output files. This has to be a string
+
+- `input_filenames_dict` : Relative file paths for input files w.r.t input base directory. To be passed in dictionary format.
+
+- `output_filenames_dict` : Relative file paths for output files w.r.t output base directory. To be passed in dictionary format.
+
+  All the optional parameters, if present, are dumped as json which is passed on as string in the main method of main class. Task id and DAG id are also present in this json as `task_id` and `dag_id` respectively.
+
+  Example of final output:
+
+  ```json
+  '{"task_id": "fetch_videos", "dag_id": "video_embedding_dag", "task_args_dict": {"task_strategy": "parallel"}, "input_base_dir_path": "/usr/local/couture/input/", "output_base_dir_path": "/usr/local/couture/processed/", "input_filenames_dict": {"tags_file": "video_tags.csv"}, "output_filenames_dict": {"tags_file": "video_tags.csv"}}'
+  ```
+
+ Name of the application should be passed through 'app_name' . It will be overridden if also defined within the Main class of the application.
+
+  The developer code should be uploaded through Developer -> Code Artifacts and one can refer the same under 'code_artifact'.
+
+```python
+  from airflow.operators import CoutureDaskYarnOperator
+
+DataCleaning = CoutureDaskYarnOperator(
+    task_id='DataCleaning',
+    app_name=appName,
+    code_artifact='spark-examples_2.11-2.3.1.jar',
+    dag=dag,
+    description='This task was inserted from the code bricks available on from 				Developer -> Manage Dags. The task name have been updated according to the 			 scenario'
+)
+```
+
+## PySparkOperator
+
+Use PySparkOperator to create and submit a pyspark job on spark master. Task ID and DAG ID are passed as spark configuration 'spark.workflow.taskId' and 'spark.workflow.dagId' respectively. Application arguments can be defined here in a list format, which are passed to the main method of the main class, if any.
+
+Name of the application should be passed through 'app_name' . It will be overridden if also defined within the Main class of the application.
+
+All the 'Arguments' defined under Admin -> Spark Configuration are considered while running the application. The developer code should be uploaded through Developer -> Code Artifacts and one can refer the same under 'code_artifact'.
+
+```python
+from airflow.operators import PySparkOperator
+
+StatsGeneration = PySparkOperator(
+    task_id='StatsGeneration',
+    app_name=appName,
+    code_artifact='pi.py',
+    application_arguments=[],
+    dag=dag,
+    description='Stats Generation'
+)
+```
+
+## CouturePySparkOperator
+
+Use CouturePySparkOperator to create and submit a pyspark job on spark master. This operator differs from PySparkOperator in terms of optional parameters.
+
+Optional Parameters:
+
+- `task_args_dict` : Arguments required for main method of the main class. To be passed in dictionary format.
+
+- `input_base_dir_path` : Base directory path for input files. This has to be a string
+
+- `output_base_dir_path` : Base directory path for output files. This has to be a string
+
+- `input_filenames_dict` : Relative file paths for input files w.r.t input base directory. To be passed in dictionary format.
+
+- `output_filenames_dict` : Relative file paths for output files w.r.t output base directory. To be passed in dictionary format.
+
+  All the optional parameters, if present, are dumped as json which is passed on as string in the main method of main class. Task id and DAG id are also present in this json as `task_id` and `dag_id` respectively.
+
+  Example of final output:
+
+  ```json
+  '{"task_id": "fetch_videos", "dag_id": "video_embedding_dag", "task_args_dict": {"task_strategy": "parallel"}, "input_base_dir_path": "/usr/local/couture/input/", "output_base_dir_path": "/usr/local/couture/processed/", "input_filenames_dict": {"tags_file": "video_tags.csv"}, "output_filenames_dict": {"tags_file": "video_tags.csv"}}'
+  ```
+
+
+  Name of the application should be passed through 'app_name' . It will be overridden if also defined within the Main class of the application.
+
+  All the 'Arguments' defined under Admin -> Spark Configuration are considered while running the application. The developer code should be uploaded through Developer -> Code Artifacts and one can refer the same under 'code_artifact'.
+
+  ```python
+  from airflow.operators import CouturePySparkOperator
+  
+  StatsGeneration = CouturePySparkOperator(
+      task_id='StatsGeneration',
+      app_name=appName,
+      code_artifact='pi.py',
+      input_base_dir_path="/usr/local/couture/input/",
+      output_base_dir_path="/usr/local/couture/processed/",
+      output_filenames_dict={'tags_file': "video_tags.csv"},
+      input_filenames_dict={'tags_file': "video_tags.csv"},
+      task_args_dict={'task_strategy': "parallel"},
+      dag=dag,
+      description='Stats Generation'
+  )
+  ```
+
+## TensorflowOperator
+
+Use TensorflowOperator to run a tensorflow task. 
+
+The developer code should be uploaded through Developer -> Code Artifacts and one can refer the same under 'code_artifact'. Application arguments can be defined here in a string format, which are passed to the main method of the main class, if any.
+
+``` python
+from airflow.operators import TensorflowOperator
+
+FeatureValidation = TensorflowOperator(
+    task_id='FeatureValidation',
+    code_artifact='pi.py',
+    application_arguments="",
+    dag=dag,
+    description='Feature Validation'
+)
+```
+
+## CoutureTensorflowOperator
+
+Use CoutureTensorflowOperator to run a tensorflow task. This operator differs from TensorflowOperator in terms of optional parameters.
+
+Optional Parameters:
+
+- `task_args_dict` : Arguments required for main method of the main class. To be passed in dictionary format.
+
+- `input_base_dir_path` : Base directory path for input files. This has to be a string
+
+- `output_base_dir_path` : Base directory path for output files. This has to be a string
+
+- `input_filenames_dict` : Relative file paths for input files w.r.t input base directory. To be passed in dictionary format.
+
+- `output_filenames_dict` : Relative file paths for output files w.r.t output base directory. To be passed in dictionary format.
+
+  All the optional parameters, if present, are dumped as json which is passed on as string in the main method of main class. Task id and DAG id are also present in this json as `task_id` and `dag_id` respectively.
+
+  Example of final output:
+
+  ```json
+  '{"task_id": "fetch_videos", "dag_id": "video_embedding_dag", "task_args_dict": {"task_strategy": "parallel"}, "input_base_dir_path": "/usr/local/couture/input/", "output_base_dir_path": "/usr/local/couture/processed/", "input_filenames_dict": {"tags_file": "video_tags.csv"}, "output_filenames_dict": {"tags_file": "video_tags.csv"}}'
+  ```
+
+The developer code should be uploaded through Developer -> Code Artifacts and one can refer the same under 'code_artifact'.
+
+```python
+from airflow.operators import CoutureTensorflowOperator
+
+fetch_videos = CoutureTensorflowOperator(
+    dag=dag,
+    task_id='fetch_videos',
+    code_artifact=code_artifact,
+    input_base_dir_path=input_dir,
+    output_base_dir_path=processed_dir,
+    output_filenames_dict={'tags_file': "video_tags.csv"},
+    input_filenames_dict={'tags_file': "video_tags.csv"},
+    task_args_dict={'task_strategy': "parallel"},
+    description='A TF task'
+    )
+```
+
+## CoutureJupyterOperator
+
+<a name="couture-jupyter-operator"></a>
+
+You can schedule `.ipynb` notebooks to run in workflow by using the `CoutureJupyterNotebook` operator. You can also `parameterize` the notebook. To do this, tag notebook cells with `parameters`. These parameters are later used when the notebook is executed or run.
+
+- Adding tags to a notebook:
+
+  1.	Open the `notebook` on which you want to add tags.
+  2.	Activate the tagging toolbar by navigating to `View, Cell Toolbar, and then Tags`.
+  3.	Enter parameters into a textbox at the top right of a cell
+  4.	Click Add Tag.
+
+  ![jupyter_add_tag](./images/parameters.png)
+
+- How parameters work:
+
+  1. The `parameters` cell is assumed to specify default values which may be overridden by values specified at execution time.
+  2. We insert a new cell tagged `injected-parameters` immediately after the `parameters` cell which contains only the overridden parameters.
+  3. Subsequent cells are treated as normal cells, even if also tagged parameters
+     if no cell is tagged parameters, the injected-parameters cell is inserted at the top of the notebook.
+  4. One caveat is that a `parameters` cell may not behave intuitively with inter-dependent parameters. Consider a notebook note.ipynb with two cells:
+
+  ```python
+  # parameters
+  a = 1
+  twice = a * 2
+  print("a =", a, "and twice =", twice)
+  ```
+
+  when executed with parameters `{"a": 9 }`, the output will be ` a = 9` and `twice = 2`. (not twice=18).
+
+*Example code*
+
+```python
+from airflow import DAG
+from airflow.operators.jupyter_operator import CoutureJupyterOperator
+from datetime import datetime, timedelta
+
+
+default_args = {
+    'owner': 'Airflow',
+    'depends_on_past': False,
+    'start_date': datetime(2019, 1, 1),
+    'email': ['airflow@example.com'],
+    'email_on_failure': False,
+    'email_on_retry': False,
+    'retries': 1,
+    'retry_delay': timedelta(minutes=5),
+}
+
+dag = DAG('JupyterDAG', default_args=default_args, schedule_interval=timedelta(days=10))
+
+# t1 is an example of task created by instantiating CoutureJupyterOperator.
+# input_nb and output_nb are notebook paths.
+t1 = CoutureJupyterOperator(task_id='jupyter_task',
+                            input_nb='testFile2.ipynb',
+                            output_nb='plotTestFile2.ipynb',
+                            parameters={"a": 10},
+                            export_html=False,
+                            dag=dag)
+```
 
 # User Interface
 
@@ -547,7 +910,7 @@ The Workflow UI makes it easy to monitor and troubleshoot your data pipelines. H
 
 ## View DAGs
 
-List of the `DAGs` in your environment, and a set of shortcuts to useful pages. You can see exactly how many tasks succeeded, failed, or are currently running at a glance. In the top navigation bar, click on `DAGs`, situated near the `COUTURE.AI` logo on the top left side. 
+List of the `DAGs` in your environment, and a set of shortcuts to useful pages. You can see exactly how many tasks succeeded, failed, or are currently running at a glance. In the top navigation bar, click on `DAGs`, situated near the `COUTURE.AI` logo on the top left side.
 
 ## Tree View
 
@@ -666,8 +1029,6 @@ VIEWER_VMS = {
 }
 ```
 
-#### 
-
 -   #### User
 
 `User` users have `Viewer` permissions plus additional user permissions.
@@ -753,78 +1114,31 @@ To add new user, click the '+' as shown below.
 
 `Jupyter notebook` can be accessed under `Developer` menu and clicking on 'Jupyter Notebook' option. These feature is available for both `Developer` or `Admin` users.
 
-![jupyter](./images/jupyter.png)
+*NOTE: Jupyter Notebook View might prompt you for authentication. Use the same credentials which was used while logging in to Workflow Orchestrator* 
 
-Workflow also has an option to schedule `jupyter notebooks` to run as `DAGs`.  Click on the button `Schedule a notebook`. You can schedule to run it once or provide a cron expression for running it periodically. Also, you can add parameters to the notebook by clicking on `Add parameters` which will be injected when the notebook is run. For more info on `parameters`, see `CoutureJupyterOperator` below.
+![jupyter_hub](./images/jupyter_hub.png)
 
-![jupyter_scheduling_notebook](./images/jupyter_schedule_notebook.png)
+Workflow also has an option to schedule `jupyter notebooks` to run as `DAGs`.  Click on the button `Schedule a notebook`. You can schedule to run it once or provide a cron expression (For example, a cron schedule for running the notebook every 5 minutes is `*/5 * * * *`) to running it periodically. Also, you can add parameters to the notebook by clicking on `Add parameters` which will be injected when the notebook is run. For more info on `parameters`, see [`CoutureJupyterOperator`](#couture-jupyter-operator)
+
+![jupyter_scheduling_notebook](./images/jupyter_scheduling_notebook.png)
 
 Upon scheduling a notebook, a `Dag` will be dynamically created and you will be redirected to the `DAG` page where you can check the status of your `Notebook run`. This can be used to schedule run notebooks periodically to generate reports etc.
 
 You can also `parameterize` the notebook. To do this, tag notebook cells with `parameters`. These `parameters` are later used when the notebook is executed or run.
 
-## `CoutureJupyterOperator`
+## Kernels supported by JupyterHub
 
-You can schedule `.ipynb` notebooks to run in workflow by using the `CoutureJupyterNotebook` operator. You can also `parameterize` the notebook. To do this, tag notebook cells with `parameters`. These parameters are later used when the notebook is executed or run.
+Out of the box, Workflow Orchestrator offers support for 7 kernels, including [`sparkmagic`](https://github.com/jupyter-incubator/sparkmagic/) kernels. Sparkmagic is a set of tools for interactively working with remote Spark clusters through [Livy](https://livy.incubator.apache.org/), a Spark REST server, in [Jupyter](http://jupyter.org/) notebooks. 
 
-- Adding tags to a notebook:
+- `Python3`: A simple python3 kernel, provided by default by jupyterlab.
+- `ml-kernel`: A kernel with the most commonly used Machine Learning python packages preinstalled.
+- `tf-kernel`: A kernel with `TensorFlow` and commonly used packages preinstalled.
+- `pytorch-kernel`: A kernel with `Pytorch` and commonly used packages preinstalled.
+- `pySpark`:  Sparkmagic's `pyspark` kernel. 
+- `Spark`: Sparkmagic's `spark` kernel.
+- `SparkR`: Sparkmagic's `R` kernel.
 
-  1.	Open the `notebook` on which you want to add tags.
-  2.	Activate the tagging toolbar by navigating to `View, Cell Toolbar, and then Tags`.
-  3.	Enter parameters into a textbox at the top right of a cell
-  4.	Click Add Tag.
-
-  ![jupyter_add_tag](./images/parameters.png)
-
-- How parameters work:
-
-  1. The `parameters` cell is assumed to specify default values which may be overridden by values specified at execution time.
-  2. We insert a new cell tagged `injected-parameters` immediately after the `parameters` cell which contains only the overridden parameters.
-  3. Subsequent cells are treated as normal cells, even if also tagged parameters
-    if no cell is tagged parameters, the injected-parameters cell is inserted at the top of the notebook.
-  4. One caveat is that a `parameters` cell may not behave intuitively with inter-dependent parameters. Consider a notebook note.ipynb with two cells:
-
-  ```python
-  # parameters
-  a = 1
-  twice = a * 2
-  print("a =", a, "and twice =", twice)
-  ```
-
-  
-
-  when executed with parameters `{"a": 9 }`, the output will be ` a = 9` and `twice = 2`. (not twice=18).
-
-*Example code*
-
-```python
-from airflow import DAG
-from airflow.operators.jupyter_operator import CoutureJupyterOperator
-from datetime import datetime, timedelta
-
-
-default_args = {
-    'owner': 'Airflow',
-    'depends_on_past': False,
-    'start_date': datetime(2019, 1, 1),
-    'email': ['airflow@example.com'],
-    'email_on_failure': False,
-    'email_on_retry': False,
-    'retries': 1,
-    'retry_delay': timedelta(minutes=5),
-}
-
-dag = DAG('JupyterDAG', default_args=default_args, schedule_interval=timedelta(days=10))
-
-# t1 is an example of task created by instantiating CoutureJupyterOperator.
-# input_nb and output_nb are notebook paths. 
-t1 = CoutureJupyterOperator(task_id='jupyter_task',
-                            input_nb='testFile2.ipynb',
-                            output_nb='plotTestFile2.ipynb',
-                            parameters={"a": 10},
-                            export_html=False,
-                            dag=dag)
-```
+To configure default  `Livy` Endpoints,  visit [Livy Configuration](#livy-configuration).
 
 
 
@@ -850,7 +1164,7 @@ Workflow Orchestrator allows us to upload Machine Learning models and expose the
 
 # Exploratory Data Analysis
 
-Workflow Orchestrator allows us to add and perform Exploratory Data Analysis (EDA) on a SQL database, TSV or CSV file and HDFS data sources. To perform `EDA` on a data source, go to `Developer->Exploratory Data Analysis`. 
+Workflow Orchestrator allows us to add and perform Exploratory Data Analysis (EDA) on a SQL database, TSV or CSV file and HDFS data sources. To perform `EDA` on a data source, go to `Developer->Exploratory Data Analysis`.
 
 ## Steps to perform EDA
 
@@ -865,6 +1179,22 @@ Workflow Orchestrator allows us to add and perform Exploratory Data Analysis (ED
    ![eda_run](./images/eda_run.png)
 
 4. Once an output of EDA is generated, it will be in the `Processed Outputs` Section of the same page. Click on the output and you will be redirected to a new tab showing the EDA Results.
+
+# Visualisations
+
+You can directly access `Couture Dashboard` from `Couture Workflow Orchestrator`. To go to Couture Dashboard, from the UI, go to (`Developer`->`Visualisations`). Couture Dashboard is a modern, enterprise-ready business intelligence web application.
+
+Couture Dashboard provides:
+
+- An intuitive interface to explore and visualize datasets, and create interactive dashboards.
+- A wide array of beautiful visualizations to showcase your data.
+- Easy, code-free, user flows to drill down and slice and dice the data underlying exposed dashboards. The dashboards and charts act as a starting point for deeper analysis.
+- A state of the art SQL editor/IDE exposing a rich metadata browser, and an easy workflow to create visualizations out of any result set.
+- An extensible, high granularity security model allowing intricate rules on who can access which product features and datasets. Integration with major authentication backends (database, OpenID, LDAP, OAuth, REMOTE_USER, ...)
+- A lightweight semantic layer, allowing to control how data sources are exposed to the user by defining dimensions and metrics
+- Out of the box support for most SQL-speaking databases
+- Deep integration with Druid allows for Superset to stay blazing fast while slicing and dicing large, realtime datasets
+- Fast loading dashboards with configurable caching.
 
 # Connections
 
@@ -912,8 +1242,8 @@ def download_image(**kwargs):
 The first `task` has no such changes other than providing `**kwargs` which let share `key/value` pairs. The other is setting `provide_context=True` in each operator to make it *XCom compatible*. For instance:
 
 ```python
-opr_parse_recipes = PythonOperator(task_id='parse_recipes', 	    
-                                   python_callable=parse_recipes, 
+opr_parse_recipes = PythonOperator(task_id='parse_recipes',
+                                   python_callable=parse_recipes,
                                    provide_context=True)
 ```
 
@@ -1015,3 +1345,4 @@ Both can be very powerful where appropriate, but can also be dangerous if misuse
 `Service Level Agreements`, or time by which a task or `DAG` should have succeeded, can be set at a task level as a timedelta. If one or many instances have not succeeded by that time, an alert email is sent detailing the list of tasks that missed their `SLA`. The event is recorded in the database and made available in the web UI under `Browse`->`SLA Misses` where events can be analyzed and documented.
 
 `SLAs` can be configured for scheduled tasks by using the sla parameter. In addition to sending alerts to the addresses specified in a task's email parameter, the `sla_miss_callback` specifies an additional Callable object to be invoked when the SLA is not met.
+

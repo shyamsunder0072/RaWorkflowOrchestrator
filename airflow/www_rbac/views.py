@@ -2666,8 +2666,10 @@ class TrainedModelsView(FileUploadBaseView):
             temp_dict = {'time': modificationTime.split(' ', 1)[1], 'size': size, 'dir': True}
             files[d] = temp_dict
         # remove models.config
-        files.pop('models.config', None)
-        # print("fiels", files)
+        for file in list(files.keys()):
+            if file.endswith('.config'):
+                files.pop(file, None)
+
         return files
 
     def set_config(self, config, pathname):
