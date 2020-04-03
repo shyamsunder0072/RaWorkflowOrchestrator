@@ -2,8 +2,6 @@
 
 [TOC]
 
-
-
 # Introduction
 
 **Workflow Orchestrator** is a platform to programmatically author, schedule, and monitor workflows.
@@ -178,6 +176,30 @@ Configurations required for ldap can be done by following the below steps:
 | `AUTH_LDAP_TLS_CACERTFILE`    | CA Certificate file to check peer certificate.               |
 | `AUTH_LDAP_TLS_CERTFILE`      | Certificate file for client auth use with `AUTH_LDAP_TLS_KEYFILE` |
 | `AUTH_LDAP_TLS_KEYFILE`       | Certificate key file for `client` auth.                      |
+
+## Livy Configuration
+
+<a name="livy-configuration"></a>
+
+ [Livy](https://livy.incubator.apache.org/) enables programmatic, fault-tolerant, multi-tenant submission of Spark jobs from web/mobile apps. To configure default endpoints of sparkmagic kernels present in Jupyterhub, Admin will have to configure Livy Endpoints. To configure `Livy` from the UI, go to (`Admin`->`Livy Configuration`).
+
+![livy_config](./images/livy_config.png)
+
+## Git Configuration
+
+Developers can configure Workflow Orchestrator to connect their JupyterHub files to a remote repository and perform common git operators such as commiting files, pushing to remote repository, viewing logs etc.
+
+To connect the remote repository, from the UI, go to (Developer -> Git Configuration) and enter the details.
+
+![git_config](./images/git_config.png)
+
+
+
+After saving the files, they can execute common git actions via the `Git Actions` button in (`Developer`->`Jupyter Notebook`) View.
+
+![git_actions](./images/git_actions.png)
+
+
 
 ## Code Artifacts
 
@@ -636,7 +658,7 @@ Optional Parameters:
 
   ```python
     from airflow.operators import CoutureSparkOperator
-  
+
     LoadData = CoutureSparkOperator(
         task_id='LoadData',
         app_name=appName,
@@ -744,7 +766,7 @@ Optional Parameters:
 
   ```python
   from airflow.operators import CouturePySparkOperator
-  
+
   StatsGeneration = CouturePySparkOperator(
       task_id='StatsGeneration',
       app_name=appName,
@@ -761,7 +783,7 @@ Optional Parameters:
 
 ## TensorflowOperator
 
-Use TensorflowOperator to run a tensorflow task. 
+Use TensorflowOperator to run a tensorflow task.
 
 The developer code should be uploaded through Developer -> Code Artifacts and one can refer the same under 'code_artifact'. Application arguments can be defined here in a string format, which are passed to the main method of the main class, if any.
 
@@ -820,6 +842,8 @@ fetch_videos = CoutureTensorflowOperator(
 ```
 
 ## CoutureJupyterOperator
+
+<a name="couture-jupyter-operator"></a>
 
 You can schedule `.ipynb` notebooks to run in workflow by using the `CoutureJupyterNotebook` operator. You can also `parameterize` the notebook. To do this, tag notebook cells with `parameters`. These parameters are later used when the notebook is executed or run.
 
@@ -1005,8 +1029,6 @@ VIEWER_VMS = {
 }
 ```
 
-####
-
 -   #### User
 
 `User` users have `Viewer` permissions plus additional user permissions.
@@ -1092,15 +1114,33 @@ To add new user, click the '+' as shown below.
 
 `Jupyter notebook` can be accessed under `Developer` menu and clicking on 'Jupyter Notebook' option. These feature is available for both `Developer` or `Admin` users.
 
-![jupyter](./images/jupyter.png)
+*NOTE: Jupyter Notebook View might prompt you for authentication. Use the same credentials which was used while logging in to Workflow Orchestrator*
 
-Workflow also has an option to schedule `jupyter notebooks` to run as `DAGs`.  Click on the button `Schedule a notebook`. You can schedule to run it once or provide a cron expression for running it periodically. Also, you can add parameters to the notebook by clicking on `Add parameters` which will be injected when the notebook is run. For more info on `parameters`, see `CoutureJupyterOperator`.
+![jupyter_hub](./images/jupyter_hub.png)
 
-![jupyter_scheduling_notebook](./images/jupyter_schedule_notebook.png)
+Workflow also has an option to schedule `jupyter notebooks` to run as `DAGs`.  Click on the button `Schedule a notebook`. You can schedule to run it once or provide a cron expression (For example, a cron schedule for running the notebook every 5 minutes is `*/5 * * * *`) to running it periodically. Also, you can add parameters to the notebook by clicking on `Add parameters` which will be injected when the notebook is run. For more info on `parameters`, see [`CoutureJupyterOperator`](#couture-jupyter-operator)
+
+![jupyter_scheduling_notebook](./images/jupyter_scheduling_notebook.png)
 
 Upon scheduling a notebook, a `Dag` will be dynamically created and you will be redirected to the `DAG` page where you can check the status of your `Notebook run`. This can be used to schedule run notebooks periodically to generate reports etc.
 
 You can also `parameterize` the notebook. To do this, tag notebook cells with `parameters`. These `parameters` are later used when the notebook is executed or run.
+
+## Kernels supported by JupyterHub
+
+Out of the box, Workflow Orchestrator offers support for 7 kernels, including [`sparkmagic`](https://github.com/jupyter-incubator/sparkmagic/) kernels. Sparkmagic is a set of tools for interactively working with remote Spark clusters through [Livy](https://livy.incubator.apache.org/), a Spark REST server, in [Jupyter](http://jupyter.org/) notebooks.
+
+- `Python3`: A simple python3 kernel, provided by default by jupyterlab.
+- `ml-kernel`: A kernel with the most commonly used Machine Learning python packages preinstalled.
+- `tf-kernel`: A kernel with `TensorFlow` and commonly used packages preinstalled.
+- `pytorch-kernel`: A kernel with `Pytorch` and commonly used packages preinstalled.
+- `pySpark`:  Sparkmagic's `pyspark` kernel.
+- `Spark`: Sparkmagic's `spark` kernel.
+- `SparkR`: Sparkmagic's `R` kernel.
+
+To configure default  `Livy` Endpoints,  visit [Livy Configuration](#livy-configuration).
+
+
 
 # DAG Runs
 
@@ -1118,7 +1158,7 @@ Workflow Orchestrator allows us to upload Machine Learning models and expose the
 
 ## Default Behavior of different Models
 
-- `Tensorflow Models`: Upload a `.tar` or `.tar.gz` archive of your model. The archive will be extracted in the background, and in < 10 minutes, the model will be exposed via the serving APIs on ports ` 8500` for `gRPC`, `8501` for `REST`. For details on how to access serving APIs, visit [TFX serving guide](https://www.tensorflow.org/tfx/guide/serving). 
+- `Tensorflow Models`: Upload a `.tar` or `.tar.gz` archive of your model. The archive will be extracted in the background, and in < 10 minutes, the model will be exposed via the serving APIs on ports ` 8500` for `gRPC`, `8501` for `REST`. For details on how to access serving APIs, visit [TFX serving guide](https://www.tensorflow.org/tfx/guide/serving).
 - `Spark Models`: Any file can be uploaded in this section. Models added in this section are currently not exposed by an API.
 - `Other Models`: There might be some models which you don't want to serve, but might still need. You can upload a `.tar` or `.tar.gz` of your model and the archive will be extracted in the background. However, Models added in this section are not exposed by an API.
 
@@ -1139,6 +1179,22 @@ Workflow Orchestrator allows us to add and perform Exploratory Data Analysis (ED
    ![eda_run](./images/eda_run.png)
 
 4. Once an output of EDA is generated, it will be in the `Processed Outputs` Section of the same page. Click on the output and you will be redirected to a new tab showing the EDA Results.
+
+# Visualisations
+
+You can directly access `Couture Dashboard` from `Couture Workflow Orchestrator`. To go to Couture Dashboard, from the UI, go to (`Developer`->`Visualisations`). Couture Dashboard is a modern, enterprise-ready business intelligence web application.
+
+Couture Dashboard provides:
+
+- An intuitive interface to explore and visualize datasets, and create interactive dashboards.
+- A wide array of beautiful visualizations to showcase your data.
+- Easy, code-free, user flows to drill down and slice and dice the data underlying exposed dashboards. The dashboards and charts act as a starting point for deeper analysis.
+- A state of the art SQL editor/IDE exposing a rich metadata browser, and an easy workflow to create visualizations out of any result set.
+- An extensible, high granularity security model allowing intricate rules on who can access which product features and datasets. Integration with major authentication backends (database, OpenID, LDAP, OAuth, REMOTE_USER, ...)
+- A lightweight semantic layer, allowing to control how data sources are exposed to the user by defining dimensions and metrics
+- Out of the box support for most SQL-speaking databases
+- Deep integration with Druid allows for Superset to stay blazing fast while slicing and dicing large, realtime datasets
+- Fast loading dashboards with configurable caching.
 
 # Connections
 
