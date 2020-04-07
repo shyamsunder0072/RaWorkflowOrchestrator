@@ -191,15 +191,16 @@ input[type=submit]:hover {
 {% endblock %}
 
 
-{% block body %}
+{% block content %}
 {{ super() }}
 
 
 <body>
 <div class="ccontainer">
+  <h2>{{group}} / {{title}}</h2><br>
   <form action="", method="post" >
     <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
-    <h2>Arguments</h2>
+    <h3>Arguments</h3>
     <div id="container1">
       {%for i in Arguments%}
       <div class="couturerow">
@@ -276,7 +277,7 @@ input[type=submit]:hover {
     <div class="couturerow">
       <a href="javascript:add_feed()" class="couturebutton">Add In Arguments</a>
     </div>
-    <h2>Configurations</h2>
+    <h3>Configurations</h3>
     <div id="container2">
       {%for j in Configurations%}
       <div class="couturerow">

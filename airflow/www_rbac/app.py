@@ -113,6 +113,8 @@ def create_app(config=None, session=None, testing=False, app_name="Workflow"):
             appbuilder.add_view_no_menu(views.Airflow())
             appbuilder.add_view_no_menu(views.ExportConfigsView())
             appbuilder.add_view_no_menu(views.DagModelView())
+            appbuilder.add_view_no_menu(views.SparkConfView())
+            appbuilder.add_view_no_menu(views.KeyTabView())
             appbuilder.add_view(views.DagRunModelView,
                                 "DAG Runs",
                                 category="Browse",
@@ -157,16 +159,16 @@ def create_app(config=None, session=None, testing=False, app_name="Workflow"):
                                 "Configurations",
                                 category="Admin",
                                 category_icon="fa-user")
-            appbuilder.add_view(views.SparkConfView,
-                                "Spark Configuration",
-                                category="Admin",
-                                category_icon="fa-user")
+            # appbuilder.add_view(views.SparkConfView,
+            #                     "Spark Configuration",
+            #                     category="Admin",
+            #                     category_icon="fa-user")
             appbuilder.add_view(views.LivyConfigView,
                                 "Livy Configuration",
                                 category="Admin",
                                 category_icon="fa-user")
             appbuilder.add_view(views.HadoopConfView,
-                                "Hadoop Configuration",
+                                "Spark Hadoop Config Groups",
                                 category="Admin",
                                 category_icon="fa-user")
             appbuilder.add_view(views.SparkDepView,
@@ -177,10 +179,10 @@ def create_app(config=None, session=None, testing=False, app_name="Workflow"):
                                 "LDAP Configuration",
                                 category="Admin",
                                 category_icon="fa-user")
-            appbuilder.add_view(views.KeyTabView,
-                                "Kerberos Configuration",
-                                category="Admin",
-                                category_icon="fa-user")
+            # appbuilder.add_view(views.KeyTabView,
+            #                     "Kerberos Configuration",
+            #                     category="Admin",
+            #                     category_icon="fa-user")
             appbuilder.add_view(views.ConnectionModelView,
                                 "Connections",
                                 category="Admin")

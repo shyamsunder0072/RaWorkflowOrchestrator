@@ -1,0 +1,160 @@
+{% extends "airflow/master.html" %}
+{% block title %}
+{{ title }}
+{% endblock %}
+
+{% block head_css %}
+<meta name="google" content="notranslate">
+{{ super() }}
+<style>
+  .margin-left-md { margin-left: 1em; }
+  .margin-top-md { margin-top: 1em; }
+</style>
+{% endblock %}
+
+{% block content %}
+{{ super() }}
+<div class="container">
+  <div>
+    <h2 class="margin-top-md">{{ title }}</h2>
+    <button class="btn btn-success pull-right" data-toggle="modal" data-target="#addGroup">Add a group</button>
+    {% if default_group %}
+      <a class="btn btn-primary pull-right" href="{{ url_for(view + '.list_view', pathname=default_group) }}">Open default Group</a> &emsp;
+    {% endif %}
+  </div>
+  <div class="modal fade" id="addGroup" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
+    <div class="modal-dialog" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+          <h4 class="modal-title" id="myModalLabel">Add a group</h4>
+        </div>
+        <form method="post" class="form-group">
+        <div class="modal-body">
+            <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
+            <label for="name">Group name</label>
+            <input type="text" name="name" class="form-control" aria-describedby="helpBlock" oninput="checkGroupName(this)" required/>
+            <span id="helpBlock" class="help-block">
+              A group name can only contain <code>A-Z, a-z, _, -, 0-9</code>
+            </span>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+          <button type="submit" class="btn btn-primary">Add</button>
+        </div>
+        </form>
+      </div>
+    </div>
+  </div>
+  <br><br>
+  <div class="input-group">
+    <span class="input-group-addon">Search Group: </span>
+    <input type="text" class="form-control" placeholder="groupname" id="fileSearch">
+  </div>
+  <br>
+  <div class="table-responsive">
+    <table class="table table-bordered table-hover" id="filesTable">
+      <thead>
+        <tr class="table-head">
+          <th colspan="6" class="col-sm-6">Group Name</th>
+          <th colspan="2" class="col-sm-2">Change Default Group</th>
+          <th colspan="3" class="col-sm-3">Configurations</th>
+          <th colspan="1" class="col-sm-1">Delete</th>
+        </tr>
+      </thead>
+      <tbody>
+      <div>
+        {% for group, is_default in groups %}
+        <tr>
+          <td colspan="6" class="col-sm-6">
+              {{group.name}}
+          </td>
+          <td colspan="2" class="col-sm-2">
+            <div>
+              {% if is_default %}
+                <input type="radio" name="default-group" checked> Default group
+              {% else %}
+                <input type="radio" name="default-group" onclick="changeDefaultGroup('{{group.name}}')">
+                Make this group default
+              {% endif %}
+            </div>
+          </td>
+          <td colspan="1" class="col-sm-1">
+            <a href="{{ url_for(view + '.list_view', pathname=group.name) }}">
+              <img height="20" width="20"
+              style="filter: invert(61%) sepia(39%) saturate(4199%) hue-rotate(184deg) brightness(86%) contrast(80%);"
+              src="{{ url_for('static', filename='elephant.svg')}}" data-toggle="tooltip" title="View Hadoop Configuration">
+            </a>
+          </td>
+          <td colspan="1" class="col-sm-1">
+            <a href="{{ url_for('SparkConfView.update_spark_conf', group=group.name) }}">
+              <i class="fa fa-star-o fa-lg" style="transform: rotate(20deg);" aria-hidden="true" data-toggle="tooltip" title="View Spark Configuration"></i>
+            </a>
+          </td>
+          <td colspan="1" class="col-sm-1">
+            <a href="{{ url_for('KeyTabView.update_keytab', group=group.name) }}">
+              <i class="fa fa-key fa-lg" aria-hidden="true" data-toggle="tooltip" title="View Kerberos Configuration"></i>
+            </a>
+          </td>
+          <td colspan="1" class="col-sm-1">
+            {% if not is_default %}
+            <a href="{{ url_for(view + '.delete_group', groupname=group.name) }}" onclick="return confirm('Are you sure to delete {{group.name}}? All the related configs will be deleted?')">
+              <i class="fa fa-trash fa-lg" style="color:red" aria-hidden="true" data-toggle="tooltip" title="Delete Group"></i>
+            </a>
+            {% else %}
+            <a href="#" style="opacity: 0.5; cursor: not-allowed;">
+              <i class="fa fa-trash fa-lg" style="color:red" aria-hidden="true" ></i>
+            </a>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </div>
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+{% block tail_js %}
+{{ super() }}
+<!-- </body> -->
+<script type="text/javascript">
+
+  $(document).ready(function () {
+    $('[data-toggle="tooltip"]').tooltip();
+    $("#fileSearch").on("keyup", function() {
+      var value = $(this).val().toLowerCase();
+      $("#filesTable tr").filter(function() {
+        if ( !$(this).hasClass('table-head'))
+          $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1);
+      });
+    });
+  })
+
+  function changeDefaultGroup(group) {
+    location.href = "{{ url_for(view + '.change_default_group') }}?group=" + group;
+  }
+
+  function groupExists(group) {
+    const groups = [
+      {% for group, is_default in groups %}
+        "{{group.name}}",
+      {% endfor %}
+    ];
+    if( groups.includes(group) ) return true;
+    return false;
+  }
+
+  function checkGroupName(input) {
+    var validGroupName = /^[A-Za-z0-9_-]+$/i.test(input.value);
+    if (validGroupName) {
+      input.setCustomValidity('');
+    } else {
+      input.setCustomValidity('Not a valid Group name.');
+    }
+    if (groupExists(input.value)) {
+      input.setCustomValidity('Group already exists.');
+    }
+  }
+</script>
+{% endblock %}
