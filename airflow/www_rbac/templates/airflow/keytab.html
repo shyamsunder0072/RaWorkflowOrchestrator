@@ -197,21 +197,17 @@ input[type=submit]:hover {
 </style>
 {% endblock %}
 
-{% block body %}
+{% block content %}
 {{ super() }}
 
 <div class="couture-container">
+  <h2>{{group}} / {{title}}</h2><br>
   <form id="display-form" action="" method="post" enctype="multipart/form-data">
     <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
     <div id ="container-upload">
       <div class="couture-row">
-        <div class="couture-col-25">
-          {% if len_keytab>0 %}
-          <h3 style="margin-top:-2%">KeyTab:</h3>
-          {% endif %}
-        </div>
         <div>
-          <input type="file" name="file" id="file-picker" class="couture-inputfile" multiple/>
+          <input type="file" name="file" id="file-picker" class="couture-inputfile" multiple accept=".keytab"/>
           <label for="file-picker" class="file_pick_label">Upload Keytab File</label>
         </div>
       </div>
@@ -225,7 +221,7 @@ input[type=submit]:hover {
           <td width="15%" id="modified_time" class="text-center">{{file_data[i]['time']}}</td>
           <td width="10%" id="size" class="text-center">{{file_data[i]['size']}}</td>
           <td width="5%"> <div class="text-center">
-            <a href="{{ url_for('KeyTabView.download', filename= i) }}">
+            <a href="{{ url_for('KeyTabView.download', group=group, filename= i) }}">
               <i class="fa fa-download" style="font-size:20px;color:blue;line-height: inherit;"></i>
             </a>
           </div>
@@ -255,7 +251,6 @@ input[type=submit]:hover {
                 <select >
                   <option>Click to select keytab files</option>
                 </select>
-                <button onclick="javascript:del_feed('{{i}}')" class="couturebutton-delete" title="Delete Argument"><i class="glyphicon glyphicon-remove-circle" style="color:red; float:right" aria-hidden="true"></i></button>
                 <div class="couture-overSelect"></div>
               </div>
               <div id="couturecheckboxes" ></div>
@@ -270,7 +265,6 @@ input[type=submit]:hover {
         </div>
         <div class="couturecol-75">
           <input id={{i}} name={{i}} type="text" value={{Arguments[i]}}>
-          <button onclick="javascript:del_feed('{{i}}')" class="couture-button-delete" title="Delete Argument"><i class="glyphicon glyphicon-remove-circle" style="color:red" aria-hidden="true"></i></button>
         </div>
         {%endif%}
       </div>

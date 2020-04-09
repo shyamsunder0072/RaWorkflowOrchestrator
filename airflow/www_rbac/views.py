@@ -2789,8 +2789,9 @@ class HadoopConfView(FileUploadBaseView):
     default_view = 'groups_view'
     fs_path = settings.HADOOP_CONFIGS_FOLDER
     accepted_file_extensions = ('.xml', )
-    title = 'Hadoop Configuration Groups'
+    title = 'Spark Hadoop Config Groups'
     files_editable = True
+    groups_template_name = 'airflow/hadoop_upload_groups.html'
 
     def get_default_group_path(self):
         try:
@@ -2879,6 +2880,8 @@ class HadoopConfView(FileUploadBaseView):
             name = request.form.get('name')
             if name and self.regex_valid_groupnames.match(name):
                 os.makedirs(os.path.join(self.fs_path, name), exist_ok=True)
+                # copying default spark config.
+                shutil.copyfile(settings.SPARK_CONF_PATH, os.path.join(self.fs_path, *[name, 'couture-spark.conf']))
                 groups, _ = self.get_groups()
                 if len(groups) <= 1:
                     self._change_default_group(name)
@@ -3214,24 +3217,30 @@ class EDAView(AirflowBaseView, BaseApi):
 class SparkConfView(AirflowBaseView):
     default_view = 'update_spark_conf'
 
-    @expose('/couture_config/', methods=['GET', 'POST'])
+    @expose('/couture_config/<string:group>', methods=['GET', 'POST'])
     @has_access
     @action_logging
-    def update_spark_conf(self):
+    def update_spark_conf(self, group):
+        # print(request.form)
+        title = "Couture Spark Configuration"
         import collections
         import configparser as CP
-        from airflow.configuration import AIRFLOW_HOME
         config = CP.ConfigParser()
         config.optionxform = str
-        conf_path = settings.SPARK_CONF_PATH
-        setup_path = AIRFLOW_HOME + '/../jars'
-        keytab_path = AIRFLOW_HOME + '/keytab'
+        conf_path = os.path.join(settings.HADOOP_CONFIGS_FOLDER, *[group, 'couture-spark.conf'])
+        setup_path = os.path.join(settings.AIRFLOW_HOME, *[os.pardir, 'jars'])
+        keytab_path = os.path.join(settings.HADOOP_CONFIGS_FOLDER, *[group, 'keytab'])
 
-        config.read(filenames=conf_path)
-        # orderedDictionary used so that the order displayed is same as in file
-        args = collections.OrderedDict(config.items('arguments'))
-        configs = collections.OrderedDict(config.items('configurations'))  # dictionary created
-        title = "Couture Spark Configuration"
+        if os.path.exists(conf_path):
+            config.read(filenames=conf_path)
+            # orderedDictionary used so that the order displayed is same as in file
+            args = collections.OrderedDict(config.items('arguments'))
+            configs = collections.OrderedDict(config.items('configurations'))  # dictionary created
+        else:
+            config.add_section('arguments')
+            config.add_section('configurations')
+            args = collections.OrderedDict()
+            configs = collections.OrderedDict()
 
         files = []
         py_files = []
@@ -3327,8 +3336,6 @@ class SparkConfView(AirflowBaseView):
             len_jar = len(files)
             len_py = len(py_files)
             kt_len = len(kt_files)
-            # kt_files = []
-            # kt_len = 0
             return self.render_template(
                 'airflow/couture_config.html',
                 title=title,
@@ -3339,15 +3346,13 @@ class SparkConfView(AirflowBaseView):
                 len_jar=len_jar,
                 len_py=len_py,
                 kt_len=kt_len,
-                kt_Files=kt_files
+                kt_Files=kt_files,
+                group=group
             )
         else:
             len_jar = len(files)
             len_py = len(py_files)
             kt_len = len(kt_files)
-            # kt_files = []
-            # kt_len = 0
-            # pprint.pprint(args)
             return self.render_template(
                 'airflow/couture_config.html',
                 title=title,
@@ -3357,6 +3362,7 @@ class SparkConfView(AirflowBaseView):
                 Files=files, Py_Files=py_files,
                 len_jar=len_jar, len_py=len_py,
                 kt_len=kt_len,
+                group=group,
                 kt_Files=kt_files)
 
 
@@ -3425,15 +3431,15 @@ class HelpView(AirflowBaseView):
 class KeyTabView(AirflowBaseView):
     default_view = 'update_keytab'
 
-    @expose('/keytab', methods=['GET', 'POST'])
+    @expose('/keytab/<string:group>', methods=['GET', 'POST'])
     @has_access
     @action_logging
-    def update_keytab(self):
+    def update_keytab(self, group):
         # NOTE: refactor this method.
-        # title = "KeyTab"
-        from airflow.configuration import AIRFLOW_HOME
-        add_to_dir = AIRFLOW_HOME + '/keytab'
-        file_name = AIRFLOW_HOME + '/keytab/keytab.conf'
+        title = "Kerberos Configuration"
+        add_to_dir = os.path.join(settings.HADOOP_CONFIGS_FOLDER, *[group, 'keytab'])
+        os.makedirs(add_to_dir, exist_ok=True)
+        file_name = os.path.join(add_to_dir, 'keytab.conf')
         principal = ''
         keytab_files = ''
 
@@ -3441,13 +3447,21 @@ class KeyTabView(AirflowBaseView):
         import collections
         config = CP.ConfigParser()
         config.optionxform = str
-        config.read(filenames=file_name)
+
+        if os.path.exists(file_name):
+            config.read(filenames=file_name)
+        if 'arguments' not in config.sections():
+            # Set default values here
+            config.add_section('arguments')
+            config.set('arguments', 'principal', principal)
+            config.set('arguments', 'keytab', keytab_files)
+            with open(file_name, 'w') as f:
+                config.write(f)
+            config.read(filenames=file_name)
         arguments = collections.OrderedDict(config.items('arguments'))
         args = arguments
 
         if request.method == 'POST':
-            config.read(filenames=file_name)
-            arguments = collections.OrderedDict(config.items('arguments'))
             all_files = []
             for r, d, f in os.walk(add_to_dir):
                 for file in f:
@@ -3501,19 +3515,18 @@ class KeyTabView(AirflowBaseView):
                                 file_data[file_name] = temp_dict
                 len_keytab = len(file_data)
 
-                return redirect(url_for('KeyTabView.update_keytab'))
+                return redirect(url_for('KeyTabView.update_keytab', group=group))
             except Exception:
                 print("Sorry ! No file to delete")
 
             target = os.path.join(add_to_dir)
-            if not os.path.isdir(target):
-                os.mkdir(target)
+            os.makedirs(target, exist_ok=True)
 
             try:
                 for f in request.files.getlist("file"):   # for saving a file
                     filename = f.filename
                     # if filename.endswith(".keytab"):
-                    destination = "/".join([target, filename])
+                    destination = os.path.join(target, filename)
                     f.save(destination)
                     AirflowBaseView.audit_logging("keytab_added", filename, request.environ['REMOTE_ADDR'])
                     flash('File Uploaded!!',
@@ -3525,18 +3538,20 @@ class KeyTabView(AirflowBaseView):
             file_data = self.get_details(add_to_dir, ".keytab")
             len_keytab = len(file_data)
 
-            file_name = AIRFLOW_HOME + '/keytab/keytab.conf'
             with open(file_name, 'w') as configfile:
                 config.write(configfile)
 
-            conf_path = AIRFLOW_HOME + '/couture-spark.conf'
-            config.read(filenames=conf_path)
+            conf_path = os.path.join(settings.HADOOP_CONFIGS_FOLDER, *[group, 'couture-spark.conf'])
+            if os.path.exists(conf_path):
+                config.read(filenames=conf_path)
+            else:
+                config.add_section('arguments')
             config.set('arguments', 'principal', principal)
             config.set('arguments', 'keytab', keytab_files)
             with open(conf_path, 'w') as configfile:
                 config.write(configfile)
 
-            return redirect(url_for('KeyTabView.update_keytab'))
+            return redirect(url_for('KeyTabView.update_keytab', group=group))
 
         else:
             file_data = self.get_details(add_to_dir, ".keytab")
@@ -3547,16 +3562,17 @@ class KeyTabView(AirflowBaseView):
                     if file.endswith(".keytab"):
                         all_files.append(file)
             return self.render_template('airflow/keytab.html',
+                                        title=title,
+                                        group=group,
                                         file_data=file_data,
                                         Arguments=args,
                                         len_keytab=len_keytab,
                                         Files=all_files)
 
-    @expose("/keytab_download/<string:filename>", methods=['GET', 'POST'])
+    @expose("/keytab_download/<string:group>/<string:filename>", methods=['GET', 'POST'])
     @has_access
-    def download(self, filename):  # for downloading the file passed in the filename
-        from airflow.configuration import AIRFLOW_HOME
-        add_to_dir = AIRFLOW_HOME + '/keytab'
+    def download(self, group, filename):  # for downloading the file passed in the filename
+        add_to_dir = os.path.join(settings.HADOOP_CONFIGS_FOLDER, *[group])
         path_file = os.path.join(add_to_dir, filename)
         return send_file(path_file, as_attachment=True, conditional=True)
 
