@@ -3161,21 +3161,8 @@ class EDAView(AirflowBaseView, BaseApi):
         username = g.user.username
         now = datetime.now()
         folder_to_copy_sum = "-".join([
-            Path(eda_source.connection_uri).resolve().stem,
+            Path(eda_source.connection_uri).stem,
             now.strftime("%d-%m-%Y-%H-%M-%S")])
-
-        viz_dag_id = "-".join([
-            "EDAPreliminaryVisualisation",
-            Path(eda_source.connection_uri).resolve().stem,
-            now.strftime("%d-%m-%Y-%H-%M-%S")])
-        code = self.render_template('dags/default_EDA_preliminary_visualisations.jinja2',
-                                    username=username,
-                                    dag_id=viz_dag_id,
-                                    source=eda_source,
-                                    folder_to_copy_sum=folder_to_copy_sum,
-                                    now=now)
-        with open(os.path.join(settings.DAGS_FOLDER, viz_dag_id + '.py'), 'w') as dag_file:
-            dag_file.write(code)
 
         summ_dag_id = "-".join([
             "EDAPreliminaryDataSummary",
@@ -3188,6 +3175,20 @@ class EDAView(AirflowBaseView, BaseApi):
                                     folder_to_copy_sum=folder_to_copy_sum,
                                     now=now)
         with open(os.path.join(settings.DAGS_FOLDER, summ_dag_id + '.py'), 'w') as dag_file:
+            dag_file.write(code)
+
+        viz_dag_id = "-".join([
+            "EDAPreliminaryVisualisation",
+            Path(eda_source.connection_uri).resolve().stem,
+            now.strftime("%d-%m-%Y-%H-%M-%S")])
+        code = self.render_template('dags/default_EDA_preliminary_visualisations.jinja2',
+                                    username=username,
+                                    dag_id=viz_dag_id,
+                                    source=eda_source,
+                                    summ_dag_id=summ_dag_id,
+                                    folder_to_copy_sum=folder_to_copy_sum,
+                                    now=now)
+        with open(os.path.join(settings.DAGS_FOLDER, viz_dag_id + '.py'), 'w') as dag_file:
             dag_file.write(code)
         return (viz_dag_id, summ_dag_id)
 

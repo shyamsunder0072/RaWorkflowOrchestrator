@@ -17,7 +17,7 @@ code_artifact = 'obelisk-eda.jar'
 # folder_to_copy_summary = 'productAttributes/preliminary'
 folder_to_copy_summary = '{{folder_to_copy_sum}}'
 
-intermediateContainerDirPath = Path(EDA_HOME).joinpath(*["inputs", folder_to_copy_summary])
+intermediateContainerDirPath = Path(EDA_HOME).joinpath(*["inputs", folder_to_copy_summary, "preliminary"])
 
 # folders containing table_info and preliminary_summary inside intermediateContainerDirPath
 intermediateContainerDirPath_1 = intermediateContainerDirPath.joinpath("table_info")
@@ -45,7 +45,7 @@ EDADag = DAG(
 
 EDAPreliminaryDataSummary = DagOperator(
     task_id='EDAPreliminaryDataSummary',
-    run_dag_id='EDAPreliminaryDataSummary',
+    run_dag_id='{{summ_dag_id}}',
     dag=EDADag,
     description=''
 )

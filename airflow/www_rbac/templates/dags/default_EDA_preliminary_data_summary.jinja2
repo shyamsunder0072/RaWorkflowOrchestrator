@@ -41,17 +41,17 @@ rawDirPath = uripath
 # processedDirPath = '/data/eda/processed/outputfiles/' + file_folder + "/" + "preliminary" + "/"
 
 # dfs create dir.
-processedDirPath = Path('/data/eda/processed/outputfiles/').joinpath(*[
-    file_folder,
-    '{{folder_to_copy_sum}}',
-    'preliminary'])
+processedDirPath = str(Path('/data/eda/processed/outputfiles/').joinpath(*[folder_to_copy_summary, "preliminary"]))
+
+if not processedDirPath.endswith('/'):
+  processedDirPath += '/'
 
 
 # local file path is the file path on the webserver, where we want to output
 # keep preliminary data
 
 # This path is the same as intermediateContainerDirPath in EDA_preliminary_visualisations
-localFilePath = Path(EDA_HOME).joinpath(*['inputs', folder_to_copy_summary])
+localFilePath = Path(EDA_HOME).joinpath(*['inputs', folder_to_copy_summary, 'preliminary'])
 
 # folder_to_copy_summary = str(uuid.uuid4())
 # folder_to_copy_summary = file_folder + "_preliminary_{{dag_id}}/"
@@ -105,9 +105,9 @@ GeneratePreliminarySummaryHDFS = CoutureSparkOperator(
     app_name=appName,
     class_path=classPath,
     code_artifact=code_artifact,
-    input_base_dir_path=rawDirPath,
-    output_base_dir_path=processedDirPath,
-    input_filenames_dict={"data": file_name},
+    input_base_dir_path=str(rawDirPath),
+    output_base_dir_path=str(processedDirPath),
+    input_filenames_dict={"data": str(file_name)},
     output_filenames_dict={"preliminary_data_summary": "preliminary_summary"},
     dag=EDADag,
     description='')
@@ -132,9 +132,9 @@ GetTableInfo = CoutureSparkOperator(
     app_name=appName,
     class_path=classPath,
     code_artifact=code_artifact,
-    input_base_dir_path=rawDirPath,
-    output_base_dir_path=processedDirPath,
-    input_filenames_dict={"data": file_name},
+    input_base_dir_path=str(rawDirPath),
+    output_base_dir_path=str(processedDirPath),
+    input_filenames_dict={"data": str(file_name)},
     output_filenames_dict={"data_info": "table_info"},
     dag=EDADag,
     description='')
