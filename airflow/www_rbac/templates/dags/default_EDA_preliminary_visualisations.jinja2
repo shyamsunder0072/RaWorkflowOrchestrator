@@ -1,0 +1,67 @@
+import pprint
+from pathlib import Path
+from datetime import datetime, timedelta
+
+from airflow import DAG
+from airflow.settings import EDA_HOME
+from airflow.operators.dag_operator import DagOperator
+from airflow.operators.bash_operator import BashOperator
+
+pp = pprint.PrettyPrinter(indent=4)
+
+classPath = 'ai.couture.obelisk.eda.MainClass'
+appName = 'EDAVisualisations'
+code_artifact = 'obelisk-eda.jar'
+
+# folder_to_copy_summary = str(uuid.uuid4())
+# folder_to_copy_summary = 'productAttributes/preliminary'
+folder_to_copy_summary = '{{folder_to_copy_sum}}'
+
+intermediateContainerDirPath = Path(EDA_HOME).joinpath(*["inputs", folder_to_copy_summary])
+
+# folders containing table_info and preliminary_summary inside intermediateContainerDirPath
+intermediateContainerDirPath_1 = intermediateContainerDirPath.joinpath("table_info")
+intermediateContainerDirPath_2 = intermediateContainerDirPath.joinpath("preliminary_summary")
+
+# file where output will be dumped.
+intermediateContainerOutputPath = Path(EDA_HOME).joinpath(*["outputs", folder_to_copy_summary, "preliminary_data_info.html"])
+
+# create paths to input output if not exists
+intermediateContainerDirPath.mkdir(parents=True, exist_ok=True)
+intermediateContainerOutputPath.parent.mkdir(parents=True, exist_ok=True)
+
+
+default_args = {
+    'owner': '{{username}}',
+    'depends_on_past': False,
+    'start_date': datetime({{now.year}}, {{now.month}}, {{now.day}}),
+    'retries': 0,
+}
+
+EDADag = DAG(
+    '{{dag_id}}',
+    default_args=default_args,
+    schedule_interval='@once')
+
+EDAPreliminaryDataSummary = DagOperator(
+    task_id='EDAPreliminaryDataSummary',
+    run_dag_id='EDAPreliminaryDataSummary',
+    dag=EDADag,
+    description=''
+)
+
+EDAPreliminaryVisualisation = BashOperator(
+    task_id='EDAPreliminaryVisualisation',
+    dag=EDADag,
+    description='EDAPreliminaryVisualisation',
+    bash_command='python3 {} {} {} {}'.format(
+        Path(EDA_HOME).joinpath('preliminary_visualisation.py'),
+        intermediateContainerDirPath_1,
+        intermediateContainerDirPath_2,
+        intermediateContainerOutputPath)
+)
+
+# hdfs dfs -get source/path dest/path
+
+# EDAUniVariateVisualisations.set_upstream(EDAUniVariateSummary)
+EDAPreliminaryVisualisation.set_upstream(EDAPreliminaryDataSummary)

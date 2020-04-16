@@ -3156,6 +3156,55 @@ class EDAView(AirflowBaseView, BaseApi):
             flash('Source Added.')
         return redirect(url_for('EDAView.source_view'))
 
+    def create_eda_dags(self, eda_source):
+
+        username = g.user.username
+        now = datetime.now()
+        folder_to_copy_sum = "-".join([
+            Path(eda_source.connection_uri).resolve().stem,
+            now.strftime("%d-%m-%Y-%H-%M-%S")])
+
+        viz_dag_id = "-".join([
+            "EDAPreliminaryVisualisation",
+            Path(eda_source.connection_uri).resolve().stem,
+            now.strftime("%d-%m-%Y-%H-%M-%S")])
+        code = self.render_template('dags/default_EDA_preliminary_visualisations.jinja2',
+                                    username=username,
+                                    dag_id=viz_dag_id,
+                                    source=eda_source,
+                                    folder_to_copy_sum=folder_to_copy_sum,
+                                    now=now)
+        with open(os.path.join(settings.DAGS_FOLDER, viz_dag_id + '.py'), 'w') as dag_file:
+            dag_file.write(code)
+
+        summ_dag_id = "-".join([
+            "EDAPreliminaryDataSummary",
+            Path(eda_source.connection_uri).resolve().stem,
+            now.strftime("%d-%m-%Y-%H-%M-%S")])
+        code = self.render_template('dags/default_EDA_preliminary_data_summary.jinja2',
+                                    username=username,
+                                    dag_id=summ_dag_id,
+                                    source=eda_source,
+                                    folder_to_copy_sum=folder_to_copy_sum,
+                                    now=now)
+        with open(os.path.join(settings.DAGS_FOLDER, summ_dag_id + '.py'), 'w') as dag_file:
+            dag_file.write(code)
+        return (viz_dag_id, summ_dag_id)
+
+    @expose('/eda/run/<int:source>', methods=['GET', 'POST'])
+    @has_access
+    @csrf.exempt
+    @action_logging
+    def run_view(self, source):
+        eda_source = models.EdaSource.get_by_id(source_id=source)
+        dag_ids = self.create_eda_dags(eda_source)
+        _parse_dags(update_DagModel=True)
+
+        for dag_id in dag_ids:
+            unpause_dag(dag_id)
+        flash('EDA run on Source: {} has been scheduled.'.format(eda_source.connection_uri))
+        return redirect(url_for('EDAView.source_view'))
+
     @expose('/eda/api/', methods=['POST'])
     # @has_access
     @csrf.exempt

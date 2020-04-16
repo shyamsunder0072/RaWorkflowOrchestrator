@@ -1,0 +1,172 @@
+from datetime import datetime, timedelta
+from pathlib import Path
+import os
+from airflow import DAG
+from airflow.operators import CoutureSparkOperator
+from airflow.operators.bash_operator import BashOperator
+from airflow.operators.python_operator import BranchPythonOperator
+from airflow.settings import EDA_HOME
+
+
+classPath = 'ai.couture.obelisk.eda.MainClass'
+appName = 'EDAUniVariateBriefDataSummary'
+code_artifact = 'obelisk-eda.jar'
+
+# Database testing URI
+# uripath = "mysql://couture:couture@mysql/couture"
+# file_name = "dag_run"
+
+# HDFS testing URI
+# uri = 'hdfs://data/ecomm/ajio/processed/productAttributes'
+uri = '{{source.connection_uri}}'
+file_name = uri.split("/")[-1]
+file_folder = file_name.split(".")[0]
+uripath = uri.split(":/")[1].replace(file_name, "")
+
+folder_to_copy_summary = '{{folder_to_copy_sum}}'
+
+
+def get_source():
+    if "hdfs" in uri:
+        source = "GeneratePreliminarySummaryHDFS"
+    else:
+        source = "GeneratePreliminarySummaryDB"
+    return source
+
+
+source = get_source()
+
+
+rawDirPath = uripath
+# processedDirPath = '/data/eda/processed/outputfiles/' + file_folder + "/" + "preliminary" + "/"
+
+# dfs create dir.
+processedDirPath = Path('/data/eda/processed/outputfiles/').joinpath(*[
+    file_folder,
+    '{{folder_to_copy_sum}}',
+    'preliminary'])
+
+
+# local file path is the file path on the webserver, where we want to output
+# keep preliminary data
+
+# This path is the same as intermediateContainerDirPath in EDA_preliminary_visualisations
+localFilePath = Path(EDA_HOME).joinpath(*['inputs', folder_to_copy_summary])
+
+# folder_to_copy_summary = str(uuid.uuid4())
+# folder_to_copy_summary = file_folder + "_preliminary_{{dag_id}}/"
+
+intermediateContainerDirPath = Path(EDA_HOME).joinpath(*["inputs", folder_to_copy_summary])
+intermediateContainerOutputDirPath = Path(EDA_HOME).joinpath(*["outputs", folder_to_copy_summary])
+
+intermediateContainerDirPath.mkdir(parents=True, exist_ok=True)
+intermediateContainerOutputDirPath.mkdir(parents=True, exist_ok=True)
+
+
+# make path if not exists
+if source != "GeneratePreliminarySummaryHDFS":
+    localFilePath.mkdir(parents=True, exist_ok=True)
+
+
+# intermediateContainerOutputDirPath.joinpath('univariate').mkdir(parents=True, exist_ok=True)
+# intermediateContainerOutputDirPath.joinpath('multivariate').mkdir(parents=True, exist_ok=True)
+
+date = datetime(2020, 3, 6)
+
+default_args = {
+    'owner': '{{username}}',
+    'depends_on_past': False,
+    'start_date': datetime({{now.year}}, {{now.month}}, {{now.day}}),
+    'retries': 0,
+}
+
+EDADag = DAG(
+    '{{dag_id}}',
+    default_args=default_args,
+    schedule_interval=None)
+
+
+op_kwargs = {
+    'uri': uripath,
+    'input_file_path': rawDirPath,
+    'local_output_path': localFilePath,
+    'output_file_path': processedDirPath,
+    'table_name': file_name
+}
+
+branch_task = BranchPythonOperator(
+    task_id='branching',
+    python_callable=get_source,
+    dag=EDADag,
+)
+
+GeneratePreliminarySummaryHDFS = CoutureSparkOperator(
+    task_id='GeneratePreliminarySummaryHDFS',
+    app_name=appName,
+    class_path=classPath,
+    code_artifact=code_artifact,
+    input_base_dir_path=rawDirPath,
+    output_base_dir_path=processedDirPath,
+    input_filenames_dict={"data": file_name},
+    output_filenames_dict={"preliminary_data_summary": "preliminary_summary"},
+    dag=EDADag,
+    description='')
+
+GeneratePreliminarySummaryHDFS.set_upstream(branch_task)
+
+
+GeneratePreliminarySummaryDB = BashOperator(
+    task_id='GeneratePreliminarySummaryDB',
+    depends_on_past=False,
+    bash_command='python3 "{}" "{}" "{}" "{}"'.format(
+        os.path.join(EDA_HOME, "codes/preliminary_summary_db.py"),
+        op_kwargs['uri'], op_kwargs['table_name'],
+        op_kwargs['local_output_path']),
+    dag=EDADag
+)
+
+GeneratePreliminarySummaryDB.set_upstream(branch_task)
+
+GetTableInfo = CoutureSparkOperator(
+    task_id='GetTableInformation',
+    app_name=appName,
+    class_path=classPath,
+    code_artifact=code_artifact,
+    input_base_dir_path=rawDirPath,
+    output_base_dir_path=processedDirPath,
+    input_filenames_dict={"data": file_name},
+    output_filenames_dict={"data_info": "table_info"},
+    dag=EDADag,
+    description='')
+
+# WriteBriefSummaryToLocal =
+GetTableInfo.set_upstream(GeneratePreliminarySummaryHDFS)
+
+
+def true_cmd(del_directory_cmd, copy_directory_cmd):
+    if os.path.isdir(del_directory_cmd):
+        return del_directory_cmd + ' && ' + copy_directory_cmd
+    else:
+        return copy_directory_cmd
+
+
+del_directory_cmd = 'rm -r {}'.format(Path(intermediateContainerDirPath))
+copy_directory_cmd = 'hdfs dfs -get {} {}'.format(Path(processedDirPath), intermediateContainerDirPath)
+cmd = true_cmd(del_directory_cmd, copy_directory_cmd)
+CopyFilesToLocal = BashOperator(
+    task_id='CopySummaryData',
+    dag=EDADag,
+    description='',
+    bash_command=cmd
+)
+
+CopyFilesToLocal.set_upstream(GetTableInfo)
+
+
+def conditionally_trigger(context, dag_run_obj):
+    c_p = context['params']['condition_param']
+    print("Controller DAG : conditionally_trigger = {}".format(c_p))
+    if context['params']['condition_param']:
+        dag_run_obj.payload = {'message': context['params']['message']}
+        pp.pprint(dag_run_obj.payload)
+        return dag_run_obj

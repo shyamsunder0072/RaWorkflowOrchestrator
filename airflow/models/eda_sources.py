@@ -42,6 +42,15 @@ class EdaSource(Base):
 
     @classmethod
     @provide_session
+    def get_by_id(cls,
+                  source_id,
+                  session=None):
+        instance = session.query(cls).filter(cls.id == source_id).first()
+
+        return instance
+
+    @classmethod
+    @provide_session
     def all_sources(cls, session=None):
         return session.query(cls).all()
 

@@ -201,7 +201,7 @@ input[type=submit]:hover {
 {{ super() }}
 
 <div class="couture-container">
-  <h2>{{group}} / {{title}}</h2><br>
+  <h2>{{title}} - {{group}} </h2><br>
   <form id="display-form" action="" method="post" enctype="multipart/form-data">
     <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
     <div id ="container-upload">
