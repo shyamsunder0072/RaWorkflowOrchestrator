@@ -3838,7 +3838,7 @@ class LivyConfigView(AirflowBaseView):
         try:
             with open(self.fs_path) as f:
                 return json.load(f)
-        except FileNotFoundError:
+        except (FileNotFoundError, json.decoder.JSONDecodeError,):
             default = {}
             for section in self.get_sections():
                 default[section] = {}
