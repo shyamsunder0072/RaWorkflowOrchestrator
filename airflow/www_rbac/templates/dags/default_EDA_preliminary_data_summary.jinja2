@@ -1,10 +1,12 @@
-from datetime import datetime, timedelta
-from pathlib import Path
 import os
+import shutil
+
+from datetime import datetime
+from pathlib import Path
 from airflow import DAG
 from airflow.operators import CoutureSparkOperator
 from airflow.operators.bash_operator import BashOperator
-from airflow.operators.python_operator import BranchPythonOperator
+from airflow.operators.python_operator import BranchPythonOperator, PythonOperator
 from airflow.settings import EDA_HOME
 
 
@@ -38,40 +40,29 @@ source = get_source()
 
 
 rawDirPath = uripath
-# processedDirPath = '/data/eda/processed/outputfiles/' + file_folder + "/" + "preliminary" + "/"
 
 # dfs create dir.
-processedDirPath = str(Path('/data/eda/processed/outputfiles/').joinpath(*[folder_to_copy_summary, "preliminary"]))
+HdfsProcessedDirPath = str(Path('/data/eda/processed/outputfiles/').joinpath(*[folder_to_copy_summary, "preliminary"]))
 
-if not processedDirPath.endswith('/'):
-  processedDirPath += '/'
+if not HdfsProcessedDirPath.endswith('/'):
+    HdfsProcessedDirPath += '/'
 
 
 # local file path is the file path on the webserver, where we want to output
 # keep preliminary data
 
-# This path is the same as intermediateContainerDirPath in EDA_preliminary_visualisations
-localFilePath = Path(EDA_HOME).joinpath(*['inputs', folder_to_copy_summary, 'preliminary'])
+# This path is the same as data_dump_dir in EDA_preliminary_visualisations
+data_dump_dir = Path(EDA_HOME).joinpath(*['inputs', folder_to_copy_summary, 'preliminary'])
 
-# folder_to_copy_summary = str(uuid.uuid4())
-# folder_to_copy_summary = file_folder + "_preliminary_{{dag_id}}/"
-
-intermediateContainerDirPath = Path(EDA_HOME).joinpath(*["inputs", folder_to_copy_summary])
-intermediateContainerOutputDirPath = Path(EDA_HOME).joinpath(*["outputs", folder_to_copy_summary])
-
-intermediateContainerDirPath.mkdir(parents=True, exist_ok=True)
-intermediateContainerOutputDirPath.mkdir(parents=True, exist_ok=True)
+data_dump_dir_hdfs = Path(EDA_HOME).joinpath(*["inputs", folder_to_copy_summary])
 
 
-# make path if not exists
-if source != "GeneratePreliminarySummaryHDFS":
-    localFilePath.mkdir(parents=True, exist_ok=True)
+def mkdir_dirs(ds, **kwargs):
+    if source != "GeneratePreliminarySummaryHDFS":
+        data_dump_dir.mkdir(parents=True, exist_ok=True)
+    else:
+        data_dump_dir_hdfs.mkdir(parents=True, exist_ok=True)
 
-
-# intermediateContainerOutputDirPath.joinpath('univariate').mkdir(parents=True, exist_ok=True)
-# intermediateContainerOutputDirPath.joinpath('multivariate').mkdir(parents=True, exist_ok=True)
-
-date = datetime(2020, 3, 6)
 
 default_args = {
     'owner': '{{username}}',
@@ -85,14 +76,12 @@ EDADag = DAG(
     default_args=default_args,
     schedule_interval=None)
 
-
-op_kwargs = {
-    'uri': uripath,
-    'input_file_path': rawDirPath,
-    'local_output_path': localFilePath,
-    'output_file_path': processedDirPath,
-    'table_name': file_name
-}
+EDAPreliminaryCreateDirs = PythonOperator(
+    task_id='CreateDirs',
+    provide_context=True,
+    python_callable=mkdir_dirs,
+    dag=EDADag
+)
 
 branch_task = BranchPythonOperator(
     task_id='branching',
@@ -100,32 +89,42 @@ branch_task = BranchPythonOperator(
     dag=EDADag,
 )
 
+CreateOutputHDFSPathIfNotExists = BashOperator(
+    task_id='CreateOutputHDFSPathIfNotExists',
+    dag=EDADag,
+    description='',
+    bash_command='hdfs dfs -mkdir -p {}'.format(Path(HdfsProcessedDirPath).parent)
+)
+
 GeneratePreliminarySummaryHDFS = CoutureSparkOperator(
-    task_id='GeneratePreliminarySummaryHDFS',
+    task_id='GenerateSummaryHDFS',
     app_name=appName,
     class_path=classPath,
     code_artifact=code_artifact,
     input_base_dir_path=str(rawDirPath),
-    output_base_dir_path=str(processedDirPath),
+    output_base_dir_path=str(HdfsProcessedDirPath),
     input_filenames_dict={"data": str(file_name)},
     output_filenames_dict={"preliminary_data_summary": "preliminary_summary"},
     dag=EDADag,
     description='')
 
-GeneratePreliminarySummaryHDFS.set_upstream(branch_task)
 
+# only used with "GeneratePreliminarySummaryDB"
+op_kwargs = {
+    'uri': '{{source.connection_uri}}',
+    'local_output_path': data_dump_dir,
+    'table_name': '{{source.tablename}}'
+}
 
 GeneratePreliminarySummaryDB = BashOperator(
-    task_id='GeneratePreliminarySummaryDB',
+    task_id='GenerateSummaryDB',
     depends_on_past=False,
     bash_command='python3 "{}" "{}" "{}" "{}"'.format(
-        os.path.join(EDA_HOME, "codes/preliminary_summary_db.py"),
+        os.path.join(EDA_HOME, *["codes", "preliminary_summary_db.py"]),
         op_kwargs['uri'], op_kwargs['table_name'],
         op_kwargs['local_output_path']),
     dag=EDADag
 )
-
-GeneratePreliminarySummaryDB.set_upstream(branch_task)
 
 GetTableInfo = CoutureSparkOperator(
     task_id='GetTableInformation',
@@ -133,14 +132,11 @@ GetTableInfo = CoutureSparkOperator(
     class_path=classPath,
     code_artifact=code_artifact,
     input_base_dir_path=str(rawDirPath),
-    output_base_dir_path=str(processedDirPath),
+    output_base_dir_path=str(HdfsProcessedDirPath),
     input_filenames_dict={"data": str(file_name)},
     output_filenames_dict={"data_info": "table_info"},
     dag=EDADag,
     description='')
-
-# WriteBriefSummaryToLocal =
-GetTableInfo.set_upstream(GeneratePreliminarySummaryHDFS)
 
 
 def true_cmd(del_directory_cmd, copy_directory_cmd):
@@ -150,8 +146,8 @@ def true_cmd(del_directory_cmd, copy_directory_cmd):
         return copy_directory_cmd
 
 
-del_directory_cmd = 'rm -r {}'.format(Path(intermediateContainerDirPath))
-copy_directory_cmd = 'hdfs dfs -get {} {}'.format(Path(processedDirPath), intermediateContainerDirPath)
+del_directory_cmd = 'rm -r {}'.format(Path(data_dump_dir_hdfs))
+copy_directory_cmd = 'hdfs dfs -get {} {}'.format(Path(HdfsProcessedDirPath), data_dump_dir_hdfs)
 cmd = true_cmd(del_directory_cmd, copy_directory_cmd)
 CopyFilesToLocal = BashOperator(
     task_id='CopySummaryData',
@@ -160,13 +156,19 @@ CopyFilesToLocal = BashOperator(
     bash_command=cmd
 )
 
-CopyFilesToLocal.set_upstream(GetTableInfo)
-
 
 def conditionally_trigger(context, dag_run_obj):
     c_p = context['params']['condition_param']
     print("Controller DAG : conditionally_trigger = {}".format(c_p))
     if context['params']['condition_param']:
         dag_run_obj.payload = {'message': context['params']['message']}
-        pp.pprint(dag_run_obj.payload)
+        # pp.pprint(dag_run_obj.payload)
         return dag_run_obj
+
+
+branch_task.set_upstream(EDAPreliminaryCreateDirs)
+CreateOutputHDFSPathIfNotExists.set_upstream(branch_task)
+GeneratePreliminarySummaryHDFS.set_upstream(CreateOutputHDFSPathIfNotExists)
+GeneratePreliminarySummaryDB.set_upstream(branch_task)
+GetTableInfo.set_upstream(GeneratePreliminarySummaryHDFS)
+CopyFilesToLocal.set_upstream(GetTableInfo)

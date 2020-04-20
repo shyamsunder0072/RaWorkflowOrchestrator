@@ -27,9 +27,9 @@
     <button type="button" class="btn btn-primary pull-right margin-left-md" data-toggle="modal" data-target="#newSourceHDFS">
       HDFS
     </button>
-    <!-- <button type="button" class="btn btn-info pull-right margin-left-md" data-toggle="modal" data-target="#newSourceFileUpload">
+    <button type="button" class="btn btn-info pull-right margin-left-md" data-toggle="modal" data-target="#newSourceFileUpload">
       Excel/CSV/TSV
-    </button> -->
+    </button>
     <a href="#" class="btn btn-warning pull-right margin-left-md" id="db-link">
       SQL Database
     </a>
@@ -96,6 +96,7 @@
       </div>
       <form method="POST" action="{{ url_for('EDAView.source_view') }}">
         <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
+        <input name="type" type="hidden" value="{{ source_types.hdfs.value }}">
         <div class="modal-body">
         <div class="form-group">
           <label for="path">Enter source: </label>
@@ -118,13 +119,13 @@
         <h4 class="modal-title" id="myModalLabel">Add a new data source</h4>
       </div>
       <!-- TODO: Change action url -->
-      <form method="POST" action="{{ url_for('EDAView.source_view') }}">
+      <form method="POST" action="{{ url_for('EDAView.source_view') }}" enctype="multipart/form-data">
         <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
         <div class="modal-body">
           <div class="form-group">
             <label for="inputFile">Choose source</label>
-            <input type="file" accept=".xlsx, .xlx, .csv, .tsv">
-            <p class="help-block">Only <code>.xlsx, .xlx, .csv, .tsv</code> file extensions allowed</p>
+            <input type="file" accept=".xlsx, .xls, .csv, .tsv" name="file">
+            <p class="help-block">Only <code>.xlsx, .xls, .csv, .tsv</code> file extensions allowed</p>
           </div>
       </div>
       <div class="modal-footer">

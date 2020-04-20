@@ -86,7 +86,7 @@ from airflow.www_rbac.forms import (ConnectionForm, DagRunForm, DateTimeForm,
                                     DateTimeWithNumRunsWithDagRunsForm)
 from airflow.www_rbac.mixins import GitIntegrationMixin
 from airflow.www_rbac.widgets import AirflowModelListWidget
-from airflow.www_rbac.utils import unpause_dag
+from airflow.www_rbac.utils import unpause_dag, move_to_hdfs
 
 
 PAGE_SIZE = conf.getint('webserver', 'page_size')
@@ -3087,6 +3087,7 @@ class ExportConfigsView(AirflowBaseView, BaseApi):
 class EDAView(AirflowBaseView, BaseApi):
     default_view = 'source_view'
     output_path = os.path.join(settings.EDA_HOME, *['outputs'])
+    temp_save_path = os.path.join(settings.EDA_HOME, *['tmp'])
     sources_key = 'EDA_Sources'
 
     def __init__(self, *args, **kwargs):
@@ -3146,20 +3147,43 @@ class EDAView(AirflowBaseView, BaseApi):
             outputs = json.dumps(self.get_outputs())
             return self.render_template('eda/eda_sources.html',
                                         sources=sources,
+                                        source_types=models.EdaSourcesEnum,
                                         outputs=outputs)
         conn_uri = request.form.get('path')
-        # print(request.form)
-        if not conn_uri:
-            flash('Invalid source path.')
-        else:
+        if not conn_uri and not request.files.get('file'):
+            flash('Invalid source.', category='warning')
+        elif request.form.get('type') == models.EdaSourcesEnum.hdfs.value:
             self.add_source(conn_uri, source_type=models.EdaSourcesEnum.hdfs.value)
-            flash('Source Added.')
+        else:
+            file = request.files.get('file')
+            file.save(self.temp_save_path)
+            move_to_hdfs_thread = threading.Thread(
+                target=move_to_hdfs,
+                args=(os.path.join(self.temp_save_path, file.filename)))
+            move_to_hdfs_thread.start()
+            # move data to hdfs
+        flash('Source Added.')
         return redirect(url_for('EDAView.source_view'))
 
     def create_eda_dags(self, eda_source):
 
         username = g.user.username
         now = datetime.now()
+
+        if eda_source.source_type == models.EdaSourcesEnum.hdfs:
+            output_dirs = [
+                Path(eda_source.connection_uri).resolve().stem,
+                'preliminary',
+                now.strftime('%Y-%m-%d-%H:%M:%S')
+            ]
+        else:
+            output_dirs = [
+                f'{Path(eda_source.connection_uri).resolve().stem}-{eda_source.tablename}',
+                'preliminary',
+                now.strftime('%Y-%m-%d-%H:%M:%S')
+            ]
+
+        # folder_to_copy_sum is an intermediate directory
         folder_to_copy_sum = "-".join([
             Path(eda_source.connection_uri).stem,
             now.strftime("%d-%m-%Y-%H-%M-%S")])
@@ -3185,11 +3209,16 @@ class EDAView(AirflowBaseView, BaseApi):
                                     username=username,
                                     dag_id=viz_dag_id,
                                     source=eda_source,
+                                    output_dirs=output_dirs,
                                     summ_dag_id=summ_dag_id,
                                     folder_to_copy_sum=folder_to_copy_sum,
                                     now=now)
         with open(os.path.join(settings.DAGS_FOLDER, viz_dag_id + '.py'), 'w') as dag_file:
             dag_file.write(code)
+
+        flash_msg = 'EDA run on Source: {} has been scheduled. '.format(str(eda_source)) + \
+            'Output will be found in "{}" directory.'.format('/'.join(output_dirs))
+        flash(flash_msg)
         return (viz_dag_id, summ_dag_id)
 
     @expose('/eda/run/<int:source>', methods=['GET', 'POST'])
@@ -3203,7 +3232,6 @@ class EDAView(AirflowBaseView, BaseApi):
 
         for dag_id in dag_ids:
             unpause_dag(dag_id)
-        flash('EDA run on Source: {} has been scheduled.'.format(eda_source.connection_uri))
         return redirect(url_for('EDAView.source_view'))
 
     @expose('/eda/api/', methods=['POST'])
@@ -3768,6 +3796,7 @@ class JupyterNotebookView(GitIntegrationMixin, AirflowBaseView):
 
 class GitConfigView(GitIntegrationMixin, AirflowBaseView):
     default_view = 'git_config_view'
+    fs_path = None
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

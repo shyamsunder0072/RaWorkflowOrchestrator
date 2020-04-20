@@ -57,11 +57,12 @@ class GitIntegrationMixin:
     @property
     def repo(self):
         if not self._repo:
-            try:
-                # creating git repo if it doesn't exists.
-                self._repo = git.Repo.init(self.fs_path)
-            except Exception as e:
-                log.error(e)
+            if self.fs_path:
+                try:
+                    # creating git repo if it doesn't exists.
+                    self._repo = git.Repo.init(self.fs_path)
+                except Exception as e:
+                    log.error(e)
         return self._repo
 
     @classmethod

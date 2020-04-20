@@ -26,6 +26,7 @@ import json
 import time
 import markdown
 import re
+import subprocess
 import zipfile
 import os
 import io
@@ -507,3 +508,13 @@ def unpause_dag(dag_id):
         session.rollback()
     finally:
         session.close()
+
+
+def move_to_hdfs(file, hdfs_path='/data/eda/inputs/'):
+    hdfs_path = str(hdfs_path)
+    if not hdfs_path.endswith('/'):
+        hdfs_path += '/'
+    # series of hdfs commands
+    cmd = f'hdfs dfs -mkdir -p {hdfs_path} && hdfs dfs -put {hdfs_path}{file} && rm {file}'
+    cmd = cmd.split('')
+    subprocess.call(cmd)
