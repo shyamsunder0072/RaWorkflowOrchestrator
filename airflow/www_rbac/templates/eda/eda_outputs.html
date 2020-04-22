@@ -8,30 +8,46 @@
 <style>
   .margin-left-md { margin-left: 1em; }
   .margin-top-md { margin-top: 1em; }
+  .datatable-table-2 { overflow-y: auto; height: 100px; }
 </style>
 {% endblock %}
 
 {% block content %}
 {{ super() }}
-<!-- <div class="container"> -->
+<div class="container">
   {{ visualisations|safe }}
-<!-- </div> -->
+</div>
 {% endblock %}
 {% block tail_js %}
 {{ super() }}
-<!-- </body> -->
-<script type="text/javascript">
+  <script type="text/javascript">
 
-  $(document).ready(function () {
-    $('[data-toggle="tooltip"]').tooltip();
+    $(document).ready(function () {
+      $('[data-toggle="tooltip"]').tooltip();
+      $(".datatable-table-1").addClass("text-center");
+      $(".datatable-table-2").addClass("table-fixed text-center");
 
-    $("#sourceSearch").on("keyup", function() {
-      var value = $(this).val().toLowerCase();
-      $("#sourceTable tr").filter(function() {
-        if ( !$(this).hasClass('table-head'))
-          $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1);
+      // Remove col numbers 0,1,2
+      var head = $(".datatable-table-2").find("thead").html('');
+      // $(head).addClass('.tableheader')
+
+      //  find 1st row as set it as header
+      var actual_head = $(".datatable-table-2").find("tbody tr:first");
+      $(actual_head).children('td').replaceWith(function(i, html) {
+        return '<th class="text-center">' + html + '</th>';
       });
-    });
-  })
-</script>
+
+
+      $(head).html(actual_head.html());
+
+      // $(".datatable-table-2").parent().prepend('<table class="table table-bordered table-striped table-hover">' + $(head).html() + '</table>');
+      actual_head.remove();
+
+      var $th = $('.datatable-table-2').find('thead th')
+      $('.datatable-table-2').parent().on('scroll', function() {
+        // console.log('yyyyyyyyy')
+        $th.css('transform', 'translateY('+ this.scrollTop +'px)');
+      });
+    })
+  </script>
 {% endblock %}

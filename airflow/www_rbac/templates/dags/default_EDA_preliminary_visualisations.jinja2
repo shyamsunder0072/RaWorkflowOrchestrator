@@ -9,7 +9,7 @@ from airflow.settings import EDA_HOME, DAGS_FOLDER
 from airflow.operators.dag_operator import DagOperator
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.python_operator import PythonOperator
-from airflow.api.common.experimental import delete_dag
+from airflow.api.common.experimental.delete_dag import delete_dag
 
 pp = pprint.PrettyPrinter(indent=4)
 
@@ -67,14 +67,14 @@ EDADag = DAG(
     schedule_interval='@once')
 
 EDAPreliminaryCreateDirs = PythonOperator(
-    task_id='EDAPreliminaryCreateDirs',
+    task_id='EDAPreliminaryCreateLocalDumpDirs',
     provide_context=True,
     python_callable=mkdir_dirs,
     dag=EDADag
 )
 
 EDAPreliminaryRemoveDirs = PythonOperator(
-    task_id='EDAPreliminaryRemoveDirs',
+    task_id='EDAPreliminaryRemoveLocalDumpDirs',
     provide_context=True,
     python_callable=cleanup_dirs,
     dag=EDADag

@@ -26,27 +26,29 @@ file_folder = file_name.split(".")[0]
 uripath = uri.split(":/")[1].replace(file_name, "")
 
 folder_to_copy_summary = '{{folder_to_copy_sum}}'
+rawDirPath = uripath
 
 
 def get_source():
     if "hdfs" in uri:
-        source = "GeneratePreliminarySummaryHDFS"
+        source = "CreateOutputHDFSPathIfNotExists"
     else:
-        source = "GeneratePreliminarySummaryDB"
+        source = "GenerateSummaryDB"
     return source
 
 
 source = get_source()
 
 
-rawDirPath = uripath
+def get_hdfs_processed_dir_path():
+    pth = str(Path('/data/eda/processed/outputfiles/').joinpath(*[folder_to_copy_summary, "preliminary"]))
 
-# dfs create dir.
-HdfsProcessedDirPath = str(Path('/data/eda/processed/outputfiles/').joinpath(*[folder_to_copy_summary, "preliminary"]))
+    if not pth.endswith('/'):
+        pth += '/'
+    return pth
 
-if not HdfsProcessedDirPath.endswith('/'):
-    HdfsProcessedDirPath += '/'
 
+HdfsProcessedDirPath = get_hdfs_processed_dir_path()
 
 # local file path is the file path on the webserver, where we want to output
 # keep preliminary data
@@ -57,11 +59,11 @@ data_dump_dir = Path(EDA_HOME).joinpath(*['inputs', folder_to_copy_summary, 'pre
 data_dump_dir_hdfs = Path(EDA_HOME).joinpath(*["inputs", folder_to_copy_summary])
 
 
-def mkdir_dirs(ds, **kwargs):
-    if source != "GeneratePreliminarySummaryHDFS":
-        data_dump_dir.mkdir(parents=True, exist_ok=True)
-    else:
-        data_dump_dir_hdfs.mkdir(parents=True, exist_ok=True)
+# def mkdir_dirs(ds, **kwargs):
+#     if source == "GenerateSummaryDB":
+#         data_dump_dir.mkdir(parents=True, exist_ok=True)
+#     else:
+#         data_dump_dir_hdfs.mkdir(parents=True, exist_ok=True)
 
 
 default_args = {
@@ -76,12 +78,12 @@ EDADag = DAG(
     default_args=default_args,
     schedule_interval=None)
 
-EDAPreliminaryCreateDirs = PythonOperator(
-    task_id='CreateDirs',
-    provide_context=True,
-    python_callable=mkdir_dirs,
-    dag=EDADag
-)
+# EDAPreliminaryCreateDirs = PythonOperator(
+#     task_id='CreateDirs',
+#     provide_context=True,
+#     python_callable=mkdir_dirs,
+#     dag=EDADag
+# )
 
 branch_task = BranchPythonOperator(
     task_id='branching',
@@ -97,7 +99,7 @@ CreateOutputHDFSPathIfNotExists = BashOperator(
 )
 
 GeneratePreliminarySummaryHDFS = CoutureSparkOperator(
-    task_id='GenerateSummaryHDFS',
+    task_id='GeneratePreliminarySummaryHDFS',
     app_name=appName,
     class_path=classPath,
     code_artifact=code_artifact,
@@ -139,16 +141,10 @@ GetTableInfo = CoutureSparkOperator(
     description='')
 
 
-def true_cmd(del_directory_cmd, copy_directory_cmd):
-    if os.path.isdir(del_directory_cmd):
-        return del_directory_cmd + ' && ' + copy_directory_cmd
-    else:
-        return copy_directory_cmd
-
-
 del_directory_cmd = 'rm -r {}'.format(Path(data_dump_dir_hdfs))
-copy_directory_cmd = 'hdfs dfs -get {} {}'.format(Path(HdfsProcessedDirPath), data_dump_dir_hdfs)
-cmd = true_cmd(del_directory_cmd, copy_directory_cmd)
+copy_directory_cmd = 'hdfs dfs -get {} {}'.format(Path(HdfsProcessedDirPath).parent, data_dump_dir_hdfs)
+cmd = f'{del_directory_cmd} && {copy_directory_cmd}'
+
 CopyFilesToLocal = BashOperator(
     task_id='CopySummaryData',
     dag=EDADag,
@@ -166,9 +162,10 @@ def conditionally_trigger(context, dag_run_obj):
         return dag_run_obj
 
 
-branch_task.set_upstream(EDAPreliminaryCreateDirs)
+# branch_task.set_upstream(EDAPreliminaryCreateDirs)
 CreateOutputHDFSPathIfNotExists.set_upstream(branch_task)
 GeneratePreliminarySummaryHDFS.set_upstream(CreateOutputHDFSPathIfNotExists)
-GeneratePreliminarySummaryDB.set_upstream(branch_task)
 GetTableInfo.set_upstream(GeneratePreliminarySummaryHDFS)
 CopyFilesToLocal.set_upstream(GetTableInfo)
+
+GeneratePreliminarySummaryDB.set_upstream(branch_task)

@@ -3088,10 +3088,12 @@ class EDAView(AirflowBaseView, BaseApi):
     default_view = 'source_view'
     output_path = os.path.join(settings.EDA_HOME, *['outputs'])
     temp_save_path = os.path.join(settings.EDA_HOME, *['tmp'])
+    hdfs_path = '/data/eda/raw/inputfiles/'
     sources_key = 'EDA_Sources'
 
     def __init__(self, *args, **kwargs):
         os.makedirs(self.output_path, exist_ok=True)
+        os.makedirs(self.temp_save_path, exist_ok=True)
         super().__init__(*args, **kwargs)
 
     def get_sources(self):
@@ -3154,16 +3156,39 @@ class EDAView(AirflowBaseView, BaseApi):
             flash('Invalid source.', category='warning')
         elif request.form.get('type') == models.EdaSourcesEnum.hdfs.value:
             self.add_source(conn_uri, source_type=models.EdaSourcesEnum.hdfs.value)
+            flash('Source Added.')
         else:
             file = request.files.get('file')
-            file.save(self.temp_save_path)
-            move_to_hdfs_thread = threading.Thread(
-                target=move_to_hdfs,
-                args=(os.path.join(self.temp_save_path, file.filename)))
-            move_to_hdfs_thread.start()
+            # dest = os.path.join(self.temp_save_path, file.filename)
+            # file.save(dest)
+            # self.add_source_file(file)
+            dest = os.path.join(self.temp_save_path, file.filename)
+            file.save(dest)
+            add_source_file_thread = threading.Thread(
+                target=self.add_source_file,
+                args=(dest, self.hdfs_path))
+            add_source_file_thread.start()
+            flash(f'File will be copied to HDFS shortly. \
+                Trigger EDA on this file at {self.hdfs_path}{file.filename}.')
             # move data to hdfs
-        flash('Source Added.')
         return redirect(url_for('EDAView.source_view'))
+
+    def add_source_file(self, file, hdfs_path):
+
+        hdfs_fileloc = move_to_hdfs(file, hdfs_path)
+        # move_to_hdfs_thread = threading.Thread(
+        #         target=move_to_hdfs,
+        #         args=(os.path.join(self.temp_save_path, file.filename)))
+        # move_to_hdfs_thread.start()
+
+        # TODO: This is done because of the way the hdfs path is handled in EDA DAGs.
+        # Check if it is the correct way.
+        if str(hdfs_fileloc).startswith('/'):
+            hdfs_fileloc = 'hdfs:/' + hdfs_fileloc
+        else:
+            hdfs_fileloc = 'hdfs://' + hdfs_fileloc
+        # print(os.stat(dest))
+        self.add_source(hdfs_fileloc, source_type=models.EdaSourcesEnum.hdfs.value)
 
     def create_eda_dags(self, eda_source):
 
@@ -3196,6 +3221,7 @@ class EDAView(AirflowBaseView, BaseApi):
                                     username=username,
                                     dag_id=summ_dag_id,
                                     source=eda_source,
+                                    eda_sources_enum=models.EdaSourcesEnum,
                                     folder_to_copy_sum=folder_to_copy_sum,
                                     now=now)
         with open(os.path.join(settings.DAGS_FOLDER, summ_dag_id + '.py'), 'w') as dag_file:
