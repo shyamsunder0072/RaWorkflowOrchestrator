@@ -17,7 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-from flask_appbuilder.security.manager import BaseSecurityManager
 from flask import g
 from flask_appbuilder.security.sqla import models as sqla_models
 from flask_appbuilder.security.sqla.manager import SecurityManager
@@ -208,7 +207,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         # Go and fix up the SQLAInterface used from the stock one to our subclass.
         # This is needed to support the "hack" where we had to edit
         # FieldConverter.conversion_table in place in airflow.www.utils
-        print("AAAAAAAAA")
+
         for attr in dir(self):
             if not attr.endswith('view'):
                 continue
@@ -615,8 +614,8 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
 class CoutureSecurity(AirflowSecurityManager):
     from airflow.www_rbac.index import CoutureAuthView, CoutureAuthLDAPView
-    BaseSecurityManager.authdbview = CoutureAuthView
-    BaseSecurityManager.authldapview = CoutureAuthLDAPView
+    AirflowSecurityManager.authdbview = CoutureAuthView
+    AirflowSecurityManager.authldapview = CoutureAuthLDAPView
 
     def __init__(self, appbuilder):
         super(CoutureSecurity, self).__init__(appbuilder)

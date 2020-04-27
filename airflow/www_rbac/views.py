@@ -2308,15 +2308,15 @@ class Airflow(AirflowBaseView):
             response.status_code = 404
             return response
 
-    # @expose('/_logout')
-    # @action_logging
-    # def logout(self, session=None):
-    #     return redirect(appbuilder.get_url_for_logout)
-    #
-    # @expose('/_login')
-    # @action_logging
-    # def login(self, session=None):
-    #     return redirect(appbuilder.get_url_for_login)
+    @expose('/_logout')
+    @action_logging
+    def logout(self, session=None):
+        return redirect(appbuilder.get_url_for_logout)
+
+    @expose('/_login')
+    @action_logging
+    def login(self, session=None):
+        return redirect(appbuilder.get_url_for_login)
 
     @expose('/object/task_instances')
     @has_dag_access(can_dag_read=True)
