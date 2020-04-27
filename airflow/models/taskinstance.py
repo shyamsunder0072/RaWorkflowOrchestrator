@@ -33,8 +33,10 @@ from urllib.parse import quote
 import dill
 import lazy_object_proxy
 import pendulum
+import six
 from six.moves.urllib.parse import quote_plus
-from sqlalchemy import Column, String, Float, Integer, PickleType, Index, func, Text
+from jinja2 import TemplateAssertionError, UndefinedError
+from sqlalchemy import Column, Float, Index, Integer, PickleType, String, func, Text
 from sqlalchemy.orm import reconstructor
 from sqlalchemy.orm.session import Session
 
@@ -53,6 +55,7 @@ from airflow.models.xcom import XCom, XCOM_RETURN_KEY
 from airflow.sentry import Sentry
 from airflow.settings import Stats
 from airflow.ti_deps.dep_context import DepContext, REQUEUEABLE_DEPS, RUNNING_DEPS
+from airflow.settings import STORE_SERIALIZED_DAGS
 from airflow.utils import timezone
 from airflow.utils.db import provide_session
 from airflow.utils.email import send_email
@@ -88,6 +91,7 @@ def clear_task_instances(tis,
             task_id = ti.task_id
             if dag and dag.has_task(task_id):
                 task = dag.get_task(task_id)
+                ti.refresh_from_task(task)
                 task_retries = task.retries
                 ti.max_tries = ti.try_number + task_retries - 1
             else:
@@ -152,6 +156,7 @@ class TaskInstance(Base, LoggingMixin):
     unixname = Column(String(1000))
     job_id = Column(Integer)
     pool = Column(String(50), nullable=False)
+    pool_slots = Column(Integer, default=1)
     queue = Column(String(256))
     priority_weight = Column(Integer)
     operator = Column(String(1000))
@@ -175,6 +180,7 @@ class TaskInstance(Base, LoggingMixin):
         self.dag_id = task.dag_id
         self.task_id = task.task_id
         self.task = task
+        self.refresh_from_task(task)
         self._log = logging.getLogger("airflow.task")
 
         if task.description:
@@ -196,17 +202,11 @@ class TaskInstance(Base, LoggingMixin):
 
         self.execution_date = execution_date
 
-        self.queue = task.queue
-        self.pool = task.pool
-        self.priority_weight = task.priority_weight_total
         self.try_number = 0
-        self.max_tries = self.task.retries
         self.unixname = getpass.getuser()
-        self.run_as_user = task.run_as_user
         if state:
             self.state = state
         self.hostname = ''
-        self.executor_config = task.executor_config
         self.init_on_load()
         # Is this TaskInstance being currently running within `airflow run --raw`.
         # Not persisted to the database so only valid for the current process
@@ -459,13 +459,10 @@ class TaskInstance(Base, LoggingMixin):
         session.commit()
 
     @provide_session
-    def refresh_from_db(self, session=None, lock_for_update=False, refresh_executor_config=False):
+    def refresh_from_db(self, session=None, lock_for_update=False):
         """
         Refreshes the task instance from the database based on the primary key
 
-        :param refresh_executor_config: if True, revert executor config to
-            result from DB. Often, however, we will want to keep the newest
-            version
         :param lock_for_update: if True, indicates that the database should
             lock the TaskInstance (issuing a FOR UPDATE clause) until the
             session is committed.
@@ -495,16 +492,33 @@ class TaskInstance(Base, LoggingMixin):
             self.unixname = ti.unixname
             self.job_id = ti.job_id
             self.pool = ti.pool
+            self.pool_slots = ti.pool_slots or 1
             self.queue = ti.queue
             self.priority_weight = ti.priority_weight
             self.operator = ti.operator
             self.queued_dttm = ti.queued_dttm
             self.pid = ti.pid
             self.description = ti.description
-            if refresh_executor_config:
-                self.executor_config = ti.executor_config
         else:
             self.state = None
+
+    def refresh_from_task(self, task, pool_override=None):
+        """
+        Copy common attributes from the given task.
+
+        :param task: The task object to copy from
+        :type task: airflow.models.BaseOperator
+        :param pool_override: Use the pool_override instead of task's pool
+        :type pool_override: str
+        """
+        self.queue = task.queue
+        self.pool = pool_override or task.pool
+        self.pool_slots = task.pool_slots
+        self.priority_weight = task.priority_weight_total
+        self.run_as_user = task.run_as_user
+        self.max_tries = task.retries
+        self.executor_config = task.executor_config
+        self.operator = task.__class__.__name__
 
     @provide_session
     def clear_xcom_data(self, session=None):
@@ -804,12 +818,11 @@ class TaskInstance(Base, LoggingMixin):
         :rtype: bool
         """
         task = self.task
-        self.pool = pool or task.pool
+        self.refresh_from_task(task, pool_override=pool)
         self.test_mode = test_mode
         self.refresh_from_db(session=session, lock_for_update=True)
         self.job_id = job_id
         self.hostname = get_hostname()
-        self.operator = task.__class__.__name__
 
         if not ignore_all_deps and not ignore_ti_state and self.state == State.SUCCESS:
             Stats.incr('previously_succeeded', 1, 1)
@@ -916,13 +929,15 @@ class TaskInstance(Base, LoggingMixin):
         :param pool: specifies the pool to use to run the task instance
         :type pool: str
         """
+        from airflow.sensors.base_sensor_operator import BaseSensorOperator
+        from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
+
         task = self.task
-        self.pool = pool or task.pool
         self.test_mode = test_mode
+        self.refresh_from_task(task, pool_override=pool)
         self.refresh_from_db(session=session)
         self.job_id = job_id
         self.hostname = get_hostname()
-        self.operator = task.__class__.__name__
 
         context = {}
         actual_start_date = timezone.utcnow()
@@ -931,6 +946,15 @@ class TaskInstance(Base, LoggingMixin):
                 context = self.get_template_context()
 
                 task_copy = copy.copy(task)
+
+                # Sensors in `poke` mode can block execution of DAGs when running
+                # with single process executor, thus we change the mode to`reschedule`
+                # to allow parallel task being scheduled and executed
+                if isinstance(task_copy, BaseSensorOperator) and \
+                        conf.get('core', 'executor') == "DebugExecutor":
+                    self.log.warning("DebugExecutor changes sensor mode to 'reschedule'.")
+                    task_copy.mode = 'reschedule'
+
                 self.task = task_copy
 
                 def signal_handler(signum, frame):
@@ -945,6 +969,10 @@ class TaskInstance(Base, LoggingMixin):
                 start_time = time.time()
 
                 self.render_templates(context=context)
+                if STORE_SERIALIZED_DAGS:
+                    RTIF.write(RTIF(ti=self, render_templates=False), session=session)
+                    RTIF.delete_old_records(self.task_id, self.dag_id, session=session)
+
                 task_copy.pre_execute(context=context)
 
                 # If a timeout is specified for the task, make it fail
@@ -981,11 +1009,26 @@ class TaskInstance(Base, LoggingMixin):
             self.refresh_from_db(lock_for_update=True)
             self.state = State.SUCCESS
         except AirflowSkipException as e:
+            # Recording SKIP
             # log only if exception has any arguments to prevent log flooding
             if e.args:
                 self.log.info(e)
             self.refresh_from_db(lock_for_update=True)
             self.state = State.SKIPPED
+            self.log.info(
+                'Marking task as SKIPPED.'
+                'dag_id=%s, task_id=%s, execution_date=%s, start_date=%s, end_date=%s',
+                self.dag_id,
+                self.task_id,
+                self.execution_date.strftime('%Y%m%dT%H%M%S') if hasattr(
+                    self,
+                    'execution_date') and self.execution_date else '',
+                self.start_date.strftime('%Y%m%dT%H%M%S') if hasattr(
+                    self,
+                    'start_date') and self.start_date else '',
+                self.end_date.strftime('%Y%m%dT%H%M%S') if hasattr(
+                    self,
+                    'end_date') and self.end_date else '')
         except AirflowRescheduleException as reschedule_exception:
             self.refresh_from_db()
             self._handle_reschedule(actual_start_date, reschedule_exception, test_mode, context)
@@ -1013,6 +1056,20 @@ class TaskInstance(Base, LoggingMixin):
 
         # Recording SUCCESS
         self.end_date = timezone.utcnow()
+        self.log.info(
+            'Marking task as SUCCESS.'
+            'dag_id=%s, task_id=%s, execution_date=%s, start_date=%s, end_date=%s',
+            self.dag_id,
+            self.task_id,
+            self.execution_date.strftime('%Y%m%dT%H%M%S') if hasattr(
+                self,
+                'execution_date') and self.execution_date else '',
+            self.start_date.strftime('%Y%m%dT%H%M%S') if hasattr(
+                self,
+                'start_date') and self.start_date else '',
+            self.end_date.strftime('%Y%m%dT%H%M%S') if hasattr(
+                self,
+                'end_date') and self.end_date else '')
         self.set_duration()
         if not test_mode:
             session.add(Log(self.state, self))
@@ -1121,9 +1178,35 @@ class TaskInstance(Base, LoggingMixin):
             else:
                 self.state = State.FAILED
                 if task.retries:
-                    self.log.info('All retries failed; marking task as FAILED')
+                    self.log.info(
+                        'All retries failed; marking task as FAILED.'
+                        'dag_id=%s, task_id=%s, execution_date=%s, start_date=%s, end_date=%s',
+                        self.dag_id,
+                        self.task_id,
+                        self.execution_date.strftime('%Y%m%dT%H%M%S') if hasattr(
+                            self,
+                            'execution_date') and self.execution_date else '',
+                        self.start_date.strftime('%Y%m%dT%H%M%S') if hasattr(
+                            self,
+                            'start_date') and self.start_date else '',
+                        self.end_date.strftime('%Y%m%dT%H%M%S') if hasattr(
+                            self,
+                            'end_date') and self.end_date else '')
                 else:
-                    self.log.info('Marking task as FAILED.')
+                    self.log.info(
+                        'Marking task as FAILED.'
+                        'dag_id=%s, task_id=%s, execution_date=%s, start_date=%s, end_date=%s',
+                        self.dag_id,
+                        self.task_id,
+                        self.execution_date.strftime('%Y%m%dT%H%M%S') if hasattr(
+                            self,
+                            'execution_date') and self.execution_date else '',
+                        self.start_date.strftime('%Y%m%dT%H%M%S') if hasattr(
+                            self,
+                            'start_date') and self.start_date else '',
+                        self.end_date.strftime('%Y%m%dT%H%M%S') if hasattr(
+                            self,
+                            'end_date') and self.end_date else '')
                 if task.email_on_failure and task.email:
                     self.email_alert(error)
         except Exception as e2:
@@ -1314,6 +1397,30 @@ class TaskInstance(Base, LoggingMixin):
             'outlets': task.outlets,
         }
 
+    def get_rendered_template_fields(self):
+        """
+        Fetch rendered template fields from DB if Serialization is enabled.
+        Else just render the templates
+        """
+        from airflow.models.renderedtifields import RenderedTaskInstanceFields
+        if STORE_SERIALIZED_DAGS:
+            rtif = RenderedTaskInstanceFields.get_templated_fields(self)
+            if rtif:
+                for field_name, rendered_value in rtif.items():
+                    setattr(self.task, field_name, rendered_value)
+            else:
+                try:
+                    self.render_templates()
+                except (TemplateAssertionError, UndefinedError) as e:
+                    six.raise_from(AirflowException(
+                        "Webserver does not have access to User-defined Macros or Filters "
+                        "when Dag Serialization is enabled. Hence for the task that have not yet "
+                        "started running, please use 'airflow tasks render' for debugging the "
+                        "rendering of template_fields."
+                    ), e)
+        else:
+            self.render_templates()
+
     def overwrite_params_with_dag_run_conf(self, params, dag_run):
         if dag_run and dag_run.conf:
             params.update(dag_run.conf)
@@ -1351,6 +1458,15 @@ class TaskInstance(Base, LoggingMixin):
             'Mark success: <a href="{{ti.mark_success_url}}">Link</a><br>'
         )
 
+        default_html_content_err = (
+            'Try {{try_number}} out of {{max_tries + 1}}<br>'
+            'Exception:<br>Failed attempt to attach error logs<br>'
+            'Log: <a href="{{ti.log_url}}">Link</a><br>'
+            'Host: {{ti.hostname}}<br>'
+            'Log file: {{ti.log_filepath}}<br>'
+            'Mark success: <a href="{{ti.mark_success_url}}">Link</a><br>'
+        )
+
         def render(key, content):
             if conf.has_option('email', key):
                 path = conf.get('email', key)
@@ -1361,7 +1477,11 @@ class TaskInstance(Base, LoggingMixin):
 
         subject = render('subject_template', default_subject)
         html_content = render('html_content_template', default_html_content)
-        send_email(self.task.email, subject, html_content)
+        html_content_err = render('html_content_template', default_html_content_err)
+        try:
+            send_email(self.task.email, subject, html_content)
+        except Exception:
+            send_email(self.task.email, subject, html_content_err)
 
     def set_duration(self):
         if self.end_date and self.start_date:

@@ -19,10 +19,12 @@
 #
 import logging
 import socket
+from datetime import timedelta
 from typing import Any
 
 import six
-from flask import Flask
+import pendulum
+from flask import Flask, session as flask_session
 from flask_appbuilder import AppBuilder, SQLA
 from flask_caching import Cache
 from flask_wtf.csrf import CSRFProtect
@@ -48,13 +50,16 @@ def create_app(config=None, session=None, testing=False, app_name="Workflow"):
         app.wsgi_app = ProxyFix(
             app.wsgi_app,
             num_proxies=conf.get("webserver", "PROXY_FIX_NUM_PROXIES", fallback=None),
-            x_for=conf.get("webserver", "PROXY_FIX_X_FOR", fallback=1),
-            x_proto=conf.get("webserver", "PROXY_FIX_X_PROTO", fallback=1),
-            x_host=conf.get("webserver", "PROXY_FIX_X_HOST", fallback=1),
-            x_port=conf.get("webserver", "PROXY_FIX_X_PORT", fallback=1),
-            x_prefix=conf.get("webserver", "PROXY_FIX_X_PREFIX", fallback=1)
+            x_for=conf.getint("webserver", "PROXY_FIX_X_FOR", fallback=1),
+            x_proto=conf.getint("webserver", "PROXY_FIX_X_PROTO", fallback=1),
+            x_host=conf.getint("webserver", "PROXY_FIX_X_HOST", fallback=1),
+            x_port=conf.getint("webserver", "PROXY_FIX_X_PORT", fallback=1),
+            x_prefix=conf.getint("webserver", "PROXY_FIX_X_PREFIX", fallback=1)
         )
     app.secret_key = conf.get('webserver', 'SECRET_KEY')
+
+    session_lifetime_days = conf.getint('webserver', 'SESSION_LIFETIME_DAYS', fallback=30)
+    app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=session_lifetime_days)
 
     app.config.from_pyfile(settings.WEBSERVER_CONFIG, silent=True)
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -90,9 +95,9 @@ def create_app(config=None, session=None, testing=False, app_name="Workflow"):
     configure_manifest_files(app)
 
     with app.app_context():
-        from airflow.www_rbac.security import AirflowSecurityManager
+        from airflow.www_rbac.security import AirflowSecurityManager, CoutureSecurity
         security_manager_class = app.config.get('SECURITY_MANAGER_CLASS') or \
-                                 AirflowSecurityManager
+                                 CoutureSecurity
 
         if not issubclass(security_manager_class, AirflowSecurityManager):
             raise Exception(
@@ -103,7 +108,8 @@ def create_app(config=None, session=None, testing=False, app_name="Workflow"):
             app,
             db.session if not session else session,
             security_manager_class=security_manager_class,
-            base_template='appbuilder/baselayout.html')
+            base_template='airflow/master.html',
+            update_perms=conf.getboolean('webserver', 'UPDATE_FAB_PERMS'))
 
         def init_views(appbuilder):
             from airflow.www_rbac import views
@@ -254,12 +260,35 @@ def create_app(config=None, session=None, testing=False, app_name="Workflow"):
 
         app.register_blueprint(e.api_experimental, url_prefix='/api/experimental')
 
+        server_timezone = conf.get('core', 'default_timezone')
+        if server_timezone == "system":
+            server_timezone = pendulum.local_timezone().name
+        elif server_timezone == "utc":
+            server_timezone = "UTC"
+
+        default_ui_timezone = conf.get('webserver', 'default_ui_timezone')
+        if default_ui_timezone == "system":
+            default_ui_timezone = pendulum.local_timezone().name
+        elif default_ui_timezone == "utc":
+            default_ui_timezone = "UTC"
+        if not default_ui_timezone:
+            default_ui_timezone = server_timezone
+
         @app.context_processor
         def jinja_globals():  # pylint: disable=unused-variable
 
             globals = {
-                'hostname': socket.getfqdn(),
+                'server_timezone': server_timezone,
+                'default_ui_timezone': default_ui_timezone,
+                'hostname': socket.getfqdn() if conf.getboolean(
+                    'webserver', 'EXPOSE_HOSTNAME', fallback=True) else 'redact',
                 'navbar_color': conf.get('webserver', 'NAVBAR_COLOR'),
+                'log_fetch_delay_sec': conf.getint(
+                    'webserver', 'log_fetch_delay_sec', fallback=2),
+                'log_auto_tailing_offset': conf.getint(
+                    'webserver', 'log_auto_tailing_offset', fallback=30),
+                'log_animation_speed': conf.getint(
+                    'webserver', 'log_animation_speed', fallback=1000)
             }
 
             if 'analytics_tool' in conf.getsection('webserver'):
@@ -273,6 +302,26 @@ def create_app(config=None, session=None, testing=False, app_name="Workflow"):
         @app.teardown_appcontext
         def shutdown_session(exception=None):
             settings.Session.remove()
+
+        @app.before_request
+        def before_request():
+            _force_log_out_after = conf.getint('webserver', 'FORCE_LOG_OUT_AFTER', fallback=0)
+            if _force_log_out_after > 0:
+                flask.session.permanent = True
+                app.permanent_session_lifetime = datetime.timedelta(minutes=_force_log_out_after)
+                flask.session.modified = True
+                flask.g.user = flask_login.current_user
+
+        @app.after_request
+        def apply_caching(response):
+            _x_frame_enabled = conf.getboolean('webserver', 'X_FRAME_ENABLED', fallback=True)
+            if not _x_frame_enabled:
+                response.headers["X-Frame-Options"] = "DENY"
+            return response
+
+        @app.before_request
+        def make_session_permanent():
+            flask_session.permanent = True
 
     return app, appbuilder
 

@@ -25,10 +25,6 @@ import inspect
 import json
 import time
 import markdown
-import re
-import zipfile
-import os
-import io
 
 from builtins import str
 from past.builtins import basestring
@@ -36,6 +32,7 @@ from past.builtins import basestring
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
 from flask import request, Response, Markup, url_for
+from flask_appbuilder.forms import DateTimeField, FieldConverter
 from flask_appbuilder.models.sqla.interface import SQLAInterface
 import flask_appbuilder.models.sqla.filters as fab_sqlafilters
 import sqlalchemy as sqla
@@ -48,6 +45,7 @@ from airflow.operators.subdag_operator import SubDagOperator
 from airflow.utils import timezone
 from airflow.utils.json import AirflowJsonEncoder
 from airflow.utils.state import State
+from airflow.www_rbac.widgets import AirflowDateTimePickerWidget
 
 AUTHENTICATE = conf.getboolean('webserver', 'AUTHENTICATE')
 
@@ -218,24 +216,6 @@ def json_response(obj):
         mimetype="application/json")
 
 
-ZIP_REGEX = re.compile(r'((.*\.zip){})?(.*)'.format(re.escape(os.sep)))
-
-
-def open_maybe_zipped(f, mode='r'):
-    """
-    Opens the given file. If the path contains a folder with a .zip suffix, then
-    the folder is treated as a zip archive, opening the file inside the archive.
-
-    :return: a file object, as in `open`, or as in `ZipFile.open`.
-    """
-
-    _, archive, filename = ZIP_REGEX.search(f).groups()
-    if archive and zipfile.is_zipfile(archive):
-        return zipfile.ZipFile(archive, mode=mode).open(filename)
-    else:
-        return io.open(f, mode=mode)
-
-
 def make_cache_key(*args, **kwargs):
     """
     Used by cache to get a unique key per URL
@@ -293,10 +273,14 @@ def nobr_f(attr_name):
 def datetime_f(attr_name):
     def dt(attr):
         f = attr.get(attr_name)
-        f = f.isoformat() if f else ''
+        as_iso = f.isoformat() if f else ''
+        if not as_iso:
+            return Markup('')
+        f = as_iso
         if timezone.utcnow().isoformat()[:4] == f[:4]:
             f = f[5:]
-        return Markup("<nobr>{}</nobr>").format(f)
+        # The empty title will be replaced in JS code when non-UTC dates are displayed
+        return Markup('<nobr><time title="" datetime="{}">{}</time></nobr>').format(as_iso, f)
     return dt
 
 
@@ -467,8 +451,8 @@ class CustomSQLAInterface(SQLAInterface):
     '_' from the key to lookup the column names.
 
     """
-    def __init__(self, obj):
-        super(CustomSQLAInterface, self).__init__(obj)
+    def __init__(self, obj, session=None):
+        super(CustomSQLAInterface, self).__init__(obj, session=session)
 
         def clean_column_names():
             if self.list_properties:
@@ -482,13 +466,24 @@ class CustomSQLAInterface(SQLAInterface):
 
     def is_utcdatetime(self, col_name):
         from airflow.utils.sqlalchemy import UtcDateTime
-        obj = self.list_columns[col_name].type
-        return isinstance(obj, UtcDateTime) or \
-            isinstance(obj, sqla.types.TypeDecorator) and \
-            isinstance(obj.impl, UtcDateTime)
+
+        if col_name in self.list_columns:
+            obj = self.list_columns[col_name].type
+            return isinstance(obj, UtcDateTime) or \
+                isinstance(obj, sqla.types.TypeDecorator) and \
+                isinstance(obj.impl, UtcDateTime)
+        return False
 
     filter_converter_class = UtcAwareFilterConverter
 
+
+# This class is used directly (i.e. we cant tell Fab to use a different
+# subclass) so we have no other option than to edit the converstion table in
+# place
+FieldConverter.conversion_table = (
+    (('is_utcdatetime', DateTimeField, AirflowDateTimePickerWidget),) +
+    FieldConverter.conversion_table
+)
 
 def unpause_dag(dag_id):
     """

@@ -25,9 +25,10 @@ from sqlalchemy import or_, and_
 
 from airflow import models
 from airflow.exceptions import AirflowException
-from airflow.www_rbac.app import appbuilder
 from airflow.utils.db import provide_session
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.www_rbac.app import appbuilder
+from airflow.www_rbac.utils import CustomSQLAInterface
 
 
 EXISTING_ROLES = {
@@ -38,12 +39,6 @@ EXISTING_ROLES = {
     'Public',
     'Developer',
 }
-
-
-class CoutureSecurity(BaseSecurityManager):
-    from airflow.www_rbac.index import CoutureAuthView, CoutureAuthLDAPView
-    BaseSecurityManager.authdbview = CoutureAuthView
-    BaseSecurityManager.authldapview = CoutureAuthLDAPView
 
 
 class AirflowSecurityManager(SecurityManager, LoggingMixin):
@@ -206,6 +201,21 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
             'vms': VIEWER_VMS | DAG_VMS | USER_VMS | DEV_VMS,
         },
     ]
+
+    def __init__(self, appbuilder):
+        super(AirflowSecurityManager, self).__init__(appbuilder)
+
+        # Go and fix up the SQLAInterface used from the stock one to our subclass.
+        # This is needed to support the "hack" where we had to edit
+        # FieldConverter.conversion_table in place in airflow.www.utils
+        print("AAAAAAAAA")
+        for attr in dir(self):
+            if not attr.endswith('view'):
+                continue
+            view = getattr(self, attr, None)
+            if not view or not getattr(view, 'datamodel', None):
+                continue
+            view.datamodel = CustomSQLAInterface(view.datamodel.obj)
 
     def init_role(self, role_name, role_vms, role_perms):
         """
@@ -392,7 +402,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         """
         Workflow:
         1. Fetch all the existing (permissions, view-menu) from Airflow DB.
-        2. Fetch all the existing dag models that are either active or paused. Exclude the subdags.
+        2. Fetch all the existing dag models that are either active or paused.
         3. Create both read and write permission view-menus relation for every dags from step 2
         4. Find out all the dag specific roles(excluded pubic, admin, viewer, op, user, developer)
         5. Get all the permission-vm owned by the user role.
@@ -415,9 +425,8 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
                 all_pvs.add((pv.permission.name, pv.view_menu.name))
 
         # Get all the active / paused dags and insert them into a set
-        all_dags_models = session.query(models.DagModel) \
-            .filter(or_(models.DagModel.is_active, models.DagModel.is_paused)) \
-            .filter(~models.DagModel.is_subdag).all()
+        all_dags_models = session.query(models.DagModel)\
+            .filter(or_(models.DagModel.is_active, models.DagModel.is_paused)).all()
 
         # create can_dag_edit and can_dag_read permissions for every dag(vm)
         for dag in all_dags_models:
@@ -438,17 +447,17 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         perm_view = self.permissionview_model
         view_menu = self.viewmenu_model
 
-        all_perm_view_by_user = session.query(ab_perm_view_role) \
+        all_perm_view_by_user = session.query(ab_perm_view_role)\
             .join(perm_view, perm_view.id == ab_perm_view_role
-                  .columns.permission_view_id) \
-            .filter(ab_perm_view_role.columns.role_id == user_role.id) \
-            .join(view_menu) \
+                  .columns.permission_view_id)\
+            .filter(ab_perm_view_role.columns.role_id == user_role.id)\
+            .join(view_menu)\
             .filter(perm_view.view_menu_id != dag_vm.id)
         all_perm_views = set([role.permission_view_id for role in all_perm_view_by_user])
 
         for role in dag_role:
             # Get all the perm-view of the role
-            existing_perm_view_by_user = self.get_session.query(ab_perm_view_role) \
+            existing_perm_view_by_user = self.get_session.query(ab_perm_view_role)\
                 .filter(ab_perm_view_role.columns.role_id == role.id)
 
             existing_perms_views = set([pv.permission_view_id
@@ -602,3 +611,24 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
             for perm in self.DAG_PERMS:
                 self._merge_perm(permission_name=perm,
                                  view_menu_name=dag_vm)
+
+
+class CoutureSecurity(AirflowSecurityManager):
+    from airflow.www_rbac.index import CoutureAuthView, CoutureAuthLDAPView
+    BaseSecurityManager.authdbview = CoutureAuthView
+    BaseSecurityManager.authldapview = CoutureAuthLDAPView
+
+    def __init__(self, appbuilder):
+        super(CoutureSecurity, self).__init__(appbuilder)
+
+        # Go and fix up the SQLAInterface used from the stock one to our subclass.
+        # This is needed to support the "hack" where we had to edit
+        # FieldConverter.conversion_table in place in airflow.www.utils
+
+        for attr in dir(self):
+            if not attr.endswith('view'):
+                continue
+            view = getattr(self, attr, None)
+            if not view or not getattr(view, 'datamodel', None):
+                continue
+            view.datamodel = CustomSQLAInterface(view.datamodel.obj)

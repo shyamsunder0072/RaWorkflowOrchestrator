@@ -41,8 +41,7 @@ from time import sleep
 from bs4 import BeautifulSoup
 
 from airflow.executors import SequentialExecutor
-from airflow.models import DagModel, Variable, TaskInstance
-
+from airflow.models import DagModel, Variable, TaskInstance, DagRun
 
 from airflow import jobs, models, DAG, utils, settings, exceptions
 from airflow.models import BaseOperator, Connection, TaskFail
@@ -78,7 +77,7 @@ if six.PY2:
 else:
     import unittest
 
-NUM_EXAMPLE_DAGS = 19
+NUM_EXAMPLE_DAGS = 23
 DEV_NULL = '/dev/null'
 TEST_DAG_FOLDER = os.path.join(
     os.path.dirname(os.path.realpath(__file__)), 'dags')
@@ -123,14 +122,18 @@ class CoreTest(unittest.TestCase):
         self.run_this_last = self.dag_bash.get_task('run_this_last')
 
     def tearDown(self):
-        if os.environ.get('KUBERNETES_VERSION') is None:
-            session = Session()
-            session.query(models.TaskInstance).filter_by(
-                dag_id=TEST_DAG_ID).delete()
-            session.query(TaskFail).filter_by(
-                dag_id=TEST_DAG_ID).delete()
-            session.commit()
-            session.close()
+        session = Session()
+        session.query(DagRun).filter(
+            DagRun.dag_id == TEST_DAG_ID).delete(
+            synchronize_session=False)
+        session.query(TaskInstance).filter(
+            TaskInstance.dag_id == TEST_DAG_ID).delete(
+            synchronize_session=False)
+        session.query(TaskFail).filter(
+            TaskFail.dag_id == TEST_DAG_ID).delete(
+            synchronize_session=False)
+        session.commit()
+        session.close()
 
     def test_schedule_dag_no_previous_runs(self):
         """
@@ -647,7 +650,7 @@ class CoreTest(unittest.TestCase):
         test_key = 'test_key'
         Variable.set(test_key, test_value)
         Variable.set(test_key, '')
-        self.assertEqual(None, Variable.get('test_key'))
+        self.assertEqual('', Variable.get('test_key'))
 
     def test_variable_set_get_round_trip_json(self):
         value = {"a": 17, "b": 47}
@@ -1233,9 +1236,9 @@ class CliTests(unittest.TestCase):
             ("\tSuccessfully added `conn_id`=new4 : " +
              "postgresql://airflow:airflow@host:5432/airflow"),
             ("\tSuccessfully added `conn_id`=new5 : " +
-             "hive_metastore://airflow:airflow@host:9083/airflow"),
+             "hive_metastore://airflow:******@host:9083/airflow"),
             ("\tSuccessfully added `conn_id`=new6 : " +
-             "google_cloud_platform://:@:")
+             "google_cloud_platform://:******@:")
         ])
 
         # Attempt to add duplicate

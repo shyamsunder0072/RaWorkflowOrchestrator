@@ -126,7 +126,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
                  volumes=None,
                  env_vars=None,
                  secrets=None,
-                 in_cluster=True,
+                 in_cluster=None,
                  cluster_context=None,
                  labels=None,
                  startup_timeout_seconds=120,
@@ -146,6 +146,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
                  security_context=None,
                  pod_runtime_info_envs=None,
                  dnspolicy=None,
+                 do_xcom_push=False,
                  *args,
                  **kwargs):
         # https://github.com/apache/airflow/blob/2d0eff4ee4fafcf8c7978ac287a8fb968e56605f/UPDATING.md#unification-of-do_xcom_push-flag
@@ -156,6 +157,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
                 DeprecationWarning, stacklevel=2
             )
         super(KubernetesPodOperator, self).__init__(*args, resources=None, **kwargs)
+        self.do_xcom_push = do_xcom_push
         self.image = image
         self.namespace = namespace
         self.cmds = cmds or []
@@ -189,9 +191,13 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
 
     def execute(self, context):
         try:
-            client = kube_client.get_kube_client(in_cluster=self.in_cluster,
-                                                 cluster_context=self.cluster_context,
-                                                 config_file=self.config_file)
+            if self.in_cluster is not None:
+                client = kube_client.get_kube_client(in_cluster=self.in_cluster,
+                                                     cluster_context=self.cluster_context,
+                                                     config_file=self.config_file)
+            else:
+                client = kube_client.get_kube_client(cluster_context=self.cluster_context,
+                                                     config_file=self.config_file)
 
             # Add Airflow Version to the label
             # And a label to identify that pod is launched by KubernetesPodOperator
