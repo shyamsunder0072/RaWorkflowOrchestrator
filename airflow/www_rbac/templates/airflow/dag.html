@@ -626,7 +626,12 @@ function updateQueryStringParameter(uri, key, value) {
         is_paused = 'false'
       }
       url = "{{ url_for('Airflow.paused') }}" + '?is_paused=' + is_paused + '&dag_id=' + encodeURIComponent(dag_id);
-      $.post(url);
+      $.post({
+          url: url,
+          data: {
+              "csrf_token": "{{ csrf_token() }}"
+          }
+      })
     });
 
     $('#btn_edit_dagrun').click(function() {

@@ -286,7 +286,12 @@
             is_paused = 'false'
           }
           url = 'paused?is_paused=' + is_paused + '&dag_id=' + dag_id;
-          $.post(url);
+          $.post({
+              url: url,
+              data: {
+                  "csrf_token": "{{ csrf_token() }}"
+              }
+          })
         });
       });
 
