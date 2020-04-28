@@ -613,12 +613,13 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
 
 class CoutureSecurity(AirflowSecurityManager):
-    from airflow.www_rbac.index import CoutureAuthView, CoutureAuthLDAPView
-    AirflowSecurityManager.authdbview = CoutureAuthView
-    AirflowSecurityManager.authldapview = CoutureAuthLDAPView
 
     def __init__(self, appbuilder):
+        from airflow.www_rbac.index import CoutureAuthView, CoutureAuthLDAPView
         super(CoutureSecurity, self).__init__(appbuilder)
+
+        self.authdbview = CoutureAuthView
+        self.authldapview = CoutureAuthLDAPView
 
         # Go and fix up the SQLAInterface used from the stock one to our subclass.
         # This is needed to support the "hack" where we had to edit
