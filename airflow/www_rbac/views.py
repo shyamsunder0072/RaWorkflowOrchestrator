@@ -2445,6 +2445,13 @@ class FileUploadBaseView(AirflowBaseView):
         'destroy_view': ["/".join(['base_url', 'destroy', '<path:pathname>'])],
         'edit_view': ["/".join(['base_url', 'edit', '<path:pathname>'])],
     }
+    method_permission_name = {
+        'list_view': 'access',
+        'upload_view': 'access',
+        'download_view': 'access',
+        'destroy_view': 'access',
+        'edit_view': 'access'
+    }
 
     def __init__(self, *args, **kwargs):
         base_url = self.__class__.__name__
@@ -2673,6 +2680,7 @@ class CodeArtifactView(FileUploadBaseView):
     fs_path = settings.CODE_ARTIFACTS_FOLDER
     accepted_file_extensions = ('.jar', '.egg', '.zip', '.py')
     title = 'Code Artifacts'
+    class_permission_name = 'Code Artifacts'
 
 
 class TrainedModelsView(FileUploadBaseView):
@@ -2683,6 +2691,14 @@ class TrainedModelsView(FileUploadBaseView):
     # accepted_file_extensions = ('.tar', '.tar.gz')
     accepted_file_extensions = ('',)
     title = 'Trained Models'
+    class_permission_name = 'Trained Models'
+    method_permission_name = {
+        'list_view': 'access',
+        'upload_view': 'access',
+        'download_view': 'access',
+        'destroy_view': 'access',
+        'edit_view': 'access'
+    }
     template_name = 'airflow/tf_file_upload_base.html'
 
     fs_mapping = {
@@ -2715,6 +2731,7 @@ class TrainedModelsView(FileUploadBaseView):
     def flash_on_upload_done(self, files_uploaded):
         return
 
+    @has_access
     def list_view(self, pathname=None):
         # THIS view should return the same content irrespective of pathname
         if pathname:
@@ -2744,6 +2761,7 @@ class TrainedModelsView(FileUploadBaseView):
         )
 
     @csrf.exempt
+    @has_access
     def upload_view(self, pathname=None):
         # print(request.form)
         file = request.files['file']
@@ -2880,7 +2898,7 @@ class TrainedModelsView(FileUploadBaseView):
             if self.fs_mapping[fs_key]['update_config']:
                 self.update_models_config(fs_path)
 
-    # @has_access
+    @has_access
     # @action_logger
     def download_view(self, pathname):
         file_path = self.get_file_path(str(pathname).split('/'))
@@ -2899,7 +2917,7 @@ class TrainedModelsView(FileUploadBaseView):
                              mimetype='application/gzip')
         return send_file(file_path, as_attachment=True, conditional=True)
 
-    # @has_access
+    @has_access
     def destroy_view(self, pathname):
         file = Path(self.get_file_path(str(pathname).split('/')))
         if file.exists() and file.is_file():
@@ -3185,7 +3203,7 @@ class ExportConfigsView(AirflowBaseView, BaseApi):
 
         return self.response(200, message="OK")
 
-    @expose('/api/configs/', methods=['GET', 'POST'])
+    @expose('/configs/', methods=['GET', 'POST'])
     # @protect(allow_browser_login=True)
     @csrf.exempt
     def configs(self):
@@ -3195,7 +3213,7 @@ class ExportConfigsView(AirflowBaseView, BaseApi):
         if request.method == 'POST':
             return self.imprt(self._configs_path, tar=request.files.get('sources'))
 
-    @expose('/api/dependencies/', methods=['GET', 'POST'])
+    @expose('/dependencies/', methods=['GET', 'POST'])
     # @protect(allow_browser_login=True)
     @csrf.exempt
     def dependencies(self):
@@ -3205,7 +3223,7 @@ class ExportConfigsView(AirflowBaseView, BaseApi):
         if request.method == 'POST':
             return self.imprt(self._dependencies_path, tar=request.files.get('sources'))
 
-    @expose('/api/dags/', methods=['GET', 'POST'])
+    @expose('/dags/', methods=['GET', 'POST'])
     # @protect(allow_browser_login=True)
     @csrf.exempt
     def dags(self):
@@ -3220,6 +3238,13 @@ class EDAView(AirflowBaseView, BaseApi):
     default_view = 'source_view'
     output_path = os.path.join(settings.EDA_HOME, *['outputs'])
     sources_key = 'EDA_Sources'
+    class_permission_name = 'Exploratory data analysis'
+    method_permission_name = {
+        'source_view': 'access',
+        'source_destroy_view': 'access',
+        'list_outputs_view': 'access',
+        'dashboard_view': 'access'
+    }
 
     def __init__(self, *args, **kwargs):
         os.makedirs(self.output_path, exist_ok=True)
@@ -3712,6 +3737,15 @@ class KeyTabView(AirflowBaseView):
 class JupyterNotebookView(GitIntegrationMixin, AirflowBaseView):
     default_view = 'jupyter_notebook'
     fs_path = settings.JUPYTER_HOME
+    class_permission_name = 'Trained Models'
+    method_permission_name = {
+        'jupyter_notebook': 'access',
+        'jupyter_git_status': 'access',
+        'jupyter_git_logs': 'access',
+        'push_view': 'access',
+        'pull_view': 'access',
+        'run_notebook': 'access'
+    }
 
     # add this to global in GitIntegrationMixin
     config_section = 'JupyterNotebook'
@@ -3741,7 +3775,7 @@ class JupyterNotebookView(GitIntegrationMixin, AirflowBaseView):
         return dag_id
 
     @expose('/jupyter_notebook')
-    #@has_access
+    @has_access
     @action_logging
     def jupyter_notebook(self):
         title = "Jupyter Notebook"
@@ -3757,7 +3791,7 @@ class JupyterNotebookView(GitIntegrationMixin, AirflowBaseView):
                                     notebooks=notebooks)
 
     @expose('/jupyter/status')
-    # @has_access
+    @has_access
     @action_logging
     def jupyter_git_status(self):
         current_status = self.git_status()
@@ -3766,7 +3800,7 @@ class JupyterNotebookView(GitIntegrationMixin, AirflowBaseView):
                                     current_status=current_status)
 
     @expose('/jupyter/logs')
-    # @has_access
+    @has_access
     @action_logging
     def jupyter_git_logs(self):
         logs = self.git_logs("--pretty=%C(auto)%h %s, Author=<%aN>, Date=%ai")
@@ -3775,7 +3809,7 @@ class JupyterNotebookView(GitIntegrationMixin, AirflowBaseView):
                                     logs=logs)
 
     @expose('/jupyter/commit/', methods=['POST'])
-    #@has_access
+    @has_access
     @action_logging
     def commit_view(self):
         # TODO: Move this to GitIntegrationMixin
@@ -3793,7 +3827,7 @@ class JupyterNotebookView(GitIntegrationMixin, AirflowBaseView):
         return redirect(url_for('JupyterNotebookView.jupyter_notebook'))
 
     @expose('/jupyter/push/', methods=['GET', 'POST'])
-    #@has_access
+    @has_access
     @action_logging
     def push_view(self):
         # TODO: Move this to GitIntegrationMixin
@@ -3805,7 +3839,7 @@ class JupyterNotebookView(GitIntegrationMixin, AirflowBaseView):
         return redirect(url_for('JupyterNotebookView.jupyter_notebook'))
 
     @expose('/jupyter/pull/', methods=['GET', 'POST'])
-    #@has_access
+    @has_access
     @action_logging
     def pull_view(self):
         # TODO: Move this to GitIntegrationMixin
@@ -3817,7 +3851,7 @@ class JupyterNotebookView(GitIntegrationMixin, AirflowBaseView):
         return redirect(url_for('JupyterNotebookView.jupyter_notebook'))
 
     @expose('/jupyter/run-notebook/', methods=['POST'])
-    #@has_access
+    @has_access
     @action_logging
     def run_notebook(self):
         notebook = request.form.get('notebook', None)
@@ -3850,12 +3884,16 @@ class JupyterNotebookView(GitIntegrationMixin, AirflowBaseView):
 
 class GitConfigView(GitIntegrationMixin, AirflowBaseView):
     default_view = 'git_config_view'
+    class_permission_name = 'Git Configuration'
+    method_permission_name = {
+        'git_config_view': 'access'
+    }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
     @expose('/git-configs', methods=['GET', 'POST'])
-    #@has_access
+    @has_access
     def git_config_view(self):
         config = self.read_config()
         if request.method == 'GET':
@@ -3957,6 +3995,13 @@ class LivyConfigView(AirflowBaseView):
 
 class AddDagView(AirflowBaseView):
     default_view = 'add_dag'
+    class_permission_name = "Manage DAG"
+    method_permission_name = {
+        "add_dag": "access",
+        "editdag": "access",
+        "save_snippet": "access",
+        "download": "access",
+    }
 
     # TODO: Refactor this to use FileUploadBaseView.
     # TODO: Refactor Codebricks into its own view.

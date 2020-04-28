@@ -84,17 +84,26 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
     DEV_VMS = {
         'Developer',
+
         'Manage DAG',
-        'AddDagView',
+        # 'AddDagView',
+
         'Code Artifacts',
-        'CodeArtifactView',
+        # 'CodeArtifactView',
+
         'Jupyter Notebook',
-        'JupyterNotebookView',
+        # 'JupyterNotebookView',
+
+        # API auth is not enabled ?????
         'ExportConfigsView',
-        'GitConfigView',
+
         'Git Configuration',
-        'EDAView',
+        # 'GitConfigView',
+
         'Exploratory data analysis',
+        # 'EDAView',
+
+        'Trained Models',
     }
 
     ###########################################################################
@@ -153,6 +162,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
     DEV_PERMS = {
         'menu_access',
+        'can_access',
         'can_jupyter_notebook',
         'can_git_configuration',
         'can_git_config_view',
