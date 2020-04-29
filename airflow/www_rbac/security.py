@@ -64,6 +64,8 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         'About',
         'Version',
         'VersionView',
+        'Help',
+        'HelpView',
     }
 
     USER_VMS = VIEWER_VMS
@@ -124,6 +126,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         'can_get_logs_with_metadata',
         'can_tries',
         'can_graph',
+        'can_graph_popover',
         'can_tree',
         'can_task',
         'can_task_instances',

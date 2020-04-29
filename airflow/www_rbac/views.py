@@ -3567,6 +3567,9 @@ class LdapConfView(AirflowBaseView):
 
 class HelpView(AirflowBaseView):
     default_view = 'help'
+    method_permission_name = {
+        'help': 'show',
+    }
 
     @expose('/help')
     @has_access
