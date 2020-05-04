@@ -1,7 +1,7 @@
 # flake8: noqa
 from datetime import datetime, timedelta
 from airflow import DAG
-from airflow.operators import CoutureSparkOperator, CouturePySparkOperator, CoutureDaskYarnOperator
+from airflow.operators import SparkOperator, PySparkOperator, CoutureDaskYarnOperator
 from airflow.operators.dag_operator import SkippableDagOperator, DagOperator
 from airflow.operators.dagrun_operator import TriggerDagRunOperator
 from airflow.operators import CoutureJupyterOperator
@@ -21,7 +21,7 @@ default_args = {
 schedule = None
 dag = DAG('CoutureExample', default_args=default_args, catchup=False, schedule_interval=schedule)
 #
-# LoadData = CoutureSparkOperator(
+# LoadData = SparkOperator(
 #     task_id='LoadData',
 #     app_name=appName,
 #     class_path='org.apache.spark.examples.SparkPi',
@@ -31,7 +31,7 @@ dag = DAG('CoutureExample', default_args=default_args, catchup=False, schedule_i
 #     description='This task was inserted from the code bricks available on from Developer -> Manage Dags. The task name have been updated according to the scenario'
 # )
 #
-# StatsGeneration = CouturePySparkOperator(
+# StatsGeneration = PySparkOperator(
 #     task_id='StatsGeneration',
 #     app_name=appName,
 #     code_artifact='pi.py',
