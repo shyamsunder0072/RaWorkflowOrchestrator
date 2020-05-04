@@ -12,6 +12,19 @@ Use this orchestrator to author workflows as directed acyclic graphs (DAGs) of t
 
 The rich user interface makes it easy to visualize pipelines running in production, monitor progress, and troubleshoot issues when needed.
 
+
+
+# Release Notes
+
+
+
+- Base Airflow Version: `1.10.10.`
+- Support for LDAP Authentication and DB Authentication.
+- Support for `Configuration Groups` .
+- Support for `Spark & Hadoop Clusters`.
+- Support for `Jupyterhub` & submitting `Spark Jobs` from `Jupyterhub` using `Livy`.
+- Support for `Tensorflow Serving`.
+
 # Installation
 
 **Prerequisites** : `Docker` and `Docker-compose` should be installed.
