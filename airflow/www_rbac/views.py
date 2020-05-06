@@ -3924,11 +3924,11 @@ class GitConfigView(GitIntegrationMixin, AirflowBaseView):
 class LivyConfigView(AirflowBaseView):
     default_view = 'livy_config_view'
 
-    fs_path = Path(settings.LIVY_CONF_PATH)
+    # fs_path = Path(settings.LIVY_CONF_PATH)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        Path(self.fs_path).parent.mkdir(exist_ok=True)
+        # Path(self.fs_path).parent.mkdir(exist_ok=True)
 
     sections = [
         'kernel_python_credentials',
@@ -3957,9 +3957,9 @@ class LivyConfigView(AirflowBaseView):
     def get_keys(self):
         return self.keys
 
-    def read_config(self):
+    def read_config(self, fs_path):
         try:
-            with open(self.fs_path) as f:
+            with open(fs_path) as f:
                 return json.load(f)
         except FileNotFoundError:
             default = {}
@@ -3967,18 +3967,21 @@ class LivyConfigView(AirflowBaseView):
                 default[section] = {}
             return default
 
-    def write_config(self, config):
-        with open(self.fs_path, 'w') as f:
+    def write_config(self, config, fs_path):
+        # create .sparkmagic dir.
+        Path(fs_path).parent.mkdir(exist_ok=True)
+        with open(fs_path, 'w') as f:
             json.dump(config, f)
 
-    @expose('/livy-configs', methods=['GET', 'POST'])
+    @expose('/livy-configs/<string:group>', methods=['GET', 'POST'])
     @has_access
-    def livy_config_view(self):
-        config = self.read_config()
+    def livy_config_view(self, group):
+        fs_path = os.path.join(settings.HADOOP_CONFIGS_FOLDER, *[group, '.sparkmagic', 'config.json'])
+        config = self.read_config(fs_path)
         if request.method == 'GET':
             return self.render_template('livyconfig/livy_config_view.html',
                                         title='Livy Configuration View',
-                                        config=self.read_config(),
+                                        config=self.read_config(fs_path),
                                         keys=self.get_keys(),
                                         sections=self.get_sections())
         form = request.form
@@ -3990,10 +3993,10 @@ class LivyConfigView(AirflowBaseView):
             if key.startswith('config-'):
                 cleaned_key = key.split('-')[-1]
                 config[section][cleaned_key] = form[key]
-        self.write_config(config)
+        self.write_config(config, fs_path)
         # TODO: Refine flash message.
-        flash('Livy config for {}, set succesfully!'.format(section))
-        return redirect(url_for('LivyConfigView.livy_config_view'))
+        flash('Livy config for Config group {} : {}, set succesfully!'.format(group, section))
+        return redirect(url_for('LivyConfigView.livy_config_view', group=group))
 
 
 class AddDagView(AirflowBaseView):
