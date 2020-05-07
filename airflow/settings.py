@@ -234,7 +234,7 @@ def configure_vars():
     SAMPLE_SPARK_CONF_PATH = normalize_path(os.path.join(AIRFLOW_HOME, 'couture-spark.conf'))
     GIT_CONF_PATH = normalize_path(os.path.join(AIRFLOW_HOME, 'git_confs'))
     HADOOP_CONFIGS_FOLDER = normalize_path(os.path.join(AIRFLOW_HOME, *[os.pardir,
-                                                                        'setup',
+                                                                        'configs',
                                                                         'hadoop_config_groups']))
 
     CODE_ARTIFACTS_FOLDER = normalize_path(os.path.join(AIRFLOW_HOME, *[os.pardir, 'code']))

@@ -3551,7 +3551,9 @@ class LdapConfView(AirflowBaseView):
         from airflow.configuration import AIRFLOW_HOME
         config = CP.ConfigParser()
         config.optionxform = str
-        conf_path = AIRFLOW_HOME + '/ldap.conf'
+        conf_path = os.path.normpath(os.path.join(AIRFLOW_HOME, *[os.pardir,
+                                                                  'configs',
+                                                                  'ldap.conf']))
 
         title = "Ldap Configuration"
 
