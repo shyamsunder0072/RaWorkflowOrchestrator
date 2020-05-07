@@ -3047,7 +3047,7 @@ class HadoopConfView(FileUploadBaseView):
             if name and self.regex_valid_groupnames.match(name):
                 os.makedirs(os.path.join(self.fs_path, name), exist_ok=True)
                 # copying default spark config.
-                shutil.copyfile(settings.SPARK_CONF_PATH, os.path.join(self.fs_path, *[name, 'couture-spark.conf']))
+                shutil.copyfile(settings.SAMPLE_SPARK_CONF_PATH, os.path.join(self.fs_path, *[name, 'couture-spark.conf']))
                 groups, _ = self.get_groups()
                 if len(groups) <= 1:
                     self._change_default_group(name)
@@ -3125,7 +3125,7 @@ class HadoopConfView(FileUploadBaseView):
 class ExportConfigsView(AirflowBaseView, BaseApi):
     _configs_path = [
         settings.HADOOP_CONFIGS_FOLDER,
-        settings.SPARK_CONF_PATH,
+        # settings.SPARK_CONF_PATH,
     ]
 
     _dependencies_path = [
@@ -3951,7 +3951,7 @@ class GitConfigView(GitIntegrationMixin, AirflowBaseView):
 class LivyConfigView(AirflowBaseView):
     default_view = 'livy_config_view'
 
-    # fs_path = Path(settings.LIVY_CONF_PATH)
+    base_fs_path = Path(settings.LIVY_CONF_PATH)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -4004,7 +4004,7 @@ class LivyConfigView(AirflowBaseView):
     @has_access
     @action_logging
     def livy_config_view(self, group):
-        fs_path = os.path.join(settings.HADOOP_CONFIGS_FOLDER, *[group, '.sparkmagic', 'config.json'])
+        fs_path = os.path.join(self.base_fs_path, *[group, '.sparkmagic', 'config.json'])
         config = self.read_config(fs_path)
         if request.method == 'GET':
             return self.render_template('livyconfig/livy_config_view.html',

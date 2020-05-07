@@ -30,6 +30,7 @@ import pendulum
 import sys
 from typing import Any
 
+from copy import deepcopy
 from sqlalchemy import create_engine, exc
 from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.pool import NullPool
@@ -149,7 +150,7 @@ LOGGING_CLASS_PATH = None
 
 # CONSTANTS ADDED BY COUTURE.AI
 SPARK_DEPENDENCIES_FOLDER = None
-SPARK_CONF_PATH = None
+SAMPLE_SPARK_CONF_PATH = None
 GIT_CONF_PATH = None
 LIVY_CONF_PATH = None
 HADOOP_CONFIGS_FOLDER = None
@@ -218,7 +219,7 @@ def configure_vars():
     global DAGS_FOLDER
     global PLUGINS_FOLDER
     global SPARK_DEPENDENCIES_FOLDER
-    global SPARK_CONF_PATH
+    global SAMPLE_SPARK_CONF_PATH
     global HADOOP_CONFIGS_FOLDER
     global CODE_ARTIFACTS_FOLDER
     global GIT_CONF_PATH
@@ -230,7 +231,7 @@ def configure_vars():
     DAGS_FOLDER = os.path.expanduser(conf.get('core', 'DAGS_FOLDER'))
 
     SPARK_DEPENDENCIES_FOLDER = normalize_path(os.path.join(AIRFLOW_HOME, *[os.pardir, 'jars']))
-    SPARK_CONF_PATH = normalize_path(os.path.join(AIRFLOW_HOME, 'couture-spark.conf'))
+    SAMPLE_SPARK_CONF_PATH = normalize_path(os.path.join(AIRFLOW_HOME, 'couture-spark.conf'))
     GIT_CONF_PATH = normalize_path(os.path.join(AIRFLOW_HOME, 'git_confs'))
     HADOOP_CONFIGS_FOLDER = normalize_path(os.path.join(AIRFLOW_HOME, *[os.pardir,
                                                                         'setup',
@@ -240,7 +241,7 @@ def configure_vars():
     JUPYTER_HOME = normalize_path(os.path.join(AIRFLOW_HOME, *[os.pardir, 'jupyter']))
     EDA_HOME = normalize_path(os.path.join(AIRFLOW_HOME, *[os.pardir, 'eda']))
     MODEL_SERVERS = normalize_path(os.path.join(AIRFLOW_HOME, *[os.pardir, 'trained-models']))
-    LIVY_CONF_PATH = normalize_path(os.path.join(JUPYTER_HOME, *['.sparkmagic', 'config.json']))
+    LIVY_CONF_PATH = deepcopy(HADOOP_CONFIGS_FOLDER)
 
     PLUGINS_FOLDER = conf.get(
         'core',
