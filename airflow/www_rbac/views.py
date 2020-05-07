@@ -2795,6 +2795,10 @@ class TrainedModelsView(FileUploadBaseView):
         file = request.form['file']
         total_chunks = int(request.form['totalChunkCount'])
         # print(pathname)
+        AirflowBaseView.audit_logging(
+            'TrainedModelsView.extract',
+            file.filename,
+            request.environ['REMOTE_ADDR'])
         combine_chunks_thread = threading.Thread(
             target=self.extra_work_after_file_save,
             args=(temp_save_path, file, total_chunks, pathname))
@@ -2802,6 +2806,10 @@ class TrainedModelsView(FileUploadBaseView):
         return make_response(('Thread to combine files has started.', 200))
 
     def extra_files(self, files, fs_path=None):
+        '''
+        This method adds extra files which need to be shown, & removes previously added
+        files which needn't be shown in the UI.
+        '''
         # print(fs_path)
         if not fs_path:
             fs_path = self.fs_path
@@ -2850,6 +2858,10 @@ class TrainedModelsView(FileUploadBaseView):
         config += '}'
         # flash('All Model servers have been updated')
         self.set_config(config, pathname)
+        AirflowBaseView.audit_logging(
+            'TrainedModelsView.update_models_config',
+            extra='',
+            source_ip=request.environ['REMOTE_ADDR'])
 
     def extra_work_after_file_save(self, temp_save_path, file, total_chunks, pathname):
         # TODO: MODIFY THIS HACK.
@@ -2910,6 +2922,10 @@ class TrainedModelsView(FileUploadBaseView):
 
             f.flush()
             f.seek(0)
+            AirflowBaseView.audit_logging(
+                'TrainedModelsView.download_view',
+                arcname,
+                request.environ['REMOTE_ADDR'])
             return send_file(f,
                              as_attachment=True,
                              conditional=True,
@@ -3734,6 +3750,11 @@ class KeyTabView(AirflowBaseView):
     def download(self, group, filename):  # for downloading the file passed in the filename
         add_to_dir = os.path.join(settings.HADOOP_CONFIGS_FOLDER, *[group])
         path_file = os.path.join(add_to_dir, filename)
+        AirflowBaseView.audit_logging(
+            'KeyTabView.download_keytab',
+            f'{group}-{filename}',
+            request.environ['REMOTE_ADDR'],
+        )
         return send_file(path_file, as_attachment=True, conditional=True)
 
 
@@ -3775,6 +3796,11 @@ class JupyterNotebookView(GitIntegrationMixin, AirflowBaseView):
                                     schedule=schedule)
         with open(os.path.join(settings.DAGS_FOLDER, dag_id + '.py'), 'w') as dag_file:
             dag_file.write(code)
+        AirflowBaseView.audit_logging(
+            'JupyterNoetbook.create_jupyter_dag',
+            notebook,
+            request.environ['REMOTE_ADDR'],
+        )
         return dag_id
 
     @expose('/jupyter_notebook')
@@ -3897,6 +3923,7 @@ class GitConfigView(GitIntegrationMixin, AirflowBaseView):
 
     @expose('/git-configs', methods=['GET', 'POST'])
     @has_access
+    @action_logging
     def git_config_view(self):
         config = self.read_config()
         if request.method == 'GET':
@@ -3975,6 +4002,7 @@ class LivyConfigView(AirflowBaseView):
 
     @expose('/livy-configs/<string:group>', methods=['GET', 'POST'])
     @has_access
+    @action_logging
     def livy_config_view(self, group):
         fs_path = os.path.join(settings.HADOOP_CONFIGS_FOLDER, *[group, '.sparkmagic', 'config.json'])
         config = self.read_config(fs_path)
@@ -3994,6 +4022,11 @@ class LivyConfigView(AirflowBaseView):
                 cleaned_key = key.split('-')[-1]
                 config[section][cleaned_key] = form[key]
         self.write_config(config, fs_path)
+        AirflowBaseView.audit_logging(
+            'LivyConfView.livy_config_view',
+            '',
+            request.environ['REMOTE_ADDR'],
+        )
         # TODO: Refine flash message.
         flash('Livy config for Config group {} : {}, set succesfully!'.format(group, section))
         return redirect(url_for('LivyConfigView.livy_config_view', group=group))
