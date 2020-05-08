@@ -3047,11 +3047,7 @@ class HadoopConfView(FileUploadBaseView):
             if name and self.regex_valid_groupnames.match(name):
                 os.makedirs(os.path.join(self.fs_path, name), exist_ok=True)
                 # copying default spark config.
-<<<<<<< HEAD
                 shutil.copyfile(settings.SAMPLE_SPARK_CONF_PATH, os.path.join(self.fs_path, *[name, 'couture-spark.conf']))
-=======
-                shutil.copyfile(settings.SPARK_CONF_PATH, os.path.join(self.fs_path, *[name, 'couture-spark.conf']))
->>>>>>> ba6ffcee2fa3987e3f97447af9ce40f11cbb40d2
                 groups, _ = self.get_groups()
                 if len(groups) <= 1:
                     self._change_default_group(name)
@@ -4021,14 +4017,11 @@ class JupyterNotebookView(GitIntegrationMixin, AirflowBaseView):
 
 class GitConfigView(GitIntegrationMixin, AirflowBaseView):
     default_view = 'git_config_view'
-<<<<<<< HEAD
     class_permission_name = 'Git Configuration'
     method_permission_name = {
         'git_config_view': 'access'
     }
-=======
     fs_path = None
->>>>>>> ba6ffcee2fa3987e3f97447af9ce40f11cbb40d2
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
