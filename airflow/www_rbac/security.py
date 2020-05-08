@@ -102,7 +102,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         'Git Configuration',
         # 'GitConfigView',
 
-        'Exploratory data analysis',
+        'Exploratory Data Analysis',
         # 'EDAView',
 
         'Trained Models',
