@@ -25,6 +25,11 @@ import inspect
 import json
 import time
 import markdown
+import re
+import subprocess
+import zipfile
+import os
+import io
 
 from builtins import str
 from past.builtins import basestring
@@ -502,3 +507,31 @@ def unpause_dag(dag_id):
         session.rollback()
     finally:
         session.close()
+
+
+def move_to_hdfs(file, hdfs_path='/data/eda/raw/inputfiles/'):
+    # print(os.stat(file))
+    # print(str(file + " " + hdfs_path))
+    hdfs_path = str(hdfs_path)
+    if not hdfs_path.endswith('/'):
+        hdfs_path += '/'
+    filename = os.path.basename(file)
+    # series of hdfs commands
+    # cmd = f'hdfs dfs -mkdir -p {hdfs_path} && hdfs dfs -put -f {file} {hdfs_path} && hdfs dfs -ls {hdfs_path}'
+    cmd1 = ['hdfs', 'dfs', '-mkdir', '-p', hdfs_path]
+    cmd2 = ['hdfs', 'dfs', '-put', '-f', file, hdfs_path]
+    cmd3 = ['hdfs', 'dfs', '-ls', hdfs_path]
+    # cmd = cmd.split(' ')
+    # print(cmd)
+    try:
+        # out = subprocess.check_output(cmd, stderr=subprocess.STDOUT)
+        # print(out)
+        # os.system(cmd)
+        out1 = subprocess.check_output(cmd1)
+        out2 = subprocess.check_output(cmd2)
+        out3 = subprocess.check_output(cmd3)
+        print(out1, out2, out3)
+        return f'{hdfs_path}{filename}'
+    except Exception as e:
+        print("SUBPROCESS COMMAND ERROR", e.output)
+        raise Exception('Error while moving data to HDFS.')

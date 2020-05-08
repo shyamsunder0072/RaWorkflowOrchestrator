@@ -45,32 +45,32 @@
     <table class="table table-bordered table-hover" id="sourceTable">
       <thead>
         <tr class="table-head">
-          <th colspan="12">Source</th>
-          <th colspan="3">Links</th>
+          <th colspan="9" class="col-md-9">Source</th>
+          <th colspan="3" class="col-md-3">Links</th>
         </tr>
       </thead>
       <tbody>
       <div>
         {% for source in sources %}
         <tr>
-          <td class="couture_table_text" class="text-center" colspan="12">
+          <td class="couture_table_text" class="text-center" colspan="9" class="col-md-9">
             {{ source }}
           </td>
-          <td colspan="1">
+          <td colspan="1" class="col-md-1">
             <div>
-              <a href="#">
+              <a href="{{ url_for('EDAView.run_view', source=source.id) }}">
                 <i class="fa fa-play fa-lg" data-toggle="tooltip" title="Run EDA on this data source."></i>
               </a>
             </div>
           </td>
-          <td colspan="1">
+          <td colspan="1" class="col-md-1">
             <div>
               <a href="{{ url_for('EDAView.list_outputs_view', source=source.id) }}">
                 <i class="fa fa-info-circle fa-lg" data-toggle="tooltip" title="Get Info on All EDA runs for this source."></i>
               </a>
             </div>
           </td>
-          <td colspan="1">
+          <td colspan="1" class="col-md-1">
             <a href="{{ url_for('EDAView.source_destroy_view', source=source.id) }}" onclick="return confirm('Are you sure to delete {{source}} ?')">
               <i class="fa fa-trash fa-lg" style="color:red" aria-hidden="true" data-toggle="tooltip" title="Delete Source"></i>
             </a>
@@ -96,6 +96,7 @@
       </div>
       <form method="POST" action="{{ url_for('EDAView.source_view') }}">
         <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
+        <input name="type" type="hidden" value="{{ source_types.hdfs.value }}">
         <div class="modal-body">
         <div class="form-group">
           <label for="path">Enter source: </label>
@@ -118,13 +119,13 @@
         <h4 class="modal-title" id="myModalLabel">Add a new data source</h4>
       </div>
       <!-- TODO: Change action url -->
-      <form method="POST" action="{{ url_for('EDAView.source_view') }}">
+      <form method="POST" action="{{ url_for('EDAView.source_view') }}" enctype="multipart/form-data">
         <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
         <div class="modal-body">
           <div class="form-group">
             <label for="inputFile">Choose source</label>
-            <input type="file" accept=".xlsx, .xlx, .csv, .tsv">
-            <p class="help-block">Only <code>.xlsx, .xlx, .csv, .tsv</code> file extensions allowed</p>
+            <input type="file" accept=".xlsx, .xls, .csv, .tsv" name="file">
+            <p class="help-block">Only <code>.xlsx, .xls, .csv, .tsv</code> file extensions allowed</p>
           </div>
       </div>
       <div class="modal-footer">

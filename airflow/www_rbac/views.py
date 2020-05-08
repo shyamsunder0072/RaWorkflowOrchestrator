@@ -92,7 +92,7 @@ from airflow.www_rbac.forms import (DateTimeForm, DateTimeWithNumRunsForm,
                                     DagRunForm, ConnectionForm)
 from airflow.www_rbac.mixins import GitIntegrationMixin
 from airflow.www_rbac.widgets import AirflowModelListWidget
-from airflow.www_rbac.utils import unpause_dag
+from airflow.www_rbac.utils import unpause_dag, move_to_hdfs
 
 
 PAGE_SIZE = conf.getint('webserver', 'page_size')
@@ -3047,7 +3047,11 @@ class HadoopConfView(FileUploadBaseView):
             if name and self.regex_valid_groupnames.match(name):
                 os.makedirs(os.path.join(self.fs_path, name), exist_ok=True)
                 # copying default spark config.
+<<<<<<< HEAD
                 shutil.copyfile(settings.SAMPLE_SPARK_CONF_PATH, os.path.join(self.fs_path, *[name, 'couture-spark.conf']))
+=======
+                shutil.copyfile(settings.SPARK_CONF_PATH, os.path.join(self.fs_path, *[name, 'couture-spark.conf']))
+>>>>>>> ba6ffcee2fa3987e3f97447af9ce40f11cbb40d2
                 groups, _ = self.get_groups()
                 if len(groups) <= 1:
                     self._change_default_group(name)
@@ -3253,6 +3257,8 @@ class ExportConfigsView(AirflowBaseView, BaseApi):
 class EDAView(AirflowBaseView, BaseApi):
     default_view = 'source_view'
     output_path = os.path.join(settings.EDA_HOME, *['outputs'])
+    temp_save_path = os.path.join(settings.EDA_HOME, *['tmp'])
+    hdfs_path = '/data/eda/raw/inputfiles/'
     sources_key = 'EDA_Sources'
     class_permission_name = 'Exploratory data analysis'
     method_permission_name = {
@@ -3264,6 +3270,7 @@ class EDAView(AirflowBaseView, BaseApi):
 
     def __init__(self, *args, **kwargs):
         os.makedirs(self.output_path, exist_ok=True)
+        os.makedirs(self.temp_save_path, exist_ok=True)
         super().__init__(*args, **kwargs)
 
     def get_sources(self):
@@ -3319,14 +3326,115 @@ class EDAView(AirflowBaseView, BaseApi):
             outputs = json.dumps(self.get_outputs())
             return self.render_template('eda/eda_sources.html',
                                         sources=sources,
+                                        source_types=models.EdaSourcesEnum,
                                         outputs=outputs)
         conn_uri = request.form.get('path')
-        # print(request.form)
-        if not conn_uri:
-            flash('Invalid source path.')
-        else:
+        if not conn_uri and not request.files.get('file'):
+            flash('Invalid source.', category='warning')
+        elif request.form.get('type') == models.EdaSourcesEnum.hdfs.value:
             self.add_source(conn_uri, source_type=models.EdaSourcesEnum.hdfs.value)
             flash('Source Added.')
+        else:
+            file = request.files.get('file')
+            # dest = os.path.join(self.temp_save_path, file.filename)
+            # file.save(dest)
+            # self.add_source_file(file)
+            dest = os.path.join(self.temp_save_path, file.filename)
+            file.save(dest)
+            add_source_file_thread = threading.Thread(
+                target=self.add_source_file,
+                args=(dest, self.hdfs_path))
+            add_source_file_thread.start()
+            flash(f'File will be copied to HDFS shortly. \
+                Trigger EDA on this file at {self.hdfs_path}{file.filename}.')
+            # move data to hdfs
+        return redirect(url_for('EDAView.source_view'))
+
+    def add_source_file(self, file, hdfs_path):
+
+        hdfs_fileloc = move_to_hdfs(file, hdfs_path)
+        # move_to_hdfs_thread = threading.Thread(
+        #         target=move_to_hdfs,
+        #         args=(os.path.join(self.temp_save_path, file.filename)))
+        # move_to_hdfs_thread.start()
+
+        # TODO: This is done because of the way the hdfs path is handled in EDA DAGs.
+        # Check if it is the correct way.
+        if str(hdfs_fileloc).startswith('/'):
+            hdfs_fileloc = 'hdfs:/' + hdfs_fileloc
+        else:
+            hdfs_fileloc = 'hdfs://' + hdfs_fileloc
+        # print(os.stat(dest))
+        self.add_source(hdfs_fileloc, source_type=models.EdaSourcesEnum.hdfs.value)
+
+    def create_eda_dags(self, eda_source):
+
+        username = g.user.username
+        now = datetime.now()
+
+        if eda_source.source_type == models.EdaSourcesEnum.hdfs:
+            output_dirs = [
+                Path(eda_source.connection_uri).resolve().stem,
+                'preliminary',
+                now.strftime('%Y-%m-%d-%H:%M:%S')
+            ]
+        else:
+            output_dirs = [
+                f'{Path(eda_source.connection_uri).resolve().stem}-{eda_source.tablename}',
+                'preliminary',
+                now.strftime('%Y-%m-%d-%H:%M:%S')
+            ]
+
+        # folder_to_copy_sum is an intermediate directory
+        folder_to_copy_sum = "-".join([
+            Path(eda_source.connection_uri).stem,
+            now.strftime("%d-%m-%Y-%H-%M-%S")])
+
+        summ_dag_id = "-".join([
+            "EDAPreliminaryDataSummary",
+            Path(eda_source.connection_uri).resolve().stem,
+            now.strftime("%d-%m-%Y-%H-%M-%S")])
+        code = self.render_template('dags/default_EDA_preliminary_data_summary.jinja2',
+                                    username=username,
+                                    dag_id=summ_dag_id,
+                                    source=eda_source,
+                                    eda_sources_enum=models.EdaSourcesEnum,
+                                    folder_to_copy_sum=folder_to_copy_sum,
+                                    now=now)
+        with open(os.path.join(settings.DAGS_FOLDER, summ_dag_id + '.py'), 'w') as dag_file:
+            dag_file.write(code)
+
+        viz_dag_id = "-".join([
+            "EDAPreliminaryVisualisation",
+            Path(eda_source.connection_uri).resolve().stem,
+            now.strftime("%d-%m-%Y-%H-%M-%S")])
+        code = self.render_template('dags/default_EDA_preliminary_visualisations.jinja2',
+                                    username=username,
+                                    dag_id=viz_dag_id,
+                                    source=eda_source,
+                                    output_dirs=output_dirs,
+                                    summ_dag_id=summ_dag_id,
+                                    folder_to_copy_sum=folder_to_copy_sum,
+                                    now=now)
+        with open(os.path.join(settings.DAGS_FOLDER, viz_dag_id + '.py'), 'w') as dag_file:
+            dag_file.write(code)
+
+        flash_msg = 'EDA run on Source: {} has been scheduled. '.format(str(eda_source)) + \
+            'Output will be found in "{}" directory.'.format('/'.join(output_dirs))
+        flash(flash_msg)
+        return (viz_dag_id, summ_dag_id)
+
+    @expose('/eda/run/<int:source>', methods=['GET', 'POST'])
+    @has_access
+    @csrf.exempt
+    @action_logging
+    def run_view(self, source):
+        eda_source = models.EdaSource.get_by_id(source_id=source)
+        dag_ids = self.create_eda_dags(eda_source)
+        _parse_dags(update_DagModel=True)
+
+        for dag_id in dag_ids:
+            unpause_dag(dag_id)
         return redirect(url_for('EDAView.source_view'))
 
     @expose('/eda/api/', methods=['POST'])
@@ -3913,10 +4021,14 @@ class JupyterNotebookView(GitIntegrationMixin, AirflowBaseView):
 
 class GitConfigView(GitIntegrationMixin, AirflowBaseView):
     default_view = 'git_config_view'
+<<<<<<< HEAD
     class_permission_name = 'Git Configuration'
     method_permission_name = {
         'git_config_view': 'access'
     }
+=======
+    fs_path = None
+>>>>>>> ba6ffcee2fa3987e3f97447af9ce40f11cbb40d2
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -3988,7 +4100,7 @@ class LivyConfigView(AirflowBaseView):
         try:
             with open(fs_path) as f:
                 return json.load(f)
-        except FileNotFoundError:
+        except (FileNotFoundError, json.decoder.JSONDecodeError,):
             default = {}
             for section in self.get_sections():
                 default[section] = {}

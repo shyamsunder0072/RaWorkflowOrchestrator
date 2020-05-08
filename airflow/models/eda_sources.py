@@ -1,4 +1,5 @@
 import enum
+from urllib.parse import urlparse, urlunparse
 from airflow.models.base import Base
 from airflow.utils.db import provide_session
 from sqlalchemy import Column, Text, Enum, Integer
@@ -22,10 +23,18 @@ class EdaSource(Base):
     def __repr__(self):
         if self.tablename:
             return "{},  table={}".format(
-                self.connection_uri,
+                self.masked_connection_uri,
                 self.tablename or '')
         else:
-            return self.connection_uri
+            return self.masked_connection_uri
+
+    @property
+    def masked_connection_uri(self):
+        parsed = urlparse(self.connection_uri)
+        if parsed.password:
+            return urlunparse(parsed._replace(
+                netloc="{}:{}@{}".format(parsed.username, "****", parsed.hostname)))
+        return self.connection_uri
 
     @classmethod
     @provide_session
@@ -37,6 +46,15 @@ class EdaSource(Base):
         instance = session.query(cls).filter(cls.connection_uri == connection_uri,
                                              cls.source_type == source_type,
                                              cls.tablename == tablename).first()
+
+        return instance
+
+    @classmethod
+    @provide_session
+    def get_by_id(cls,
+                  source_id,
+                  session=None):
+        instance = session.query(cls).filter(cls.id == source_id).first()
 
         return instance
 
