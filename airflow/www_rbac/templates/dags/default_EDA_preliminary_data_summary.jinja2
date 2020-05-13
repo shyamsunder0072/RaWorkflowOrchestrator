@@ -4,7 +4,7 @@ import shutil
 from datetime import datetime
 from pathlib import Path
 from airflow import DAG
-from airflow.operators import CoutureSparkOperator
+from airflow.operators import CoutureSparkOperator, HDFSOperator
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.python_operator import BranchPythonOperator, PythonOperator
 from airflow.settings import EDA_HOME
@@ -14,23 +14,25 @@ classPath = 'ai.couture.obelisk.eda.MainClass'
 appName = 'EDAUniVariateBriefDataSummary'
 code_artifact = 'obelisk-eda.jar'
 
-# Database testing URI
-# uripath = "mysql://couture:couture@mysql/couture"
-# file_name = "dag_run"
 
 # HDFS testing URI
-# uri = 'hdfs://data/ecomm/ajio/processed/productAttributes'
 uri = '{{source.connection_uri}}'
 file_name = uri.split("/")[-1]
 file_folder = file_name.split(".")[0]
-uripath = uri.split(":/")[1].replace(file_name, "")
 
 folder_to_copy_summary = '{{folder_to_copy_sum}}'
+
+{% if source.source_type == 'local' %}
+uripath = str(Path(uri).parent)
+{% else %}
+uripath = uri.split("://")[1].replace(file_name, "")
+{% endif %}
+
 rawDirPath = uripath
 
 
 def get_source():
-    if "hdfs" in uri:
+    if "hdfs://" in uri or '{{source.source_type}}' == 'local':
         source = "CreateOutputHDFSPathIfNotExists"
     else:
         source = "GenerateSummaryDB"
@@ -91,11 +93,27 @@ branch_task = BranchPythonOperator(
     dag=EDADag,
 )
 
-CreateOutputHDFSPathIfNotExists = BashOperator(
+{% if source.source_type == 'local'  %}
+put_path = '/data/eda/raw/inputfiles/'
+MakeEdaSourceHDFSDataDir = HDFSOperator(
+    task_id='MakeEdaSourceHDFSDataDir',
+    dag=EDADag,
+    description='',
+    command_arguments=['-mkdir', '-p', put_path]
+)
+CopyEdaSourceToHDFS = HDFSOperator(
+    task_id='CopyEdaSourceToHDFS',
+    dag=EDADag,
+    description='',
+    command_arguments=['-put', '-f', '{{source.connection_uri}}', put_path]
+)
+{% endif %}
+
+CreateOutputHDFSPathIfNotExists = HDFSOperator(
     task_id='CreateOutputHDFSPathIfNotExists',
     dag=EDADag,
     description='',
-    bash_command='hdfs dfs -mkdir -p {}'.format(Path(HdfsProcessedDirPath).parent)
+    command_arguments=['-mkdir', '-p', Path(HdfsProcessedDirPath).parent]
 )
 
 GeneratePreliminarySummaryHDFS = CoutureSparkOperator(
@@ -140,16 +158,18 @@ GetTableInfo = CoutureSparkOperator(
     dag=EDADag,
     description='')
 
-
-del_directory_cmd = 'rm -r {}'.format(Path(data_dump_dir_hdfs))
-copy_directory_cmd = 'hdfs dfs -get {} {}'.format(Path(HdfsProcessedDirPath).parent, data_dump_dir_hdfs)
-cmd = f'{del_directory_cmd} && {copy_directory_cmd}'
-
-CopyFilesToLocal = BashOperator(
+CopyFilesToLocal = HDFSOperator(
     task_id='CopySummaryData',
     dag=EDADag,
     description='',
-    bash_command=cmd
+    command_arguments=['dfs', '-get', Path(HdfsProcessedDirPath).parent, data_dump_dir_hdfs]
+)
+
+DeleteLocalDumpData = BashOperator(
+    task_id='DeleteLocalDumpData',
+    dag=EDADag,
+    description='',
+    bash_command='rm -r {}'.format(Path(data_dump_dir_hdfs))
 )
 
 
@@ -163,9 +183,16 @@ def conditionally_trigger(context, dag_run_obj):
 
 
 # branch_task.set_upstream(EDAPreliminaryCreateDirs)
+{% if source.source_type == 'local' %}
+MakeEdaSourceHDFSDataDir.set_upstream(branch_task)
+CopyEdaSourceToHDFS.set_upstream(MakeEdaSourceHDFSDataDir)
+CreateOutputHDFSPathIfNotExists.set_upstream(CopyEdaSourceToHDFS)
+{% else %}
 CreateOutputHDFSPathIfNotExists.set_upstream(branch_task)
+{% endif %}
 GeneratePreliminarySummaryHDFS.set_upstream(CreateOutputHDFSPathIfNotExists)
 GetTableInfo.set_upstream(GeneratePreliminarySummaryHDFS)
 CopyFilesToLocal.set_upstream(GetTableInfo)
+DeleteLocalDumpData.set_upstream(CopyFilesToLocal)
 
 GeneratePreliminarySummaryDB.set_upstream(branch_task)

@@ -3331,55 +3331,66 @@ class EDAView(AirflowBaseView, BaseApi):
             self.add_source(conn_uri, source_type=models.EdaSourcesEnum.hdfs.value)
             flash('Source Added.')
         else:
+            # csv file. Trigger an run immdeiately.
             file = request.files.get('file')
             # dest = os.path.join(self.temp_save_path, file.filename)
             # file.save(dest)
             # self.add_source_file(file)
             dest = os.path.join(self.temp_save_path, file.filename)
             file.save(dest)
-            add_source_file_thread = threading.Thread(
-                target=self.add_source_file,
-                args=(dest, self.hdfs_path))
-            add_source_file_thread.start()
-            flash(f'File will be copied to HDFS shortly. \
-                Trigger EDA on this file at {self.hdfs_path}{file.filename}.')
+            # add_source_file_thread = threading.Thread(
+            #     target=self.add_source_file,
+            #     args=(dest, self.hdfs_path))
+            # add_source_file_thread.start()
+            # flash(f'File will be copied to HDFS shortly. \
+            #     Trigger EDA on this file at {self.hdfs_path}{file.filename}.')
             # move data to hdfs
+
+            # just mock the eda source
+            eda_source = models.EdaSource(connection_uri=dest, source_type='local')
+            dag_ids = self.create_eda_dags(eda_source)
+            _parse_dags(update_DagModel=True)
+
+            for dag_id in dag_ids:
+                unpause_dag(dag_id)
         return redirect(url_for('EDAView.source_view'))
 
-    def add_source_file(self, file, hdfs_path):
+    # def add_source_file(self, file, hdfs_path):
 
-        hdfs_fileloc = move_to_hdfs(file, hdfs_path)
-        # move_to_hdfs_thread = threading.Thread(
-        #         target=move_to_hdfs,
-        #         args=(os.path.join(self.temp_save_path, file.filename)))
-        # move_to_hdfs_thread.start()
+    #     hdfs_fileloc = move_to_hdfs(file, hdfs_path)
+    #     # move_to_hdfs_thread = threading.Thread(
+    #     #         target=move_to_hdfs,
+    #     #         args=(os.path.join(self.temp_save_path, file.filename)))
+    #     # move_to_hdfs_thread.start()
 
-        # TODO: This is done because of the way the hdfs path is handled in EDA DAGs.
-        # Check if it is the correct way.
-        if str(hdfs_fileloc).startswith('/'):
-            hdfs_fileloc = 'hdfs:/' + hdfs_fileloc
-        else:
-            hdfs_fileloc = 'hdfs://' + hdfs_fileloc
-        # print(os.stat(dest))
-        self.add_source(hdfs_fileloc, source_type=models.EdaSourcesEnum.hdfs.value)
+    #     # TODO: This is done because of the way the hdfs path is handled in EDA DAGs.
+    #     # Check if it is the correct way.
+    #     if str(hdfs_fileloc).startswith('/'):
+    #         hdfs_fileloc = 'hdfs:/' + hdfs_fileloc
+    #     else:
+    #         hdfs_fileloc = 'hdfs://' + hdfs_fileloc
+    #     # print(os.stat(dest))
+    #     self.add_source(hdfs_fileloc, source_type=models.EdaSourcesEnum.hdfs.value)
 
     def create_eda_dags(self, eda_source):
 
         username = g.user.username
         now = datetime.now()
 
-        if eda_source.source_type == models.EdaSourcesEnum.hdfs:
-            output_dirs = [
-                Path(eda_source.connection_uri).resolve().stem,
-                'preliminary',
-                now.strftime('%Y-%m-%d-%H:%M:%S')
-            ]
-        else:
+        if eda_source.source_type == models.EdaSourcesEnum.database:
             output_dirs = [
                 f'{Path(eda_source.connection_uri).resolve().stem}-{eda_source.tablename}',
                 'preliminary',
                 now.strftime('%Y-%m-%d-%H:%M:%S')
             ]
+        # for hdfs and csv files
+        else:
+            output_dirs = [
+                Path(eda_source.connection_uri).resolve().stem,
+                'preliminary',
+                now.strftime('%Y-%m-%d-%H:%M:%S')
+            ]
+
 
         # folder_to_copy_sum is an intermediate directory
         folder_to_copy_sum = "-".join([
