@@ -1,4 +1,5 @@
 import enum
+import os
 from urllib.parse import urlparse, urlunparse
 from airflow.models.base import Base
 from airflow.utils.db import provide_session
@@ -21,6 +22,8 @@ class EdaSource(Base):
     tablename = Column(Text)
 
     def __repr__(self):
+        if self.source_type == 'local':
+            return os.path.basename(self.connection_uri)
         if self.tablename:
             return "{},  table={}".format(
                 self.masked_connection_uri,
