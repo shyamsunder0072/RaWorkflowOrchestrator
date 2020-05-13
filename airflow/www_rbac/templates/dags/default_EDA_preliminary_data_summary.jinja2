@@ -23,7 +23,7 @@ file_folder = file_name.split(".")[0]
 folder_to_copy_summary = '{{folder_to_copy_sum}}'
 
 {% if source.source_type == 'local'  %}
-rawDirPath = '/data/eda/raw/inputfiles/' + folder_to_copy_summary
+rawDirPath = '/data/eda/raw/inputfiles/'
 if not rawDirPath.endswith('/'):
     rawDirPath += '/'
 {% else %}
@@ -164,7 +164,7 @@ CopyFilesToLocal = HDFSOperator(
     task_id='CopySummaryData',
     dag=EDADag,
     description='',
-    command_arguments=['-get', str(Path(HdfsProcessedDirPath).parent), str(data_dump_dir_hdfs)]
+    command_arguments=['-get', str(Path(HdfsProcessedDirPath)), str(data_dump_dir_hdfs)]
 )
 
 def conditionally_trigger(context, dag_run_obj):
