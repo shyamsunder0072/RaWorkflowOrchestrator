@@ -616,6 +616,8 @@ def do_setup():
         package_data={
             '': ['airflow/alembic.ini', "airflow/git_version", "*.ipynb",
                  "airflow/providers/cncf/kubernetes/example_dags/*.yaml"],
+            'airflow': ["operators/tfserving/data/*.csv",
+                        "operators/tfserving/data/*.txt"],
             'airflow.serialization': ["*.json"],
         },
         include_package_data=True,
