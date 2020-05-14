@@ -18,10 +18,10 @@ The rich user interface makes it easy to visualize pipelines running in producti
 
 
 
-- Base Airflow Version: `1.10.10.`
+- Support for `Exploratory Data Analysis`.
 - Support for LDAP Authentication and DB Authentication.
 - Support for `Configuration Groups` .
-- Support for `Spark & Hadoop Clusters`.
+- Support for multiple `Spark & Hadoop Clusters`.
 - Support for `Jupyterhub` & submitting `Spark Jobs` from `Jupyterhub` using `Livy`.
 - Support for `Tensorflow Serving`.
 
@@ -671,7 +671,7 @@ Optional Parameters:
 
   ```python
     from airflow.operators import CoutureSparkOperator
-  
+
     LoadData = CoutureSparkOperator(
         task_id='LoadData',
         app_name=appName,
@@ -779,7 +779,7 @@ Optional Parameters:
 
   ```python
   from airflow.operators import CouturePySparkOperator
-  
+
   StatsGeneration = CouturePySparkOperator(
       task_id='StatsGeneration',
       app_name=appName,
@@ -796,7 +796,7 @@ Optional Parameters:
 
 ## TensorflowOperator
 
-Use TensorflowOperator to run a tensorflow task. 
+Use TensorflowOperator to run a tensorflow task.
 
 The developer code should be uploaded through Developer -> Code Artifacts and one can refer the same under 'code_artifact'. Application arguments can be defined here in a string format, which are passed to the main method of the main class, if any.
 
@@ -1127,7 +1127,7 @@ To add new user, click the '+' as shown below.
 
 `Jupyter notebook` can be accessed under `Developer` menu and clicking on 'Jupyter Notebook' option. These feature is available for both `Developer` or `Admin` users.
 
-*NOTE: Jupyter Notebook View might prompt you for authentication. Use the same credentials which was used while logging in to Workflow Orchestrator* 
+*NOTE: Jupyter Notebook View might prompt you for authentication. Use the same credentials which was used while logging in to Workflow Orchestrator*
 
 ![jupyter_hub](./images/jupyter_hub.png)
 
@@ -1141,13 +1141,13 @@ You can also `parameterize` the notebook. To do this, tag notebook cells with `p
 
 ## Kernels supported by JupyterHub
 
-Out of the box, Workflow Orchestrator offers support for 7 kernels, including [`sparkmagic`](https://github.com/jupyter-incubator/sparkmagic/) kernels. Sparkmagic is a set of tools for interactively working with remote Spark clusters through [Livy](https://livy.incubator.apache.org/), a Spark REST server, in [Jupyter](http://jupyter.org/) notebooks. 
+Out of the box, Workflow Orchestrator offers support for 7 kernels, including [`sparkmagic`](https://github.com/jupyter-incubator/sparkmagic/) kernels. Sparkmagic is a set of tools for interactively working with remote Spark clusters through [Livy](https://livy.incubator.apache.org/), a Spark REST server, in [Jupyter](http://jupyter.org/) notebooks.
 
 - `Python3`: A simple python3 kernel, provided by default by jupyterlab.
 - `ml-kernel`: A kernel with the most commonly used Machine Learning python packages preinstalled.
 - `tf-kernel`: A kernel with `TensorFlow` and commonly used packages preinstalled.
 - `pytorch-kernel`: A kernel with `Pytorch` and commonly used packages preinstalled.
-- `pySpark`:  Sparkmagic's `pyspark` kernel. 
+- `pySpark`:  Sparkmagic's `pyspark` kernel.
 - `Spark`: Sparkmagic's `spark` kernel.
 - `SparkR`: Sparkmagic's `R` kernel.
 
@@ -1171,7 +1171,7 @@ Workflow Orchestrator allows us to upload Machine Learning models and expose the
 
 ## Default Behavior of different Models
 
-- `Tensorflow Models`: Upload a `.tar` or `.tar.gz` archive of your model. The archive will be extracted in the background, and in < 10 minutes, the model will be exposed via the serving APIs on ports ` 8500` for `gRPC`, `8501` for `REST`. For details on how to access serving APIs, visit [TFX serving guide](https://www.tensorflow.org/tfx/guide/serving). 
+- `Tensorflow Models`: Upload a `.tar` or `.tar.gz` archive of your model. The archive will be extracted in the background, and in < 10 minutes, the model will be exposed via the serving APIs on ports ` 8500` for `gRPC`, `8501` for `REST`. For details on how to access serving APIs, visit [TFX serving guide](https://www.tensorflow.org/tfx/guide/serving).
 - `Spark Models`: Any file can be uploaded in this section. Models added in this section are currently not exposed by an API.
 - `Other Models`: There might be some models which you don't want to serve, but might still need. You can upload a `.tar` or `.tar.gz` of your model and the archive will be extracted in the background. However, Models added in this section are not exposed by an API.
 
