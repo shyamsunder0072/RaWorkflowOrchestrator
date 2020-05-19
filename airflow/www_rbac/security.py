@@ -87,7 +87,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
     DEV_VMS = {
         'Developer',
 
-        'Manage DAG',
+        "Manage and Create DAG",
         # 'AddDagView',
 
         'Code Artifacts',

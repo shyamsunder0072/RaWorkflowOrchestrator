@@ -139,7 +139,8 @@ def create_app(config=None, session=None, testing=False, app_name="Workflow"):
                                 "Task Instances",
                                 category="Browse")
             appbuilder.add_view(views.AddDagView,
-                                "Manage DAG",
+                                # "Manage DAG",
+                                "Manage and Create DAG",
                                 category="Developer",
                                 category_icon="fa-wrench")
             appbuilder.add_view(views.CodeArtifactView,

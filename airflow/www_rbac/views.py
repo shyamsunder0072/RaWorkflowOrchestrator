@@ -4181,6 +4181,10 @@ class AddDagView(AirflowBaseView):
         super().__init__(*args, **kwargs)
 
     def get_dag_file_path(self, filename):
+        # a dag id is sent instead of fileloc.
+        if not filename.endswith('.py'):
+            dag_orm = DagModel.get_dagmodel(filename)
+            return os.path.join(dag_orm.fileloc)
         return os.path.join(settings.DAGS_FOLDER, filename)
 
     def get_snippet_metadata_path(self):
@@ -4304,6 +4308,7 @@ class AddDagView(AirflowBaseView):
     @action_logging
     @has_access
     def editdag(self, filename):
+        # NOTE: filename can be the name of a dag file or a dag_id as well.
         fullpath = self.get_dag_file_path(filename)
         new = request.args.get('new', False)
         if not (new or Path(fullpath).exists()) and \

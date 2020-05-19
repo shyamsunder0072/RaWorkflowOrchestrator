@@ -78,7 +78,7 @@
 
     <div class="input-group">
       <span class="input-group-addon"><i class="fa fa-search" aria-hidden="true"></i></span>
-      <input type="text" class="form-control" id="codebrickSearch">
+      <input type="text" class="form-control" id="codebrickSearch" placeholder="Search codebricks here..">
     </div>
     <br>
     <ul class="list-group" id="codebrickList">
@@ -137,6 +137,24 @@
       </div>
     </div>
   </div>
+  <div class="modal fade" id="insertSnippet" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+          <h4 class="modal-title">Replace placeholder values in snippet.</h4>
+        </div>
+        <form id="insertSnippetForm" onsubmit="insertSnippetWithoutTemplateParam(); return false;">
+          <div class="modal-body" id="insertSnippetBody">
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+            <button type="submit" class="btn btn-primary">Submit</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- old code -->
@@ -166,7 +184,7 @@
 <script src="{{ url_for_asset('codemirror/keymap/sublime.js') }}"></script>
 <script type="text/javascript">
 
-  var codeEditor, diffEditor, snippetEditor;
+  var codeEditor, diffEditor, snippetEditor, currSnippet;
   const theme = 'idea', keymap = 'sublime';
   var editorConfigs = {
     lineNumbers: true,
@@ -209,15 +227,60 @@
     });
   }
 
-  function insertSnip(btn, index) {
-    var text = $('#codebrick-code-'+index).text();
-    // adding a new line at the end of snippet.
-    text += '\n';
+  function findPlaceholders(text) {
+    var results = text.match({{ '/{{.+?}}/gm' }});
+    return new Set(results);
+  }
+
+  function replaceTextInEditor(text) {
     var doc = codeEditor.getDoc();
     var cursor = doc.getCursor();
     doc.replaceRange(text, cursor);
     // codeEditor.focus() doesn't work without setTimeout !!
     focusCodeEditor(200);
+  }
+
+  function insertSnippetWithoutTemplateParam() {
+    const formVal = {};
+    $.each($("#insertSnippetForm").serializeArray(), function(_, kv) {
+      formVal[kv.name] = kv.value;
+    });
+    // console.log(formVal);
+    var placeholders = findPlaceholders(currSnippet);
+
+    if (placeholders) {
+      var currSnippetCopy = (' ' + currSnippet).slice(1);
+      placeholders.forEach(function (param) {
+        formKey =  param.replace('{{"{{"}}', '').replace('{{"}}"}}', '')
+        // placeholders.replace(param)
+        currSnippetCopy = currSnippetCopy.replace(param, formVal[formKey])
+      })
+    }
+    $('#insertSnippet').modal('hide')
+    replaceTextInEditor(currSnippetCopy)
+  }
+
+  function insertSnip(btn, index) {
+    var text = $('#codebrick-code-'+index).text();
+    var placeholders = findPlaceholders(text);
+    if (placeholders.size) {
+      // console.log(placeholders, "placeholders")
+      currSnippet = text;
+      $('#insertSnippetBody').html('')
+      placeholders.forEach(function (param) {
+        param =  param.replace('{{"{{"}}', '').replace('{{"}}"}}', '')
+        temp = '<div class="form-group">' +
+        '<label for="'+ param + '">' + param + '</label>' +
+        '<input type="text" class="form-control" name="'+ param  + '" required>' +
+        '</div>'
+        $('#insertSnippetBody').append(temp)
+      })
+      $('#insertSnippet').modal('show')
+    } else {
+      // adding a new line at the end of snippet.
+      text += '\n';
+      replaceTextInEditor(text)
+    }
 
     // disable the button when snippet is inserted. The button will be enabled
     // after the codebrick div is toggled again.

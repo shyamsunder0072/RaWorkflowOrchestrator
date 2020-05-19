@@ -103,7 +103,14 @@
       <li>
         <a href="{{ url_for('Airflow.code', dag_id=dag.dag_id, root=root) }}">
           <span class="glyphicon glyphicon-file" aria-hidden="true"></span>
-          Code
+          View Code
+        </a>
+      </li>
+      <!-- Sending DAG id in filename. -->
+      <li>
+        <a href="{{ url_for('AddDagView.editdag', filename=dag.dag_id) }}">
+          <span class="glyphicon glyphicon-edit" aria-hidden="true"></span>
+          Edit Code
         </a>
       </li>
       <li>
