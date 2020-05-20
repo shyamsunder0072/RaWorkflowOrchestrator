@@ -149,7 +149,7 @@
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
-            <button type="submit" class="btn btn-primary">Submit</button>
+            <button type="submit" class="btn btn-primary">Insert</button>
           </div>
         </form>
       </div>
@@ -237,11 +237,14 @@
   }
 
   function importUnimportedOperators(cursor) {
+    var text;
+    console.log(new String(codeEditor.getValue()).match(/^from\sairflow\.operators\simport\s.*$/gm));
     // adds operator to the line `from airflow.operators import <Operator1Name>, <Operator2Name>`
-    // console.log(codeEditor.getValue());
-    // console.log(codeEditor.getSearchCursor('airflow'));
-    const text = new String(codeEditor.getValue()).replace(/^from\sairflow\.operators\simport\s.*$/gm, 'from airflow.operators import *');
-    // console.log(text);
+    if (new String(codeEditor.getValue()).match(/^from\sairflow\.operators\simport\s.*$/gm)) {
+      text = new String(codeEditor.getValue()).replace(/^from\sairflow\.operators\simport\s.*$/gm, 'from airflow.operators import *');
+    } else {
+      text = 'from airflow.operators import *\n' + codeEditor.getValue() ;
+    }
     codeEditor.setValue(text);
     codeEditor.getDoc().setCursor(cursor);
   }
