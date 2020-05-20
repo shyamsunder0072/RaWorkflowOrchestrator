@@ -83,7 +83,7 @@
     <br>
     <ul class="list-group" id="codebrickList">
       {% for title in snippets %}
-      <a class="list-group-item" data-toggle="collapse" data-parent="#codebrickList" href="#codebrick-{{loop.index}}">
+      <a class="list-group-item" ondragstart="setContentOfEvent(event, '{{loop.index}}')" data-toggle="collapse" data-parent="#codebrickList" href="#codebrick-{{loop.index}}">
         <strong>{{ title }}</strong>
         <div id="codebrick-{{loop.index}}" class="collapse">
           <span>
@@ -232,10 +232,26 @@
     return new Set(results);
   }
 
+  function setContentOfEvent(event, index) {
+    event.dataTransfer.setData("codebrick-index", index);
+  }
+
+  function importUnimportedOperators(cursor) {
+    // adds operator to the line `from airflow.operators import <Operator1Name>, <Operator2Name>`
+    // console.log(codeEditor.getValue());
+    // console.log(codeEditor.getSearchCursor('airflow'));
+    const text = new String(codeEditor.getValue()).replace(/^from\sairflow\.operators\simport\s.*$/gm, 'from airflow.operators import *');
+    // console.log(text);
+    codeEditor.setValue(text);
+    codeEditor.getDoc().setCursor(cursor);
+  }
+
   function replaceTextInEditor(text) {
     var doc = codeEditor.getDoc();
     var cursor = doc.getCursor();
     doc.replaceRange(text, cursor);
+    // import unimported Operators
+    importUnimportedOperators(cursor);
     // codeEditor.focus() doesn't work without setTimeout !!
     focusCodeEditor(200);
   }
@@ -292,6 +308,13 @@
     codeEditor = CodeMirror.fromTextArea(myTextArea, editorConfigs);
 
     codeEditor.execCommand('goDocEnd');
+
+    codeEditor.on('drop', function(cm, event) {
+      if(event.dataTransfer.getData("codebrick-index")) {
+        event.preventDefault();
+        insertSnip(null, event.dataTransfer.getData("codebrick-index"))
+      }
+    })
 
     jQuery.noConflict();
     $('a[data-toggle="tab"]').on('shown.bs.tab', function (e) {
