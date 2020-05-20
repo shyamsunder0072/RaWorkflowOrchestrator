@@ -4329,7 +4329,7 @@ class AddDagView(AirflowBaseView):
             return redirect(url_for('AddDagView.editdag', filename=filename))
         else:
             if new:
-                code = self.dag_file_template
+                code = self.dag_file_template.replace("CoutureExample", os.path.splitext(filename)[0], 1)
             else:
                 with open(fullpath, 'r') as code_file:
                     code = code_file.read()
