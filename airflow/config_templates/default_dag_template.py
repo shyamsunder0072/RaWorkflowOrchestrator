@@ -9,8 +9,6 @@ from airflow.operators.bash_operator import BashOperator
 from airflow.operators import PythonOperator
 from airflow.contrib.operators.kubernetes_pod_operator import KubernetesPodOperator
 
-appName = 'CoutureExample'
-
 default_args = {
     'owner': 'couture',
     'depends_on_past': False,
@@ -23,7 +21,6 @@ dag = DAG('CoutureExample', default_args=default_args, catchup=False, schedule_i
 #
 # LoadData = SparkOperator(
 #     task_id='LoadData',
-#     app_name=appName,
 #     class_path='org.apache.spark.examples.SparkPi',
 #     code_artifact='spark-examples_2.11-2.3.1.jar',
 #     application_arguments=[],
@@ -33,7 +30,6 @@ dag = DAG('CoutureExample', default_args=default_args, catchup=False, schedule_i
 #
 # StatsGeneration = PySparkOperator(
 #     task_id='StatsGeneration',
-#     app_name=appName,
 #     code_artifact='pi.py',
 #     application_arguments=[],
 #     dag=dag,
@@ -82,7 +78,6 @@ dag = DAG('CoutureExample', default_args=default_args, catchup=False, schedule_i
 #
 # simpleDaskJob = CoutureDaskYarnOperator(
 #     task_id='simpleDaskJob',
-#     app_name='MyDaskJob',
 #     code_artifact='simple.py',
 #     dag=dag,
 #     description=''
