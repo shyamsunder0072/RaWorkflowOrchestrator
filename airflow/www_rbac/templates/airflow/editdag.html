@@ -238,7 +238,6 @@
 
   function importUnimportedOperators(cursor) {
     var text;
-    console.log(new String(codeEditor.getValue()).match(/^from\sairflow\.operators\simport\s.*$/gm));
     // adds operator to the line `from airflow.operators import <Operator1Name>, <Operator2Name>`
     if (new String(codeEditor.getValue()).match(/^from\sairflow\.operators\simport\s.*$/gm)) {
       text = new String(codeEditor.getValue()).replace(/^from\sairflow\.operators\simport\s.*$/gm, 'from airflow.operators import *');
@@ -314,6 +313,11 @@
 
     codeEditor.on('drop', function(cm, event) {
       if(event.dataTransfer.getData("codebrick-index")) {
+        var coords = cm.coordsChar({
+          left: event.x,
+          top: event.y
+        }, 'window');
+        cm.getDoc().setCursor(coords);
         event.preventDefault();
         insertSnip(null, event.dataTransfer.getData("codebrick-index"))
       }
