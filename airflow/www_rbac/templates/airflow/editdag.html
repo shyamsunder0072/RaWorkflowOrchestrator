@@ -228,7 +228,7 @@
   }
 
   function findPlaceholders(text) {
-    var results = text.match({{ '/{{.+?}}/gm' }});
+    var results = text.match({{ '/{{[a-zA-Z0-9_-\s]+?}}/gm' }});
     return new Set(results);
   }
 
