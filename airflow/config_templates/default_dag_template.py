@@ -9,15 +9,16 @@ from airflow.operators.bash_operator import BashOperator
 from airflow.operators import PythonOperator
 from airflow.contrib.operators.kubernetes_pod_operator import KubernetesPodOperator
 
-default_args = {
+schedule_args = {
     'owner': 'couture',
     'depends_on_past': False,
+    'catchup': False,
     'start_date': datetime(2019, 4, 15),
     'retries': 0,
 }
 
 schedule = None
-dag = DAG('CoutureExample', default_args=default_args, catchup=False, schedule_interval=schedule)
+dag = DAG('CoutureExample', default_args=schedule_args, schedule_interval=schedule)
 #
 # LoadData = SparkOperator(
 #     task_id='LoadData',

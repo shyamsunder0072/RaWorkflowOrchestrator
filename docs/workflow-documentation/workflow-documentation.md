@@ -227,9 +227,9 @@ The `artifacts` can be referred in your `dag` while creating tasks under `code_a
 ```python
 Get_Ratings_History = CouturePySparkOperator(
     task_id='Get_Ratings_History',
+    method_id='Get_Ratings_History',
     app_name=appName,
     code_artifact='PySpark.py',
-    application_arguments=[],
     dag=dag,
     description='Get ratings history'
 )
@@ -266,18 +266,18 @@ dag = DAG('PySpark', default_args=default_args, catchup=False, schedule_interval
 
 Get_Ratings_Data = CouturePySparkOperator(
     task_id='Get_Ratings_Data',
+    method_id='Get_Ratings_Data',
     app_name=appName,
     code_artifact='Ratings.py',
-    application_arguments=[],
     dag=dag,
     description='Dump ratings data in hdfs'
 )
 
 Get_Ratings_History = CouturePySparkOperator(
     task_id='Get_Ratings_History',
+    method_id='Get_Ratings_History',
     app_name=appName,
     code_artifact='History.py',
-    application_arguments=[],
     dag=dag,
     description='Get ratings history'
 )
@@ -363,11 +363,11 @@ t1 = BashOperator(
 ```python
 operator_task = CoutureSparkOperator(
     task_id = 'operator_task',
+    method_id = 'run_task',
     dag = dag,
     app_name = 'Couture',
     class_path = 'ai.couture.MainClass',
     code_artifact = 'couture.jar',
-    application_arguments = ['inputData', '/outputData'],
       description = ''
     )
 
@@ -630,6 +630,7 @@ All the configurations defined under Admin -> Spark Configuration are considered
 
   LoadData = SparkOperator(
       task_id='LoadData',
+      method_id = 'run_task',
       app_name=appName,
       class_path='org.apache.spark.examples.SparkPi',
       code_artifact='spark-examples_2.11-2.3.1.jar',
@@ -645,7 +646,7 @@ Use CoutureSparkOperator to create and submit a spark job on spark master. This 
 
 Optional Parameters:
 
-- `task_args_dict` : Arguments required for main method of the main class. To be passed in dictionary format.
+- `method_args_dict` : Arguments required for main method of the main class. To be passed in dictionary format.
 
 - `input_base_dir_path` : Base directory path for input files. This has to be a string
 
@@ -655,12 +656,12 @@ Optional Parameters:
 
 - `output_filenames_dict` : Relative file paths for output files w.r.t output base directory. To be passed in dictionary format.
 
-  All the optional parameters, if present, are dumped as json which is passed on as string in the main method of main class. Task id and DAG id are also present in this json as `task_id` and `dag_id` respectively.
+  All the optional parameters, if present, are dumped as json which is passed on as string in the main method of main class. Method id and DAG id are also present in this json as `method_id` and `dag_id` respectively.
 
   Example of final output:
 
 ```json
-'{"task_id": "fetch_videos", "dag_id": "video_embedding_dag", "task_args_dict": {"task_strategy": "parallel"}, "input_base_dir_path": "/usr/local/couture/input/", "output_base_dir_path": "/usr/local/couture/processed/", "input_filenames_dict": {"tags_file": "video_tags.csv"}, "output_filenames_dict": {"tags_file": "video_tags.csv"}}'
+'{"method_id": "LoadData", "dag_id": "video_embedding_dag", "method_args_dict": {"task_strategy": "parallel"}, "input_base_dir_path": "/usr/local/couture/input/", "output_base_dir_path": "/usr/local/couture/processed/", "input_filenames_dict": {"tags_file": "video_tags.csv"}, "output_filenames_dict": {"tags_file": "video_tags.csv"}}'
 ```
 
   Name of the application should be passed through 'app_name' . It will be overridden if also defined within the Main class of the application.
@@ -674,6 +675,7 @@ Optional Parameters:
 
     LoadData = CoutureSparkOperator(
         task_id='LoadData',
+        method_id = 'LoadData',
         app_name=appName,
         class_path='org.apache.spark.examples.SparkPi',
         code_artifact='spark-examples_2.11-2.3.1.jar',
@@ -681,7 +683,7 @@ Optional Parameters:
     		output_base_dir_path="/usr/local/couture/processed/",
     		output_filenames_dict={'tags_file': "video_tags.csv"},
     		input_filenames_dict={'tags_file': "video_tags.csv"},
-    		task_args_dict={'task_strategy': "parallel"},
+    		method_args_dict={'task_strategy': "parallel"},
         dag=dag,
         description='This task was inserted from the code bricks available on from 					Developer -> Manage Dags. The task name have been updated according to the 					scenario'
     )
@@ -693,7 +695,7 @@ Dask-Yarn deploys Dask on [YARN](https://hadoop.apache.org/docs/current/hadoop-y
 
 Optional Parameters:
 
-- `task_args_dict` : Arguments required for main method of the main class. To be passed in dictionary format.
+- `method_args_dict` : Arguments required for main method of the main class. To be passed in dictionary format.
 
 - `input_base_dir_path` : Base directory path for input files. This has to be a string
 
@@ -703,12 +705,12 @@ Optional Parameters:
 
 - `output_filenames_dict` : Relative file paths for output files w.r.t output base directory. To be passed in dictionary format.
 
-  All the optional parameters, if present, are dumped as json which is passed on as string in the main method of main class. Task id and DAG id are also present in this json as `task_id` and `dag_id` respectively.
+  All the optional parameters, if present, are dumped as json which is passed on as string in the main method of main class. Method id and DAG id are also present in this json as `method_id` and `dag_id` respectively.
 
   Example of final output:
 
   ```json
-  '{"task_id": "fetch_videos", "dag_id": "video_embedding_dag", "task_args_dict": {"task_strategy": "parallel"}, "input_base_dir_path": "/usr/local/couture/input/", "output_base_dir_path": "/usr/local/couture/processed/", "input_filenames_dict": {"tags_file": "video_tags.csv"}, "output_filenames_dict": {"tags_file": "video_tags.csv"}}'
+  '{"method_id": "fetch_videos", "dag_id": "video_embedding_dag", "method_args_dict": {"task_strategy": "parallel"}, "input_base_dir_path": "/usr/local/couture/input/", "output_base_dir_path": "/usr/local/couture/processed/", "input_filenames_dict": {"tags_file": "video_tags.csv"}, "output_filenames_dict": {"tags_file": "video_tags.csv"}}'
   ```
 
  Name of the application should be passed through 'app_name' . It will be overridden if also defined within the Main class of the application.
@@ -720,6 +722,7 @@ Optional Parameters:
 
 DataCleaning = CoutureDaskYarnOperator(
     task_id='DataCleaning',
+    method_id='DataCleaning',
     app_name=appName,
     code_artifact='spark-examples_2.11-2.3.1.jar',
     dag=dag,
@@ -740,6 +743,7 @@ from airflow.operators import PySparkOperator
 
 StatsGeneration = PySparkOperator(
     task_id='StatsGeneration',
+    method_id='StatsGeneration',
     app_name=appName,
     code_artifact='pi.py',
     application_arguments=[],
@@ -754,7 +758,7 @@ Use CouturePySparkOperator to create and submit a pyspark job on spark master. T
 
 Optional Parameters:
 
-- `task_args_dict` : Arguments required for main method of the main class. To be passed in dictionary format.
+- `method_args_dict` : Arguments required for main method of the main class. To be passed in dictionary format.
 
 - `input_base_dir_path` : Base directory path for input files. This has to be a string
 
@@ -764,12 +768,12 @@ Optional Parameters:
 
 - `output_filenames_dict` : Relative file paths for output files w.r.t output base directory. To be passed in dictionary format.
 
-  All the optional parameters, if present, are dumped as json which is passed on as string in the main method of main class. Task id and DAG id are also present in this json as `task_id` and `dag_id` respectively.
+  All the optional parameters, if present, are dumped as json which is passed on as string in the main method of main class. Method id and DAG id are also present in this json as `method_id` and `dag_id` respectively.
 
   Example of final output:
 
   ```json
-  '{"task_id": "fetch_videos", "dag_id": "video_embedding_dag", "task_args_dict": {"task_strategy": "parallel"}, "input_base_dir_path": "/usr/local/couture/input/", "output_base_dir_path": "/usr/local/couture/processed/", "input_filenames_dict": {"tags_file": "video_tags.csv"}, "output_filenames_dict": {"tags_file": "video_tags.csv"}}'
+  '{"method_id": "fetch_videos", "dag_id": "video_embedding_dag", "method_args_dict": {"task_strategy": "parallel"}, "input_base_dir_path": "/usr/local/couture/input/", "output_base_dir_path": "/usr/local/couture/processed/", "input_filenames_dict": {"tags_file": "video_tags.csv"}, "output_filenames_dict": {"tags_file": "video_tags.csv"}}'
   ```
 
 
@@ -782,13 +786,14 @@ Optional Parameters:
 
   StatsGeneration = CouturePySparkOperator(
       task_id='StatsGeneration',
+      method_id='StatsGeneration',
       app_name=appName,
       code_artifact='pi.py',
       input_base_dir_path="/usr/local/couture/input/",
       output_base_dir_path="/usr/local/couture/processed/",
       output_filenames_dict={'tags_file': "video_tags.csv"},
       input_filenames_dict={'tags_file': "video_tags.csv"},
-      task_args_dict={'task_strategy': "parallel"},
+      method_args_dict={'task_strategy': "parallel"},
       dag=dag,
       description='Stats Generation'
   )
@@ -818,7 +823,7 @@ Use CoutureTensorflowOperator to run a tensorflow task. This operator differs fr
 
 Optional Parameters:
 
-- `task_args_dict` : Arguments required for main method of the main class. To be passed in dictionary format.
+- `method_args_dict` : Arguments required for main method of the main class. To be passed in dictionary format.
 
 - `input_base_dir_path` : Base directory path for input files. This has to be a string
 
@@ -828,12 +833,12 @@ Optional Parameters:
 
 - `output_filenames_dict` : Relative file paths for output files w.r.t output base directory. To be passed in dictionary format.
 
-  All the optional parameters, if present, are dumped as json which is passed on as string in the main method of main class. Task id and DAG id are also present in this json as `task_id` and `dag_id` respectively.
+  All the optional parameters, if present, are dumped as json which is passed on as string in the main method of main class. Method id and DAG id are also present in this json as `method_id` and `dag_id` respectively.
 
   Example of final output:
 
   ```json
-  '{"task_id": "fetch_videos", "dag_id": "video_embedding_dag", "task_args_dict": {"task_strategy": "parallel"}, "input_base_dir_path": "/usr/local/couture/input/", "output_base_dir_path": "/usr/local/couture/processed/", "input_filenames_dict": {"tags_file": "video_tags.csv"}, "output_filenames_dict": {"tags_file": "video_tags.csv"}}'
+  '{"method_id": "fetch_videos", "dag_id": "video_embedding_dag", "method_args_dict": {"task_strategy": "parallel"}, "input_base_dir_path": "/usr/local/couture/input/", "output_base_dir_path": "/usr/local/couture/processed/", "input_filenames_dict": {"tags_file": "video_tags.csv"}, "output_filenames_dict": {"tags_file": "video_tags.csv"}}'
   ```
 
 The developer code should be uploaded through Developer -> Code Artifacts and one can refer the same under 'code_artifact'.
@@ -844,12 +849,13 @@ from airflow.operators import CoutureTensorflowOperator
 fetch_videos = CoutureTensorflowOperator(
     dag=dag,
     task_id='fetch_videos',
+    method_id='fetch_videos',
     code_artifact=code_artifact,
     input_base_dir_path=input_dir,
     output_base_dir_path=processed_dir,
     output_filenames_dict={'tags_file': "video_tags.csv"},
     input_filenames_dict={'tags_file': "video_tags.csv"},
-    task_args_dict={'task_strategy': "parallel"},
+    method_args_dict={'task_strategy': "parallel"},
     description='A TF task'
     )
 ```
