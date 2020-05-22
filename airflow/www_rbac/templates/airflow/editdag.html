@@ -60,7 +60,7 @@
     <div class="tab-content">
       <div id="code-content" class="tab-pane fade in active codeTab">
         <h4>Edit Code</h4>
-          <textarea id="code" name="code" wrap="hard">{{code}}</textarea>
+          <textarea id="code" name="code" wrap="hard" cols="100" rows="100">{{code}}</textarea>
       </div>
       <div id="review-content" class="tab-pane fade">
         <h4>Review Changes</h4>
@@ -70,9 +70,9 @@
   </div>
   <div class="col-md-4 col-sm-4 codebricksDiv padding-sm" style="background-color: #d4d7dd; border-radius: 0.5rem;">
     <div data-toggle="tooltip" title="Add pre-built code recipes (prebuilt task and sub-DAG) in your current DAG code">
-      <!-- <span class="glyphicon glyphicon-info-sign pull-right" aria-hidden="true" style="margin-top: 0.5em; margin-right: 5em;"></span> -->
       <h3>
         Obelisk Code Bricks
+        <span class="glyphicon glyphicon-info-sign" aria-hidden="true" style="margin-top: 0.5em; margin-right: 5em;"></span>
       </h3>
     </div>
 
@@ -148,6 +148,7 @@
           <div class="modal-body" id="insertSnippetBody">
           </div>
           <div class="modal-footer">
+            <button type="button" class="btn btn-danger pull-left" data-dismiss="modal" onclick="insertSnippetWithoutTemplateParam(true);">Skip</button>
             <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
             <button type="submit" class="btn btn-primary">Insert</button>
           </div>
@@ -236,45 +237,43 @@
     event.dataTransfer.setData("codebrick-index", index);
   }
 
-  function importUnimportedOperators(cursor) {
-    var text;
-    // adds operator to the line `from airflow.operators import <Operator1Name>, <Operator2Name>`
-    if (new String(codeEditor.getValue()).match(/^from\sairflow\.operators\simport\s.*$/gm)) {
-      text = new String(codeEditor.getValue()).replace(/^from\sairflow\.operators\simport\s.*$/gm, 'from airflow.operators import *');
-    } else {
-      text = 'from airflow.operators import *\n' + codeEditor.getValue() ;
-    }
-    codeEditor.setValue(text);
-    codeEditor.getDoc().setCursor(cursor);
-  }
+  // function importUnimportedOperators(cursor) {
+  //   var text;
+  //   // adds operator to the line `from airflow.operators import <Operator1Name>, <Operator2Name>`
+  //   if (new String(codeEditor.getValue()).match(/^from\sairflow\.operators\simport\s.*$/gm)) {
+  //     text = new String(codeEditor.getValue()).replace(/^from\sairflow\.operators\simport\s.*$/gm, 'from airflow.operators import *');
+  //   } else {
+  //     text = 'from airflow.operators import *\n' + codeEditor.getValue() ;
+  //   }
+  //   codeEditor.setValue(text);
+  //   codeEditor.getDoc().setCursor(cursor);
+  // }
 
   function replaceTextInEditor(text) {
     var doc = codeEditor.getDoc();
     var cursor = doc.getCursor();
     doc.replaceRange(text, cursor);
     // import unimported Operators
-    importUnimportedOperators(cursor);
+    // importUnimportedOperators(cursor);
     // codeEditor.focus() doesn't work without setTimeout !!
     focusCodeEditor(200);
   }
 
-  function insertSnippetWithoutTemplateParam() {
+  function insertSnippetWithoutTemplateParam(skip=false) {
     const formVal = {};
     $.each($("#insertSnippetForm").serializeArray(), function(_, kv) {
       formVal[kv.name] = kv.value;
     });
-    // console.log(formVal);
     var placeholders = findPlaceholders(currSnippet);
-
-    if (placeholders) {
-      var currSnippetCopy = (' ' + currSnippet).slice(1);
+    var currSnippetCopy = (' ' + currSnippet).slice(1);
+    if (placeholders && !skip) {
       placeholders.forEach(function (param) {
         formKey =  param.replace('{{"{{"}}', '').replace('{{"}}"}}', '')
-        // placeholders.replace(param)
         currSnippetCopy = currSnippetCopy.replace(param, formVal[formKey])
       })
     }
     $('#insertSnippet').modal('hide')
+    // console.log(currSnippetCopy);
     replaceTextInEditor(currSnippetCopy)
   }
 
@@ -282,7 +281,6 @@
     var text = $('#codebrick-code-'+index).text();
     var placeholders = findPlaceholders(text);
     if (placeholders.size) {
-      // console.log(placeholders, "placeholders")
       currSnippet = text;
       $('#insertSnippetBody').html('')
       placeholders.forEach(function (param) {
