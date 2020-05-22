@@ -120,6 +120,7 @@ CreateOutputHDFSPathIfNotExists = HDFSOperator(
 
 GeneratePreliminarySummaryHDFS = CoutureSparkOperator(
     task_id='GeneratePreliminarySummaryHDFS',
+    method_id='GeneratePreliminarySummaryHDFS',
     app_name=appName,
     class_path=classPath,
     code_artifact=code_artifact,
@@ -150,6 +151,7 @@ GeneratePreliminarySummaryDB = BashOperator(
 
 GetTableInfo = CoutureSparkOperator(
     task_id='GetTableInformation',
+    method_id='GetTableInformation',
     app_name=appName,
     class_path=classPath,
     code_artifact=code_artifact,
