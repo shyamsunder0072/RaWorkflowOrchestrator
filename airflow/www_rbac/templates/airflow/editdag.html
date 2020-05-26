@@ -60,7 +60,7 @@
     <div class="tab-content">
       <div id="code-content" class="tab-pane fade in active codeTab">
         <h4>Edit Code</h4>
-          <textarea id="code" name="code" wrap="hard" cols="100" rows="100">{{code}}</textarea>
+          <textarea id="code" name="code" wrap="hard" style="min-width: 100%" rows="50">{{code}}</textarea>
       </div>
       <div id="review-content" class="tab-pane fade">
         <h4>Review Changes</h4>
@@ -72,7 +72,7 @@
     <div data-toggle="tooltip" title="Add pre-built code recipes (prebuilt task and sub-DAG) in your current DAG code">
       <h3>
         Obelisk Code Bricks
-        <span class="glyphicon glyphicon-info-sign" aria-hidden="true" style="margin-top: 0.5em; margin-right: 5em;"></span>
+        <span class="glyphicon glyphicon-info-sign" aria-hidden="true" style="font-size: 13px; margin-bottom: 0.5em;"></span>
       </h3>
     </div>
 
@@ -142,15 +142,15 @@
       <div class="modal-content">
         <div class="modal-header">
           <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
-          <h4 class="modal-title">Replace placeholder values in snippet.</h4>
+          <h4 class="modal-title">Replace placeholder values in codebrick.</h4>
         </div>
-        <form id="insertSnippetForm" onsubmit="insertSnippetWithoutTemplateParam(); return false;">
+        <form id="insertSnippetForm" onsubmit="return false;">
           <div class="modal-body" id="insertSnippetBody">
           </div>
           <div class="modal-footer">
-            <button type="button" class="btn btn-danger pull-left" data-dismiss="modal" onclick="insertSnippetWithoutTemplateParam(true);">Skip</button>
+            <button type="button" class="btn btn-danger pull-left" onclick="insertSnippetWithoutTemplateParam(true);">Skip Optional</button>
             <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
-            <button type="submit" class="btn btn-primary">Insert</button>
+            <button type="button" class="btn btn-primary" onclick="insertSnippetWithoutTemplateParam(false)">Insert</button>
           </div>
         </form>
       </div>
@@ -229,8 +229,11 @@
   }
 
   function findPlaceholders(text) {
-    var results = text.match({{ '/{{[a-zA-Z0-9_-\s]+?}}/gm' }});
-    return new Set(results);
+    var optional = text.match({{ '/{{[a-zA-Z0-9_-\s]+?}}/gm' }}) || [];
+    var required = text.match({{ '/{%[a-zA-Z0-9_-\s]+?%}/gm' }}) || [];
+
+    var placeholders = required.concat(optional);
+    return new Set(placeholders);
   }
 
   function setContentOfEvent(event, index) {
@@ -259,21 +262,48 @@
     focusCodeEditor(200);
   }
 
+  function checkValidityofTemplateParams(skipOptional) {
+    let valid = true;
+    $("form#insertSnippetForm :input:not(:button)").each(function(){
+      var input = $(this);
+      input[0].setCustomValidity('');
+    });
+    if(!skipOptional) {
+      $("form#insertSnippetForm :input:not(:button)").each(function(){
+        var input = $(this);
+        if (!input.val() ) {
+          input[0].setCustomValidity('This value is required !');
+          valid = false && valid;
+        } else {
+          input[0].setCustomValidity('');
+        }
+      });
+    }
+
+    if(! $('#insertSnippetForm')[0].checkValidity()) {
+      $('#insertSnippetForm')[0].reportValidity();
+      return false;
+    }
+    return valid;
+  }
+
   function insertSnippetWithoutTemplateParam(skip=false) {
+    if(!checkValidityofTemplateParams(skip)) {
+      return;
+    }
     const formVal = {};
     $.each($("#insertSnippetForm").serializeArray(), function(_, kv) {
       formVal[kv.name] = kv.value;
     });
     var placeholders = findPlaceholders(currSnippet);
     var currSnippetCopy = (' ' + currSnippet).slice(1);
-    if (placeholders && !skip) {
+    if (placeholders) {
       placeholders.forEach(function (param) {
-        formKey =  param.replace('{{"{{"}}', '').replace('{{"}}"}}', '')
+        formKey =  param.replace('{{"{{"}}', '').replace('{{"}}"}}', '').replace('{{"{%"}}', '').replace('{{"%}"}}', '')
         currSnippetCopy = currSnippetCopy.replace(param, formVal[formKey])
       })
     }
     $('#insertSnippet').modal('hide')
-    // console.log(currSnippetCopy);
     replaceTextInEditor(currSnippetCopy)
   }
 
@@ -281,14 +311,23 @@
     var text = $('#codebrick-code-'+index).text();
     var placeholders = findPlaceholders(text);
     if (placeholders.size) {
+      // if have placeholders, need to fill their values before inserting.
       currSnippet = text;
       $('#insertSnippetBody').html('')
       placeholders.forEach(function (param) {
-        param =  param.replace('{{"{{"}}', '').replace('{{"}}"}}', '')
-        temp = '<div class="form-group">' +
-        '<label for="'+ param + '">' + param + '</label>' +
-        '<input type="text" class="form-control" name="'+ param  + '" required>' +
-        '</div>'
+        if(param.includes('{{"{{"}}') && param.includes('{{"}}"}}')) {
+          param =  param.replace('{{"{{"}}', '').replace('{{"}}"}}', '')
+          temp = '<div class="form-group">' +
+          '<label for="'+ param + '">' + param + '</label>' +
+          '<input type="text" class="form-control" name="'+ param  + '">' +
+          '</div>'
+        } else {
+          param =  param.replace('{{"{%"}}', '').replace('{{"%}"}}', '')
+          temp = '<div class="form-group">' +
+          '<label for="'+ param + '">' + param + '<span style="color:red;">* </span> </label>' +
+          '<input type="text" class="form-control" name="'+ param  + '" required>' +
+          '</div>'
+        }
         $('#insertSnippetBody').append(temp)
       })
       $('#insertSnippet').modal('show')
