@@ -34,6 +34,7 @@
 <link rel="stylesheet" href="{{ url_for_asset('codemirror/theme/idea.css') }}" />
 <link rel=stylesheet href="{{url_for_asset('codemirror/addon/merge/merge.css')}}">
 <link rel=stylesheet href="{{url_for_asset('codemirror/addon/fold/foldgutter.css')}}">
+<link rel=stylesheet href="{{url_for_asset('codemirror/addon/dialog/dialog.css')}}">
 {% endblock %}
 
 {% block head_js %}
@@ -212,8 +213,7 @@
     target.innerHTML = '';
     diffEditor = CodeMirror.MergeView(target, {
       value: codeEditor.getValue(),
-      orig: document.getElementById('oldCode').value,
-      origLeft: null,
+      origLeft: document.getElementById('oldCode').value,
       lineNumbers: true,
       mode: 'python',
       highlightDifferences: true,

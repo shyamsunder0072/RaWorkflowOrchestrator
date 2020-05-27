@@ -20,14 +20,45 @@
 #}
 
 {% extends base_template %}
-
 {% block content %}
     {{ super() }}
-    <h2>{{ title }}</h2>
-  {% set version_label = 'Version' %}
-    {% if airflow_version %}
-        <h4>{{ version_label }} : {{ airflow_version }}</a></h4>
-    {% else %}
-        <h4>{{ version_label }} : Not Available</h4>
-    {% endif %}
+	
+<style>
+#versionData{
+	overflow-y:scroll; 
+	height:420px; 
+	padding-left:15px; 
+	padding-right:15px
+}
+</style>
+	<h2> Version: {{changelogs['changelog'][0]['version']}} <h2>
+    <h2>Changelog</h2> 
+	<div id="versionData">
+	{% for changelog_data in changelogs['changelog'] %}
+		<div class="panel panel-primary well" style="border-style: groove">
+		<ul class="list-group">
+		{% for key, values in changelog_data.items() %}
+			{% if key=="version" %}		
+				<div class="panel-heading"><h3 class="panel-title">Version: {{values}}</h3></div>
+			{% else %}
+				 <li class="list-group-item"><b>{{key}}</b>
+				{% if key=="authors"%}
+					<br>
+					{% for value in values %}
+						{{value}}{{ ", " if not loop.last }}
+					{% endfor %}
+				{% else %}
+					<ul>
+					{% for value in values %}
+						<li>{{value}}</li>
+					{% endfor %}
+					</ul>
+				{% endif %}
+				</li>		
+			{% endif %}
+		{% endfor %}
+		</ul>
+		</div>
+	{% endfor %}
+	</div>
 {% endblock %}

@@ -34,6 +34,7 @@ import tempfile
 import time
 import threading
 import traceback
+import yaml
 from collections import defaultdict
 from datetime import timedelta, datetime
 from urllib.parse import unquote
@@ -2342,33 +2343,18 @@ class Airflow(AirflowBaseView):
 
 class VersionView(AirflowBaseView):
     default_view = 'version'
+    changelogs = None
+    filepath = settings.CHANGELOG_PATH
+    with open (filepath, 'r') as f:
+        changelogs = yaml.safe_load(f)
 
     @expose('/version')
     @has_access
+
     def version(self):
-        try:
-            airflow_version = airflow.__version__
-        except Exception as e:
-            airflow_version = None
-            logging.error(e)
-
-        # Get the Git repo and git hash
-        git_version = None
-        try:
-            with open(os.path.join(*[settings.AIRFLOW_HOME,
-                                   'airflow', 'git_version'])) as f:
-                git_version = f.readline()
-        except Exception as e:
-            logging.error(e)
-
-        # Render information
-        title = "Version Info"
         return self.render_template(
             'airflow/version.html',
-            title=title,
-            airflow_version=airflow_version,
-            git_version=git_version)
-
+            changelogs = self.changelogs)
 
 class ConfigurationView(AirflowBaseView):
     default_view = 'conf'
@@ -4298,7 +4284,8 @@ class AddDagView(AirflowBaseView):
                     if Path(filename).exists():
                         flash('Dag {} Already present.'.format(filename))
                     else:
-                        return redirect(url_for('AddDagView.editdag', filename=filename, new=True))
+                        insert_starter_content = request.form.get('insert-template-content')
+                        return redirect(url_for('AddDagView.editdag', filename=filename, insert_starter_content=insert_starter_content, new=True))
                 else:
                     flash('Invalid DAG name, DAG not created.', 'error')
 
@@ -4333,7 +4320,11 @@ class AddDagView(AirflowBaseView):
             return redirect(url_for('AddDagView.editdag', filename=filename))
         else:
             if new:
-                code = self.dag_file_template.replace("CoutureExample", os.path.splitext(filename)[0], 1)
+                insert_starter_content = request.args.get('insert_starter_content')
+                if(insert_starter_content):
+                    code = self.dag_file_template.replace("CoutureExample", os.path.splitext(filename)[0], 1)
+                else:
+                    code = ""
             else:
                 with open(fullpath, 'r') as code_file:
                     code = code_file.read()
