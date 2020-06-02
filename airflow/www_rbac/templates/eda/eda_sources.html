@@ -30,7 +30,7 @@
     <button type="button" class="btn btn-info pull-right margin-left-md" data-toggle="modal" data-target="#newSourceFileUpload">
       Excel/CSV/TSV
     </button>
-    <a href="#" class="btn btn-warning pull-right margin-left-md" id="db-link">
+    <a href="/databaseview/list/?edaHelp=True" class="btn btn-warning pull-right margin-left-md" id="db-link">
       SQL Database
     </a>
     <h4 class="pull-right">Define the source of your data: </h4>
@@ -144,7 +144,7 @@
 
   $(document).ready(function () {
     $('[data-toggle="tooltip"]').tooltip();
-    document.getElementById('db-link').setAttribute('href', "http://" + window.location.hostname + ":8088/databaseview/list/?edaHelp=True");
+    // document.getElementById('db-link').setAttribute('href', "http://" + window.location.hostname + "/databaseview/list/?edaHelp=True");
     $("#sourceSearch").on("keyup", function() {
       var value = $(this).val().toLowerCase();
       $("#sourceTable tr").filter(function() {
