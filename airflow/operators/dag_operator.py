@@ -73,10 +73,9 @@ class SkippableDagOperator(BaseOperator):
             if self.python_callable is not None:
                 dro = self.python_callable(context, dro)
 
-            run_conf = dict(dro.payload)
-            run_conf.update(context['dag_run'].conf)
-            if isinstance(self.dag_run_conf, dict):
-                run_conf.update(self.dag_run_conf)
+            run_conf = dict(dro.payload or {})
+            run_conf.update(context['dag_run'].conf or {})
+            run_conf.update(self.dag_run_conf or {})
             if dro:
                 t = run_dag(dag_id=self.run_dag_id,
                             run_id=dro.run_id,
