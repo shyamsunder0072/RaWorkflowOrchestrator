@@ -39,10 +39,12 @@ class SkippableDagOperator(BaseOperator):
             self,
             python_callable=None,
             skip_dag=False,
+            dag_run_conf=None,
             *args, **kwargs):
         super(SkippableDagOperator, self).__init__(retries=0, *args, **kwargs)
         self.python_callable = python_callable
         self.skip_dag = skip_dag
+        self.dag_run_conf = dag_run_conf
 
     def execute(self, context):
         execution_date = context['execution_date']
@@ -71,10 +73,14 @@ class SkippableDagOperator(BaseOperator):
             if self.python_callable is not None:
                 dro = self.python_callable(context, dro)
 
+            run_conf = dict(dro.payload)
+            run_conf.update(context['dag_run'].conf)
+            if isinstance(self.dag_run_conf, dict):
+                run_conf.update(self.dag_run_conf)
             if dro:
                 t = run_dag(dag_id=self.run_dag_id,
                             run_id=dro.run_id,
-                            conf=json.dumps(dro.payload),
+                            conf=json.dumps(run_conf),
                             replace_microseconds=False,
                             execution_date=execution_date)
             else:
