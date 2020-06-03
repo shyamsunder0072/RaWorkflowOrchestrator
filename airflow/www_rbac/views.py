@@ -4261,6 +4261,10 @@ class AddDagView(AirflowBaseView):
                         AirflowBaseView.audit_logging('dag_deleted',
                                                       file_name,
                                                       request.environ['REMOTE_ADDR'])
+
+                        # Thread to update DAGBAG.
+                        threading.Thread(target=_parse_dags, args=(True,)).start()
+
                         flash('File ' + file_name + ' Deleted!!', "warning")
                         break
                 # The below redirect makes sure that the ?delete=<filename>
