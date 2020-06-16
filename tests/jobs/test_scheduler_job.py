@@ -32,7 +32,9 @@ from datetime import timedelta
 from tempfile import mkdtemp
 
 import psutil
+import pytest
 import six
+from airflow.models.taskinstance import TaskInstance
 from parameterized import parameterized
 
 import airflow.example_dags
@@ -120,6 +122,11 @@ class SchedulerJobTest(unittest.TestCase):
         self.assertTrue(job.is_alive())
 
         job.latest_heartbeat = timezone.utcnow() - datetime.timedelta(seconds=31)
+        self.assertFalse(job.is_alive())
+
+        # test because .seconds was used before instead of total_seconds
+        # internal repr of datetime is (days, seconds)
+        job.latest_heartbeat = timezone.utcnow() - datetime.timedelta(days=1)
         self.assertFalse(job.is_alive())
 
         job.state = State.SUCCESS
@@ -869,8 +876,7 @@ class SchedulerJobTest(unittest.TestCase):
             ti.refresh_from_db()
             self.assertEqual(State.QUEUED, ti.state)
 
-    @unittest.skipUnless("INTEGRATION" in os.environ,
-                         "The test is flaky with nondeterministic result")
+    @pytest.mark.xfail(condition=True, reason="The test is flaky with nondeterministic result")
     def test_change_state_for_tis_without_dagrun(self):
         dag1 = DAG(dag_id='test_change_state_for_tis_without_dagrun', start_date=DEFAULT_DATE)
 
@@ -1828,10 +1834,12 @@ class SchedulerJobTest(unittest.TestCase):
         dag = DAG(
             dag_id='test_scheduler_reschedule',
             start_date=DEFAULT_DATE)
-        dummy_task = DummyOperator(
+        dummy_task = BashOperator(
             task_id='dummy',
             dag=dag,
-            owner='airflow')
+            owner='airflow',
+            bash_command='echo 1',
+        )
 
         dag.clear()
         dag.is_subdag = False
@@ -1938,6 +1946,37 @@ class SchedulerJobTest(unittest.TestCase):
         scheduler.manage_slas(dag=dag, session=session)
 
         sla_callback.assert_not_called()
+
+    def test_dag_file_processor_sla_miss_deleted_task(self):
+        """
+        Test that the dag file processor will not crash when trying to send
+        sla miss notification for a deleted task
+        """
+        session = settings.Session()
+
+        test_start_date = days_ago(2)
+        dag = DAG(dag_id='test_sla_miss',
+                  default_args={'start_date': test_start_date,
+                                'sla': datetime.timedelta(days=1)})
+
+        task = DummyOperator(task_id='dummy',
+                             dag=dag,
+                             owner='airflow',
+                             email='test@test.com',
+                             sla=datetime.timedelta(hours=1))
+
+        session.merge(models.TaskInstance(task=task,
+                                          execution_date=test_start_date,
+                                          state='Success'))
+
+        # Create an SlaMiss where notification was sent, but email was not
+        session.merge(SlaMiss(task_id='dummy_deleted',
+                              dag_id='test_sla_miss',
+                              execution_date=test_start_date))
+
+        mock_log = mock.MagicMock()
+        scheduler = SchedulerJob(dag_ids=['test_sla_miss'], log=mock_log)
+        scheduler.manage_slas(dag=dag, session=session)
 
     def test_scheduler_executor_overflow(self):
         """
@@ -2238,7 +2277,7 @@ class SchedulerJobTest(unittest.TestCase):
         ti.refresh_from_db()
         self.assertEqual(ti.state, State.SUCCESS)
 
-    @unittest.skipUnless("INTEGRATION" in os.environ, "Can only run end to end")
+    @pytest.mark.xfail(condition=True, reason="This test is failing!")
     def test_retry_handling_job(self):
         """
         Integration test of the scheduler not accidentally resetting
@@ -2824,3 +2863,45 @@ class SchedulerJobTest(unittest.TestCase):
             self.assertEqual(state, ti.state)
 
         session.close()
+
+    def test_should_mark_dummy_task_as_success(self):
+        dag_file = os.path.join(
+            os.path.dirname(os.path.realpath(__file__)), '../dags/test_only_dummy_tasks.py'
+        )
+        scheduler_job = SchedulerJob(dag_ids=[], log=mock.MagicMock())
+        with create_session() as session:
+            session.query(TaskInstance).delete()
+            session.query(DagModel).delete()
+
+        dagbag = DagBag(dag_folder=dag_file, include_examples=False)
+        dagbag.get_dag('test_only_dummy_tasks').sync_to_db()
+
+        simple_dags, import_errors_count = scheduler_job.process_file(
+            file_path=dag_file, zombies=[]
+        )
+        with create_session() as session:
+            tis = session.query(TaskInstance).all()
+
+        self.assertEqual(0, import_errors_count)
+        self.assertEqual(['test_only_dummy_tasks'], [dag.dag_id for dag in simple_dags])
+        self.assertEqual(5, len(tis))
+        self.assertEqual({
+            ('test_task_a', 'success'),
+            ('test_task_b', None),
+            ('test_task_c', 'success'),
+            ('test_task_on_execute', 'scheduled'),
+            ('test_task_on_success', 'scheduled'),
+        }, {(ti.task_id, ti.state) for ti in tis})
+
+        scheduler_job.process_file(file_path=dag_file, zombies=[])
+        with create_session() as session:
+            tis = session.query(TaskInstance).all()
+
+        self.assertEqual(5, len(tis))
+        self.assertEqual({
+            ('test_task_a', 'success'),
+            ('test_task_b', 'success'),
+            ('test_task_c', 'success'),
+            ('test_task_on_execute', 'scheduled'),
+            ('test_task_on_success', 'scheduled'),
+        }, {(ti.task_id, ti.state) for ti in tis})

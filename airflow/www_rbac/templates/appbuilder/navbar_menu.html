@@ -49,7 +49,7 @@
                 {% endif %}
             {% endfor %}
             {% if item1.label == 'Developer' %}
-              <li><a href="#" id="vis-link" target="_blank">Visualisations</a></li>
+              <li><a href="/visualiser" id="vis-link" target="_blank">Visualisations</a></li>
             {% endif %}
             </ul></li>
         {% else %}
@@ -59,10 +59,3 @@
         {% endif %}
     {% endif %}
 {% endfor %}
-<script type="text/javascript">
-  window.onload = function () {
-    // TODO: REMOVE HARDCODING REDIRECT PATHS.
-    document.getElementById('vis-link').setAttribute('href', "http://" + window.location.hostname + ":8088");
-  }
-</script>
-

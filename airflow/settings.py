@@ -30,12 +30,12 @@ import pendulum
 import sys
 from typing import Any
 
+from copy import deepcopy
 from sqlalchemy import create_engine, exc
 from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.pool import NullPool
 
 from airflow.configuration import conf, AIRFLOW_HOME, WEBSERVER_CONFIG  # NOQA F401
-from airflow.contrib.kubernetes.pod import Pod
 from airflow.logging_config import configure_logging
 from airflow.utils.sqlalchemy import setup_event_handlers
 
@@ -150,7 +150,7 @@ LOGGING_CLASS_PATH = None
 
 # CONSTANTS ADDED BY COUTURE.AI
 SPARK_DEPENDENCIES_FOLDER = None
-SPARK_CONF_PATH = None
+SAMPLE_SPARK_CONF_PATH = None
 GIT_CONF_PATH = None
 LIVY_CONF_PATH = None
 HADOOP_CONFIGS_FOLDER = None
@@ -158,7 +158,7 @@ CODE_ARTIFACTS_FOLDER = None
 JUPYTER_HOME = None
 EDA_HOME = None
 MODEL_SERVERS = None
-
+CHANGELOG_PATH = None
 
 MAX_CHUNK_SIZE = 512000 * 4  # bytes
 MAX_FILE_SIZE = 1025 * 1025 * 10  # megabytes
@@ -196,7 +196,7 @@ def policy(task_instance):
     """
 
 
-def pod_mutation_hook(pod):  # type: (Pod) -> None
+def pod_mutation_hook(pod):
     """
     This setting allows altering ``Pod`` objects before they are passed to
     the Kubernetes client by the ``PodLauncher`` for scheduling.
@@ -219,7 +219,7 @@ def configure_vars():
     global DAGS_FOLDER
     global PLUGINS_FOLDER
     global SPARK_DEPENDENCIES_FOLDER
-    global SPARK_CONF_PATH
+    global SAMPLE_SPARK_CONF_PATH
     global HADOOP_CONFIGS_FOLDER
     global CODE_ARTIFACTS_FOLDER
     global GIT_CONF_PATH
@@ -227,21 +227,23 @@ def configure_vars():
     global EDA_HOME
     global MODEL_SERVERS
     global LIVY_CONF_PATH
+    global CHANGELOG_PATH
     SQL_ALCHEMY_CONN = conf.get('core', 'SQL_ALCHEMY_CONN')
     DAGS_FOLDER = os.path.expanduser(conf.get('core', 'DAGS_FOLDER'))
 
     SPARK_DEPENDENCIES_FOLDER = normalize_path(os.path.join(AIRFLOW_HOME, *[os.pardir, 'jars']))
-    SPARK_CONF_PATH = normalize_path(os.path.join(AIRFLOW_HOME, 'couture-spark.conf'))
+    SAMPLE_SPARK_CONF_PATH = normalize_path(os.path.join(AIRFLOW_HOME, 'couture-spark.conf'))
     GIT_CONF_PATH = normalize_path(os.path.join(AIRFLOW_HOME, 'git_confs'))
     HADOOP_CONFIGS_FOLDER = normalize_path(os.path.join(AIRFLOW_HOME, *[os.pardir,
-                                                                        'setup',
+                                                                        'configs',
                                                                         'hadoop_config_groups']))
 
     CODE_ARTIFACTS_FOLDER = normalize_path(os.path.join(AIRFLOW_HOME, *[os.pardir, 'code']))
     JUPYTER_HOME = normalize_path(os.path.join(AIRFLOW_HOME, *[os.pardir, 'jupyter']))
     EDA_HOME = normalize_path(os.path.join(AIRFLOW_HOME, *[os.pardir, 'eda']))
     MODEL_SERVERS = normalize_path(os.path.join(AIRFLOW_HOME, *[os.pardir, 'trained-models']))
-    LIVY_CONF_PATH = normalize_path(os.path.join(JUPYTER_HOME, *['.sparkmagic', 'config.json']))
+    LIVY_CONF_PATH = deepcopy(HADOOP_CONFIGS_FOLDER)
+    CHANGELOG_PATH = os.path.join((os.path.abspath(os.path.dirname(__file__))), 'changelog.yaml')    
 
     PLUGINS_FOLDER = conf.get(
         'core',
@@ -291,8 +293,8 @@ def configure_orm(disable_connection_pool=False):
         # https://docs.sqlalchemy.org/en/13/core/pooling.html#disconnect-handling-pessimistic
         pool_pre_ping = conf.getboolean('core', 'SQL_ALCHEMY_POOL_PRE_PING', fallback=True)
 
-        log.info("settings.configure_orm(): Using pool settings. pool_size={}, max_overflow={}, "
-                 "pool_recycle={}, pid={}".format(pool_size, max_overflow, pool_recycle, os.getpid()))
+        log.debug("settings.configure_orm(): Using pool settings. pool_size=%d, max_overflow=%d, "
+                  "pool_recycle=%d, pid=%d", pool_size, max_overflow, pool_recycle, os.getpid())
         engine_args['pool_size'] = pool_size
         engine_args['pool_recycle'] = pool_recycle
         engine_args['pool_pre_ping'] = pool_pre_ping
@@ -441,3 +443,4 @@ STORE_SERIALIZED_DAGS = conf.getboolean('core', 'store_serialized_dags', fallbac
 # write rate.
 MIN_SERIALIZED_DAG_UPDATE_INTERVAL = conf.getint(
     'core', 'min_serialized_dag_update_interval', fallback=30)
+

@@ -22,32 +22,35 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-from airflow.models import Connection
-from airflow.utils import timezone
+import json
 
+from flask_appbuilder.fieldwidgets import (
+    BS3PasswordFieldWidget, BS3TextAreaFieldWidget, BS3TextFieldWidget, Select2Widget,
+)
 from flask_appbuilder.forms import DynamicForm
-from flask_appbuilder.fieldwidgets import (BS3TextFieldWidget, BS3TextAreaFieldWidget,
-                                           BS3PasswordFieldWidget, Select2Widget,
-                                           DateTimePickerWidget)
 from flask_babel import lazy_gettext
 from flask_wtf import FlaskForm
 
 from wtforms import validators
 from wtforms.fields import (IntegerField, SelectField, TextAreaField, PasswordField,
                             StringField, DateTimeField, BooleanField)
+from airflow.models import Connection
+from airflow.utils import timezone
+from airflow.www_rbac.validators import ValidJson
+from airflow.www_rbac.widgets import AirflowDateTimePickerWidget
 
 
 class DateTimeForm(FlaskForm):
     # Date filter form needed for task views
     execution_date = DateTimeField(
-        "Execution date", widget=DateTimePickerWidget())
+        "Execution date", widget=AirflowDateTimePickerWidget())
 
 
 class DateTimeWithNumRunsForm(FlaskForm):
     # Date time and number of runs form for tree view, task duration
     # and landing times
     base_date = DateTimeField(
-        "Anchor date", widget=DateTimePickerWidget(), default=timezone.utcnow())
+        "Anchor date", widget=AirflowDateTimePickerWidget(), default=timezone.utcnow())
     num_runs = SelectField("Number of runs", default=25, choices=(
         (5, "5"),
         (25, "25"),
@@ -69,10 +72,10 @@ class DagRunForm(DynamicForm):
         widget=BS3TextFieldWidget())
     start_date = DateTimeField(
         lazy_gettext('Start Date'),
-        widget=DateTimePickerWidget())
+        widget=AirflowDateTimePickerWidget())
     end_date = DateTimeField(
         lazy_gettext('End Date'),
-        widget=DateTimePickerWidget())
+        widget=AirflowDateTimePickerWidget())
     run_id = StringField(
         lazy_gettext('Run Id'),
         validators=[validators.DataRequired()],
@@ -83,15 +86,21 @@ class DagRunForm(DynamicForm):
         widget=Select2Widget())
     execution_date = DateTimeField(
         lazy_gettext('Execution Date'),
-        widget=DateTimePickerWidget())
+        widget=AirflowDateTimePickerWidget())
     external_trigger = BooleanField(
         lazy_gettext('External Trigger'))
+    conf = TextAreaField(
+        lazy_gettext('Conf'),
+        validators=[ValidJson(), validators.Optional()],
+        widget=BS3TextAreaFieldWidget())
 
     def populate_obj(self, item):
         # TODO: This is probably better done as a custom field type so we can
         # set TZ at parse time
         super(DagRunForm, self).populate_obj(item)
         item.execution_date = timezone.make_aware(item.execution_date)
+        if item.conf:
+            item.conf = json.loads(item.conf)
 
 
 class ConnectionForm(DynamicForm):

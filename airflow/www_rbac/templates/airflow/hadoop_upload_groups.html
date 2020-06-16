@@ -18,9 +18,9 @@
   <div>
     <h2 class="margin-top-md">{{ title }}</h2>
     <button class="btn btn-success pull-right" data-toggle="modal" data-target="#addGroup">Add a group</button>
-    <!-- {% if default_group %}
+    {% if default_group %}
       <a class="btn btn-primary pull-right" href="{{ url_for(view + '.list_view', pathname=default_group) }}">Open default Group</a> &emsp;
-    {% endif %} -->
+    {% endif %}
   </div>
   <div class="modal fade" id="addGroup" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
     <div class="modal-dialog" role="document">
@@ -56,9 +56,9 @@
     <table class="table table-bordered table-hover" id="filesTable">
       <thead>
         <tr class="table-head">
-          <th colspan="3" class="col-sm-3">Group Name</th>
+          <th colspan="2" class="col-sm-2">Group Name</th>
           <th colspan="2" class="col-sm-2">Change Default Group</th>
-          <th colspan="6" class="col-sm-6">Configurations</th>
+          <th colspan="8" class="col-sm-8">Configurations</th>
           <th colspan="1" class="col-sm-1">Delete</th>
         </tr>
       </thead>
@@ -66,7 +66,7 @@
       <div>
         {% for group, is_default in groups %}
         <tr>
-          <td colspan="3" class="col-sm-3">
+          <td colspan="2" class="col-sm-2">
               {{group.name}}
           </td>
           <td colspan="2" class="col-sm-2">
@@ -83,13 +83,14 @@
             <a href="{{ url_for(view + '.list_view', pathname=group.name) }}">
               <img height="20" width="20"
               style="filter: invert(61%) sepia(39%) saturate(4199%) hue-rotate(184deg) brightness(86%) contrast(80%);"
-              src="{{ url_for('static', filename='elephant.svg')}}" data-toggle="tooltip" title="View Hadoop Configuration">
+              src="{{ url_for('static', filename='elephant.svg')}}">
               Hadoop Configuration
             </a>
           </td>
           <td colspan="2" class="col-sm-2">
             <a href="{{ url_for('SparkConfView.update_spark_conf', group=group.name) }}">
-              <i class="fa fa-star-o fa-lg" style="transform: rotate(20deg);" aria-hidden="true" data-toggle="tooltip" title="View Spark Configuration"></i>
+              <i class="fa fa-star-o fa-lg" style="transform: rotate(20deg);" aria-hidden="true">
+              </i>
               Spark Configuration
             </a>
           </td>
@@ -97,6 +98,11 @@
             <a href="{{ url_for('KeyTabView.update_keytab', group=group.name) }}">
               <i class="fa fa-key fa-lg" aria-hidden="true" data-toggle="tooltip" title="View Kerberos Configuration"></i>
               Kerberos Configuration
+            </a>
+          </td>
+          <td colspan="2" class="col-sm-2">
+            <a href="{{ url_for('LivyConfigView.livy_config_view', group=group.name) }}">
+              Livy Configuration
             </a>
           </td>
           <td colspan="1" class="col-sm-1">

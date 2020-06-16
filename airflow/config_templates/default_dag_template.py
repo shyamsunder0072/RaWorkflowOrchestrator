@@ -1,7 +1,7 @@
 # flake8: noqa
 from datetime import datetime, timedelta
 from airflow import DAG
-from airflow.operators import CoutureSparkOperator, CouturePySparkOperator, CoutureDaskYarnOperator
+from airflow.operators import SparkOperator, PySparkOperator, CoutureDaskYarnOperator
 from airflow.operators.dag_operator import SkippableDagOperator, DagOperator
 from airflow.operators.dagrun_operator import TriggerDagRunOperator
 from airflow.operators import CoutureJupyterOperator
@@ -9,21 +9,19 @@ from airflow.operators.bash_operator import BashOperator
 from airflow.operators import PythonOperator
 from airflow.contrib.operators.kubernetes_pod_operator import KubernetesPodOperator
 
-appName = 'CoutureExample'
-
-default_args = {
+schedule_args = {
     'owner': 'couture',
     'depends_on_past': False,
+    'catchup': False,
     'start_date': datetime(2019, 4, 15),
     'retries': 0,
 }
 
 schedule = None
-dag = DAG('CoutureExample', default_args=default_args, catchup=False, schedule_interval=schedule)
+dag = DAG('CoutureExample', default_args=schedule_args, schedule_interval=schedule)
 #
-# LoadData = CoutureSparkOperator(
+# LoadData = SparkOperator(
 #     task_id='LoadData',
-#     app_name=appName,
 #     class_path='org.apache.spark.examples.SparkPi',
 #     code_artifact='spark-examples_2.11-2.3.1.jar',
 #     application_arguments=[],
@@ -31,9 +29,8 @@ dag = DAG('CoutureExample', default_args=default_args, catchup=False, schedule_i
 #     description='This task was inserted from the code bricks available on from Developer -> Manage Dags. The task name have been updated according to the scenario'
 # )
 #
-# StatsGeneration = CouturePySparkOperator(
+# StatsGeneration = PySparkOperator(
 #     task_id='StatsGeneration',
-#     app_name=appName,
 #     code_artifact='pi.py',
 #     application_arguments=[],
 #     dag=dag,
@@ -82,7 +79,6 @@ dag = DAG('CoutureExample', default_args=default_args, catchup=False, schedule_i
 #
 # simpleDaskJob = CoutureDaskYarnOperator(
 #     task_id='simpleDaskJob',
-#     app_name='MyDaskJob',
 #     code_artifact='simple.py',
 #     dag=dag,
 #     description=''

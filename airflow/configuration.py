@@ -36,6 +36,7 @@ import sys
 import warnings
 
 from backports.configparser import ConfigParser, _UNSET, NoOptionError, NoSectionError
+import yaml
 from zope.deprecation import deprecated
 
 from airflow.exceptions import AirflowConfigException
@@ -114,6 +115,19 @@ DEFAULT_CONFIG, DEFAULT_CONFIG_FILE_PATH = _read_default_config_file('default_ai
 TEST_CONFIG, TEST_CONFIG_FILE_PATH = _read_default_config_file('default_test.cfg')
 
 
+def default_config_yaml():
+    """
+    Read Airflow configs from YAML file
+
+    :return: Python dictionary containing configs & their info
+    """
+    templates_dir = os.path.join(os.path.dirname(__file__), 'config_templates')
+    file_path = os.path.join(templates_dir, "config.yml")
+
+    with open(file_path) as config_file:
+        return yaml.safe_load(config_file)
+
+
 class AirflowConfigParser(ConfigParser):
 
     # These configuration elements can be fetched as the stdout of commands
@@ -123,6 +137,7 @@ class AirflowConfigParser(ConfigParser):
         ('core', 'sql_alchemy_conn'),
         ('core', 'fernet_key'),
         ('celery', 'broker_url'),
+        ('celery', 'flower_basic_auth'),
         ('celery', 'result_backend'),
         # Todo: remove this in Airflow 1.11
         ('celery', 'celery_result_backend'),
@@ -182,7 +197,7 @@ class AirflowConfigParser(ConfigParser):
 
     def _validate(self):
         if (
-                self.get("core", "executor") != 'SequentialExecutor' and
+                self.get("core", "executor") not in ('DebugExecutor', 'SequentialExecutor') and
                 "sqlite" in self.get('core', 'sql_alchemy_conn')):
             raise AirflowConfigException(
                 "error: cannot use sqlite with the {}".format(

@@ -15,7 +15,8 @@
   limitations under the License.
 
 #}
-{% extends "airflow/master.html" %}
+
+{% extends base_template %}
 
 {% block title %}Airflow - DAG {{ dag.dag_id }}{% endblock %}
 
@@ -37,7 +38,7 @@
         <span style='color:#AAA;'>SUBDAG: </span> <span> {{ dag.dag_id }}</span>
       {% else %}
         <input id="pause_resume" dag_id="{{ dag.dag_id }}" type="checkbox" {{ "checked" if not dag.is_paused else "" }} data-toggle="toggle" data-size="mini" method="post">
-        <span style='color:#AAA;'>DAG: </span> <span> {{ dag.dag_id }}</span> <small class="text-muted"> {{ dag.description }} </small>
+        <span style='color:#AAA;'>DAG: </span> <span> {{ dag.dag_id }}</span> <small class="text-muted"> {{ dag.description_unicode }} </small>
       {% endif %}
       {% if root %}
         <span style='color:#AAA;'>ROOT: </span> <span> {{ root }}</span>
@@ -102,12 +103,18 @@
       <li>
         <a href="{{ url_for('Airflow.code', dag_id=dag.dag_id, root=root) }}">
           <span class="glyphicon glyphicon-file" aria-hidden="true"></span>
-          Code
+          View Code
+        </a>
+      </li>
+      <!-- Sending DAG id in filename. -->
+      <li>
+        <a href="{{ url_for('AddDagView.editdag', filename=dag.dag_id) }}">
+          <span class="glyphicon glyphicon-edit" aria-hidden="true"></span>
+          Edit Code
         </a>
       </li>
       <li>
-        <a href="{{ url_for('Airflow.trigger', dag_id=dag.dag_id, origin=url_for('Airflow.tree', dag_id=dag.dag_id)) }}"
-          onclick="return confirmTriggerDag(this, '{{ dag.safe_dag_id }}')">
+        <a href="{{ url_for('Airflow.trigger', dag_id=dag.dag_id, origin=url_for('Airflow.' + dag.get_default_view(), dag_id=dag.dag_id)) }}">
           <span class="glyphicon glyphicon-play-circle" aria-hidden="true"></span>
           Trigger DAG
         </a>
@@ -626,7 +633,12 @@ function updateQueryStringParameter(uri, key, value) {
         is_paused = 'false'
       }
       url = "{{ url_for('Airflow.paused') }}" + '?is_paused=' + is_paused + '&dag_id=' + encodeURIComponent(dag_id);
-      $.post(url);
+      $.post({
+          url: url,
+          data: {
+              "csrf_token": "{{ csrf_token() }}"
+          }
+      })
     });
 
     $('#btn_edit_dagrun').click(function() {

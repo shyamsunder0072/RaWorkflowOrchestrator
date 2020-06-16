@@ -34,7 +34,7 @@ from abc import ABCMeta, abstractmethod
 from datetime import datetime, timedelta
 from importlib import import_module
 import enum
-from typing import Optional, NamedTuple, Iterable
+from typing import NamedTuple, Iterable
 
 import psutil
 from setproctitle import setproctitle
@@ -825,13 +825,10 @@ class DagFileProcessorManager(LoggingMixin):
         )
 
         # In sync mode we want timeout=None -- wait forever until a message is received
-        poll_time = None  # type: Optional[float]
         if self._async_mode:
             poll_time = 0.0
-            self.log.debug("Starting DagFileProcessorManager in async mode")
         else:
             poll_time = None
-            self.log.debug("Starting DagFileProcessorManager in sync mode")
 
         # Used to track how long it takes us to get once around every file in the DAG folder.
         self._parsing_start_time = timezone.utcnow()
@@ -840,7 +837,7 @@ class DagFileProcessorManager(LoggingMixin):
 
             if self._signal_conn.poll(poll_time):
                 agent_signal = self._signal_conn.recv()
-                self.log.debug("Recived %s singal from DagFileProcessorAgent", agent_signal)
+                self.log.debug("Received %s signal from DagFileProcessorAgent", agent_signal)
                 if agent_signal == DagParsingSignal.TERMINATE_MANAGER:
                     self.terminate()
                     break
@@ -926,12 +923,18 @@ class DagFileProcessorManager(LoggingMixin):
                 SerializedDagModel.remove_deleted_dags(self._file_paths)
                 DagModel.deactivate_deleted_dags(self._file_paths)
 
+            if conf.getboolean('core', 'store_dag_code', fallback=False):
+                from airflow.models.dagcode import DagCode
+                DagCode.remove_deleted_code(self._file_paths)
+
     def _print_stat(self):
         """
         Occasionally print out stats about how fast the files are getting processed
         """
-        if ((timezone.utcnow() - self.last_stat_print_time).total_seconds() > self.print_stats_interval):
-            if len(self._file_paths) > 0:
+        if self.print_stats_interval > 0 and (
+                timezone.utcnow() -
+                self.last_stat_print_time).total_seconds() > self.print_stats_interval:
+            if self._file_paths:
                 self._log_file_processing_stats(self._file_paths)
             self.last_stat_print_time = timezone.utcnow()
 
@@ -1193,7 +1196,7 @@ class DagFileProcessorManager(LoggingMixin):
         simple_dags = []
         for file_path, processor in finished_processors.items():
             if processor.result is None:
-                self.log.warning(
+                self.log.error(
                     "Processor for %s exited with return code %s.",
                     processor.file_path, processor.exit_code
                 )

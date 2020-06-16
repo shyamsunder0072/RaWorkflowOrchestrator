@@ -1227,9 +1227,16 @@ def upgradedb(args):  # noqa
     db.upgradedb()
 
 
+@cli_utils.action_logging
+def checkdb(args):  # noqa
+    py2_deprecation_waring()
+    print("DB: " + repr(settings.engine.url))
+    db.checkdb()
+
+
 def version(args):  # noqa
     py2_deprecation_waring()
-    print(settings.HEADER + "  v" + airflow.__version__)
+    print(airflow.__version__)
 
 
 alternative_conn_specs = ['conn_type', 'conn_host',
@@ -1356,7 +1363,7 @@ def connections(args):
                                  urlunparse((args.conn_type,
                                             '{login}:{password}@{host}:{port}'
                                              .format(login=args.conn_login or '',
-                                                     password=args.conn_password or '',
+                                                     password='******' or '',
                                                      host=args.conn_host or '',
                                                      port=args.conn_port or ''),
                                              args.conn_schema or '', '', '', '')))
@@ -2210,6 +2217,10 @@ class CLIFactory(object):
             'help': "Upgrade the metadata database to latest version",
             'args': tuple(),
         }, {
+            'func': checkdb,
+            'help': "Check if the database can be reached.",
+            'args': tuple(),
+        }, {
             'func': shell,
             'help': "Runs a shell to access the database",
             'args': tuple(),
@@ -2281,7 +2292,13 @@ class CLIFactory(object):
 
     @classmethod
     def get_parser(cls, dag_parser=False):
-        parser = argparse.ArgumentParser()
+        """Creates and returns command line argument parser"""
+        class DefaultHelpParser(argparse.ArgumentParser):
+            """Override argparse.ArgumentParser.error and use print_help instead of print_usage"""
+            def error(self, message):
+                self.print_help()
+                self.exit(2, '\n{} command error: {}, see help above.\n'.format(self.prog, message))
+        parser = DefaultHelpParser()
         subparsers = parser.add_subparsers(
             help='sub-command help', dest='subcommand')
         subparsers.required = True

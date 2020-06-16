@@ -112,6 +112,12 @@
     };
     $('[data-toggle="tooltip"]').tooltip();
 
+    url = new URL(window.location.href);
+
+    if (url.searchParams.get('new') == 'True') {
+      $('#newFile').modal('show')
+    }
+
     $("#fileSearch").on("keyup", function() {
       var value = $(this).val().toLowerCase();
       $("#filesTable tr").filter(function() {

@@ -33,6 +33,7 @@ from airflow import DAG, AirflowException, LoggingMixin
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
 from airflow.models.connection import Connection
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
+from airflow.serialization.helpers import serialize_template_field
 from airflow.serialization.json_schema import Validator, load_dag_schema
 from airflow.settings import json
 from airflow.www.utils import get_python_source
@@ -267,8 +268,13 @@ class BaseSerialization:
         user explicitly specifies an attribute with the same "value" as the
         default. (This is because ``"default" is "default"`` will be False as
         they are different strings with the same characters.)
+
+        Also returns True if the value is an empty list or empty dict. This is done
+        to account for the case where the default value of the field is None but has the
+        ``field = field or {}`` set.
         """
-        if attrname in cls._CONSTRUCTOR_PARAMS and cls._CONSTRUCTOR_PARAMS[attrname].default is value:
+        if attrname in cls._CONSTRUCTOR_PARAMS and \
+                (cls._CONSTRUCTOR_PARAMS[attrname].default is value or (value in [{}, []])):
             return True
         return False
 
@@ -283,7 +289,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
 
     _CONSTRUCTOR_PARAMS = {
         k: v for k, v in signature(BaseOperator).parameters.items()
-        if v.default is not v.empty and v.default is not None
+        if v.default is not v.empty
     }
 
     def __init__(self, *args, **kwargs):
@@ -324,6 +330,15 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         if op.operator_extra_links:
             serialize_op['_operator_extra_links'] = \
                 cls._serialize_operator_extra_links(op.operator_extra_links)
+
+        # Store all template_fields as they are if there are JSON Serializable
+        # If not, store them as strings
+        if op.template_fields:
+            for template_field in op.template_fields:
+                value = getattr(op, template_field, None)
+                if not cls._is_excluded(value, template_field, op):
+                    serialize_op[template_field] = serialize_template_field(value)
+
         return serialize_op
 
     @classmethod
@@ -359,6 +374,8 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 v = SerializedDAG.deserialize_dag(v)
             elif k in {"retry_delay", "execution_timeout"}:
                 v = cls._deserialize_timedelta(v)
+            elif k in encoded_op["template_fields"]:
+                pass
             elif k.endswith("_date"):
                 v = cls._deserialize_datetime(v)
             elif k == "_operator_extra_links":
@@ -379,6 +396,11 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 cls._CONSTRUCTOR_PARAMS.keys()):
             setattr(op, k, None)
 
+        # Set all the template_field to None that were not present in Serialized JSON
+        for field in op.template_fields:
+            if not hasattr(op, field):
+                setattr(op, field, None)
+
         return op
 
     @classmethod
@@ -389,9 +411,6 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
             dag_date = getattr(op.dag, attrname, None)
             if var is dag_date or var == dag_date:
                 return True
-        if attrname in {"executor_config", "params"} and not var:
-            # Don't store empty executor config or params dicts.
-            return True
         return super(SerializedBaseOperator, cls)._is_excluded(var, attrname, op)
 
     @classmethod
@@ -481,7 +500,7 @@ class SerializedDAG(DAG, BaseSerialization):
     not pickle-able. SerializedDAG works for all DAGs.
     """
 
-    _decorated_fields = {'schedule_interval', 'default_args'}
+    _decorated_fields = {'schedule_interval', 'default_args', '_access_control'}
 
     @staticmethod
     def __get_constructor_defaults():  # pylint: disable=no-method-argument
@@ -493,7 +512,7 @@ class SerializedDAG(DAG, BaseSerialization):
         }
         return {
             param_to_attr.get(k, k): v for k, v in signature(DAG).parameters.items()
-            if v.default is not v.empty and v.default is not None
+            if v.default is not v.empty
         }
 
     _CONSTRUCTOR_PARAMS = __get_constructor_defaults.__func__()  # type: ignore

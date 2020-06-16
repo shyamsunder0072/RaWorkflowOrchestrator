@@ -23,15 +23,15 @@ from __future__ import print_function
 
 import os
 
-import airflow
 from airflow.contrib.example_dags.libs.helper import print_stuff
 from airflow.models import DAG
 from airflow.operators.python_operator import PythonOperator
+from airflow.utils.dates import days_ago
 
 
 default_args = {
     'owner': 'Airflow',
-    'start_date': airflow.utils.dates.days_ago(2)
+    'start_date': days_ago(2)
 }
 
 with DAG(
@@ -96,4 +96,18 @@ with DAG(
         }
     )
 
+    other_ns_task = PythonOperator(
+        task_id="other_namespace_task",
+        python_callable=print_stuff,
+        executor_config={
+            "KubernetesExecutor": {
+                "namespace": "test-namespace",
+                "labels": {
+                    "release": "stable"
+                }
+            }
+        }
+    )
+
     start_task >> second_task >> third_task
+    start_task >> other_ns_task

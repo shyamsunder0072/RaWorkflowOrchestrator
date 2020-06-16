@@ -41,11 +41,12 @@ from sqlalchemy.orm.session import make_transient
 
 from airflow.configuration import conf
 from airflow import executors, models, settings
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, TaskNotFound
 from airflow.jobs.base_job import BaseJob
 from airflow.models import DagRun, SlaMiss, errors
 from airflow.settings import Stats
 from airflow.ti_deps.dep_context import DepContext, SCHEDULEABLE_STATES, SCHEDULED_DEPS
+from airflow.operators.dummy_operator import DummyOperator
 from airflow.ti_deps.deps.pool_slots_available_dep import STATES_TO_COUNT_AS_RUNNING
 from airflow.utils import asciiart, helpers, timezone
 from airflow.utils.dag_processing import (AbstractDagFileProcessor,
@@ -384,8 +385,14 @@ class SchedulerJob(BaseJob):
             self._log = log
 
         self.using_sqlite = False
-        if 'sqlite' in conf.get('core', 'sql_alchemy_conn'):
+        self.using_mysql = False
+        if conf.get('core', 'sql_alchemy_conn').lower().startswith('sqlite'):
             self.using_sqlite = True
+        if conf.get('core', 'sql_alchemy_conn').lower().startswith('mysql'):
+            self.using_mysql = True
+
+        self.max_tis_per_query = conf.getint('scheduler', 'max_tis_per_query')
+        self.processor_agent = None
 
         self.max_tis_per_query = conf.getint('scheduler', 'max_tis_per_query')
         if run_duration is None:
@@ -424,7 +431,7 @@ class SchedulerJob(BaseJob):
         scheduler_health_check_threshold = conf.getint('scheduler', 'scheduler_health_check_threshold')
         return (
             self.state == State.RUNNING and
-            (timezone.utcnow() - self.latest_heartbeat).seconds < scheduler_health_check_threshold
+            (timezone.utcnow() - self.latest_heartbeat).total_seconds() < scheduler_health_check_threshold
         )
 
     @provide_session
@@ -541,7 +548,18 @@ class SchedulerJob(BaseJob):
             """.format(task_list=task_list, blocking_task_list=blocking_task_list,
                        bug=asciiart.bug)
 
-            tasks_missed_sla = [dag.get_task(sla.task_id) for sla in slas]
+            tasks_missed_sla = []
+            for sla in slas:
+                try:
+                    task = dag.get_task(sla.task_id)
+                except TaskNotFound:
+                    # task already deleted from DAG, skip it
+                    self.log.warning(
+                        "Task %s doesn't exist in DAG anymore, skipping SLA miss notification.",
+                        sla.task_id)
+                    continue
+                tasks_missed_sla.append(task)
+
             emails = set()
             for task in tasks_missed_sla:
                 if task.email:
@@ -591,6 +609,7 @@ class SchedulerJob(BaseJob):
         for filename, stacktrace in six.iteritems(dagbag.import_errors):
             session.add(errors.ImportError(
                 filename=filename,
+                timestamp=timezone.utcnow(),
                 stacktrace=stacktrace))
         session.commit()
 
@@ -738,8 +757,9 @@ class SchedulerJob(BaseJob):
         active_dag_runs = []
         for run in dag_runs:
             self.log.info("Examining DAG run %s", run)
-            # don't consider runs that are executed in the future
-            if run.execution_date > timezone.utcnow():
+            # don't consider runs that are executed in the future unless
+            # specified by config and schedule_interval is None
+            if run.execution_date > timezone.utcnow() and not dag.allow_future_exec_dates:
                 self.log.error(
                     "Execution date is in future: %s",
                     run.execution_date
@@ -814,7 +834,9 @@ class SchedulerJob(BaseJob):
             .filter(or_(
                 models.DagRun.state != State.RUNNING,
                 models.DagRun.state.is_(None)))
-        if self.using_sqlite:
+        # We need to do this for mysql as well because it can cause deadlocks
+        # as discussed in https://issues.apache.org/jira/browse/AIRFLOW-2516
+        if self.using_sqlite or self.using_mysql:
             tis_to_change = query \
                 .with_for_update() \
                 .all()
@@ -1271,7 +1293,8 @@ class SchedulerJob(BaseJob):
                         schedule_delay)
                 self.log.info("Created %s", dag_run)
             self._process_task_instances(dag, tis_out)
-            self.manage_slas(dag)
+            if conf.getboolean('core', 'CHECK_SLAS', fallback=True):
+                self.manage_slas(dag)
 
     @provide_session
     def _process_executor_events(self, simple_dag_bag, session=None):
@@ -1608,6 +1631,10 @@ class SchedulerJob(BaseJob):
                 # Task starts out in the scheduled state. All tasks in the
                 # scheduled state will be sent to the executor
                 ti.state = State.SCHEDULED
+                # If the task is dummy, then mark it as done automatically
+                if isinstance(ti.task, DummyOperator) \
+                        and not ti.task.on_success_callback:
+                    ti.state = State.SUCCESS
 
             # Also save this task instance to the DB.
             self.log.info("Creating / updating %s in ORM", ti)

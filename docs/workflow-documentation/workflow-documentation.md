@@ -12,6 +12,19 @@ Use this orchestrator to author workflows as directed acyclic graphs (DAGs) of t
 
 The rich user interface makes it easy to visualize pipelines running in production, monitor progress, and troubleshoot issues when needed.
 
+
+
+# Release Notes
+
+
+
+- Support for `Exploratory Data Analysis`.
+- Support for LDAP Authentication and DB Authentication.
+- Support for `Configuration Groups` .
+- Support for multiple `Spark & Hadoop Clusters`.
+- Support for `Jupyterhub` & submitting `Spark Jobs` from `Jupyterhub` using `Livy`.
+- Support for `Tensorflow Serving`.
+
 # Installation
 
 **Prerequisites** : `Docker` and `Docker-compose` should be installed.
@@ -214,9 +227,9 @@ The `artifacts` can be referred in your `dag` while creating tasks under `code_a
 ```python
 Get_Ratings_History = CouturePySparkOperator(
     task_id='Get_Ratings_History',
+    method_id='Get_Ratings_History',
     app_name=appName,
     code_artifact='PySpark.py',
-    application_arguments=[],
     dag=dag,
     description='Get ratings history'
 )
@@ -253,18 +266,18 @@ dag = DAG('PySpark', default_args=default_args, catchup=False, schedule_interval
 
 Get_Ratings_Data = CouturePySparkOperator(
     task_id='Get_Ratings_Data',
+    method_id='Get_Ratings_Data',
     app_name=appName,
     code_artifact='Ratings.py',
-    application_arguments=[],
     dag=dag,
     description='Dump ratings data in hdfs'
 )
 
 Get_Ratings_History = CouturePySparkOperator(
     task_id='Get_Ratings_History',
+    method_id='Get_Ratings_History',
     app_name=appName,
     code_artifact='History.py',
-    application_arguments=[],
     dag=dag,
     description='Get ratings history'
 )
@@ -350,11 +363,11 @@ t1 = BashOperator(
 ```python
 operator_task = CoutureSparkOperator(
     task_id = 'operator_task',
+    method_id = 'run_task',
     dag = dag,
     app_name = 'Couture',
     class_path = 'ai.couture.MainClass',
     code_artifact = 'couture.jar',
-    application_arguments = ['inputData', '/outputData'],
       description = ''
     )
 
@@ -617,6 +630,7 @@ All the configurations defined under Admin -> Spark Configuration are considered
 
   LoadData = SparkOperator(
       task_id='LoadData',
+      method_id = 'run_task',
       app_name=appName,
       class_path='org.apache.spark.examples.SparkPi',
       code_artifact='spark-examples_2.11-2.3.1.jar',
@@ -632,7 +646,7 @@ Use CoutureSparkOperator to create and submit a spark job on spark master. This 
 
 Optional Parameters:
 
-- `task_args_dict` : Arguments required for main method of the main class. To be passed in dictionary format.
+- `method_args_dict` : Arguments required for main method of the main class. To be passed in dictionary format.
 
 - `input_base_dir_path` : Base directory path for input files. This has to be a string
 
@@ -642,12 +656,12 @@ Optional Parameters:
 
 - `output_filenames_dict` : Relative file paths for output files w.r.t output base directory. To be passed in dictionary format.
 
-  All the optional parameters, if present, are dumped as json which is passed on as string in the main method of main class. Task id and DAG id are also present in this json as `task_id` and `dag_id` respectively.
+  All the optional parameters, if present, are dumped as json which is passed on as string in the main method of main class. Method id and DAG id are also present in this json as `method_id` and `dag_id` respectively.
 
   Example of final output:
 
 ```json
-'{"task_id": "fetch_videos", "dag_id": "video_embedding_dag", "task_args_dict": {"task_strategy": "parallel"}, "input_base_dir_path": "/usr/local/couture/input/", "output_base_dir_path": "/usr/local/couture/processed/", "input_filenames_dict": {"tags_file": "video_tags.csv"}, "output_filenames_dict": {"tags_file": "video_tags.csv"}}'
+'{"method_id": "LoadData", "dag_id": "video_embedding_dag", "method_args_dict": {"task_strategy": "parallel"}, "input_base_dir_path": "/usr/local/couture/input/", "output_base_dir_path": "/usr/local/couture/processed/", "input_filenames_dict": {"tags_file": "video_tags.csv"}, "output_filenames_dict": {"tags_file": "video_tags.csv"}}'
 ```
 
   Name of the application should be passed through 'app_name' . It will be overridden if also defined within the Main class of the application.
@@ -658,9 +672,10 @@ Optional Parameters:
 
   ```python
     from airflow.operators import CoutureSparkOperator
-  
+
     LoadData = CoutureSparkOperator(
         task_id='LoadData',
+        method_id = 'LoadData',
         app_name=appName,
         class_path='org.apache.spark.examples.SparkPi',
         code_artifact='spark-examples_2.11-2.3.1.jar',
@@ -668,7 +683,7 @@ Optional Parameters:
     		output_base_dir_path="/usr/local/couture/processed/",
     		output_filenames_dict={'tags_file': "video_tags.csv"},
     		input_filenames_dict={'tags_file': "video_tags.csv"},
-    		task_args_dict={'task_strategy': "parallel"},
+    		method_args_dict={'task_strategy': "parallel"},
         dag=dag,
         description='This task was inserted from the code bricks available on from 					Developer -> Manage Dags. The task name have been updated according to the 					scenario'
     )
@@ -680,7 +695,7 @@ Dask-Yarn deploys Dask on [YARN](https://hadoop.apache.org/docs/current/hadoop-y
 
 Optional Parameters:
 
-- `task_args_dict` : Arguments required for main method of the main class. To be passed in dictionary format.
+- `method_args_dict` : Arguments required for main method of the main class. To be passed in dictionary format.
 
 - `input_base_dir_path` : Base directory path for input files. This has to be a string
 
@@ -690,12 +705,12 @@ Optional Parameters:
 
 - `output_filenames_dict` : Relative file paths for output files w.r.t output base directory. To be passed in dictionary format.
 
-  All the optional parameters, if present, are dumped as json which is passed on as string in the main method of main class. Task id and DAG id are also present in this json as `task_id` and `dag_id` respectively.
+  All the optional parameters, if present, are dumped as json which is passed on as string in the main method of main class. Method id and DAG id are also present in this json as `method_id` and `dag_id` respectively.
 
   Example of final output:
 
   ```json
-  '{"task_id": "fetch_videos", "dag_id": "video_embedding_dag", "task_args_dict": {"task_strategy": "parallel"}, "input_base_dir_path": "/usr/local/couture/input/", "output_base_dir_path": "/usr/local/couture/processed/", "input_filenames_dict": {"tags_file": "video_tags.csv"}, "output_filenames_dict": {"tags_file": "video_tags.csv"}}'
+  '{"method_id": "fetch_videos", "dag_id": "video_embedding_dag", "method_args_dict": {"task_strategy": "parallel"}, "input_base_dir_path": "/usr/local/couture/input/", "output_base_dir_path": "/usr/local/couture/processed/", "input_filenames_dict": {"tags_file": "video_tags.csv"}, "output_filenames_dict": {"tags_file": "video_tags.csv"}}'
   ```
 
  Name of the application should be passed through 'app_name' . It will be overridden if also defined within the Main class of the application.
@@ -707,6 +722,7 @@ Optional Parameters:
 
 DataCleaning = CoutureDaskYarnOperator(
     task_id='DataCleaning',
+    method_id='DataCleaning',
     app_name=appName,
     code_artifact='spark-examples_2.11-2.3.1.jar',
     dag=dag,
@@ -727,6 +743,7 @@ from airflow.operators import PySparkOperator
 
 StatsGeneration = PySparkOperator(
     task_id='StatsGeneration',
+    method_id='StatsGeneration',
     app_name=appName,
     code_artifact='pi.py',
     application_arguments=[],
@@ -741,7 +758,7 @@ Use CouturePySparkOperator to create and submit a pyspark job on spark master. T
 
 Optional Parameters:
 
-- `task_args_dict` : Arguments required for main method of the main class. To be passed in dictionary format.
+- `method_args_dict` : Arguments required for main method of the main class. To be passed in dictionary format.
 
 - `input_base_dir_path` : Base directory path for input files. This has to be a string
 
@@ -751,12 +768,12 @@ Optional Parameters:
 
 - `output_filenames_dict` : Relative file paths for output files w.r.t output base directory. To be passed in dictionary format.
 
-  All the optional parameters, if present, are dumped as json which is passed on as string in the main method of main class. Task id and DAG id are also present in this json as `task_id` and `dag_id` respectively.
+  All the optional parameters, if present, are dumped as json which is passed on as string in the main method of main class. Method id and DAG id are also present in this json as `method_id` and `dag_id` respectively.
 
   Example of final output:
 
   ```json
-  '{"task_id": "fetch_videos", "dag_id": "video_embedding_dag", "task_args_dict": {"task_strategy": "parallel"}, "input_base_dir_path": "/usr/local/couture/input/", "output_base_dir_path": "/usr/local/couture/processed/", "input_filenames_dict": {"tags_file": "video_tags.csv"}, "output_filenames_dict": {"tags_file": "video_tags.csv"}}'
+  '{"method_id": "fetch_videos", "dag_id": "video_embedding_dag", "method_args_dict": {"task_strategy": "parallel"}, "input_base_dir_path": "/usr/local/couture/input/", "output_base_dir_path": "/usr/local/couture/processed/", "input_filenames_dict": {"tags_file": "video_tags.csv"}, "output_filenames_dict": {"tags_file": "video_tags.csv"}}'
   ```
 
 
@@ -766,16 +783,17 @@ Optional Parameters:
 
   ```python
   from airflow.operators import CouturePySparkOperator
-  
+
   StatsGeneration = CouturePySparkOperator(
       task_id='StatsGeneration',
+      method_id='StatsGeneration',
       app_name=appName,
       code_artifact='pi.py',
       input_base_dir_path="/usr/local/couture/input/",
       output_base_dir_path="/usr/local/couture/processed/",
       output_filenames_dict={'tags_file': "video_tags.csv"},
       input_filenames_dict={'tags_file': "video_tags.csv"},
-      task_args_dict={'task_strategy': "parallel"},
+      method_args_dict={'task_strategy': "parallel"},
       dag=dag,
       description='Stats Generation'
   )
@@ -783,7 +801,7 @@ Optional Parameters:
 
 ## TensorflowOperator
 
-Use TensorflowOperator to run a tensorflow task. 
+Use TensorflowOperator to run a tensorflow task.
 
 The developer code should be uploaded through Developer -> Code Artifacts and one can refer the same under 'code_artifact'. Application arguments can be defined here in a string format, which are passed to the main method of the main class, if any.
 
@@ -805,7 +823,7 @@ Use CoutureTensorflowOperator to run a tensorflow task. This operator differs fr
 
 Optional Parameters:
 
-- `task_args_dict` : Arguments required for main method of the main class. To be passed in dictionary format.
+- `method_args_dict` : Arguments required for main method of the main class. To be passed in dictionary format.
 
 - `input_base_dir_path` : Base directory path for input files. This has to be a string
 
@@ -815,12 +833,12 @@ Optional Parameters:
 
 - `output_filenames_dict` : Relative file paths for output files w.r.t output base directory. To be passed in dictionary format.
 
-  All the optional parameters, if present, are dumped as json which is passed on as string in the main method of main class. Task id and DAG id are also present in this json as `task_id` and `dag_id` respectively.
+  All the optional parameters, if present, are dumped as json which is passed on as string in the main method of main class. Method id and DAG id are also present in this json as `method_id` and `dag_id` respectively.
 
   Example of final output:
 
   ```json
-  '{"task_id": "fetch_videos", "dag_id": "video_embedding_dag", "task_args_dict": {"task_strategy": "parallel"}, "input_base_dir_path": "/usr/local/couture/input/", "output_base_dir_path": "/usr/local/couture/processed/", "input_filenames_dict": {"tags_file": "video_tags.csv"}, "output_filenames_dict": {"tags_file": "video_tags.csv"}}'
+  '{"method_id": "fetch_videos", "dag_id": "video_embedding_dag", "method_args_dict": {"task_strategy": "parallel"}, "input_base_dir_path": "/usr/local/couture/input/", "output_base_dir_path": "/usr/local/couture/processed/", "input_filenames_dict": {"tags_file": "video_tags.csv"}, "output_filenames_dict": {"tags_file": "video_tags.csv"}}'
   ```
 
 The developer code should be uploaded through Developer -> Code Artifacts and one can refer the same under 'code_artifact'.
@@ -831,12 +849,13 @@ from airflow.operators import CoutureTensorflowOperator
 fetch_videos = CoutureTensorflowOperator(
     dag=dag,
     task_id='fetch_videos',
+    method_id='fetch_videos',
     code_artifact=code_artifact,
     input_base_dir_path=input_dir,
     output_base_dir_path=processed_dir,
     output_filenames_dict={'tags_file': "video_tags.csv"},
     input_filenames_dict={'tags_file': "video_tags.csv"},
-    task_args_dict={'task_strategy': "parallel"},
+    method_args_dict={'task_strategy': "parallel"},
     description='A TF task'
     )
 ```
@@ -1114,7 +1133,7 @@ To add new user, click the '+' as shown below.
 
 `Jupyter notebook` can be accessed under `Developer` menu and clicking on 'Jupyter Notebook' option. These feature is available for both `Developer` or `Admin` users.
 
-*NOTE: Jupyter Notebook View might prompt you for authentication. Use the same credentials which was used while logging in to Workflow Orchestrator* 
+*NOTE: Jupyter Notebook View might prompt you for authentication. Use the same credentials which was used while logging in to Workflow Orchestrator*
 
 ![jupyter_hub](./images/jupyter_hub.png)
 
@@ -1128,13 +1147,13 @@ You can also `parameterize` the notebook. To do this, tag notebook cells with `p
 
 ## Kernels supported by JupyterHub
 
-Out of the box, Workflow Orchestrator offers support for 7 kernels, including [`sparkmagic`](https://github.com/jupyter-incubator/sparkmagic/) kernels. Sparkmagic is a set of tools for interactively working with remote Spark clusters through [Livy](https://livy.incubator.apache.org/), a Spark REST server, in [Jupyter](http://jupyter.org/) notebooks. 
+Out of the box, Workflow Orchestrator offers support for 7 kernels, including [`sparkmagic`](https://github.com/jupyter-incubator/sparkmagic/) kernels. Sparkmagic is a set of tools for interactively working with remote Spark clusters through [Livy](https://livy.incubator.apache.org/), a Spark REST server, in [Jupyter](http://jupyter.org/) notebooks.
 
 - `Python3`: A simple python3 kernel, provided by default by jupyterlab.
 - `ml-kernel`: A kernel with the most commonly used Machine Learning python packages preinstalled.
 - `tf-kernel`: A kernel with `TensorFlow` and commonly used packages preinstalled.
 - `pytorch-kernel`: A kernel with `Pytorch` and commonly used packages preinstalled.
-- `pySpark`:  Sparkmagic's `pyspark` kernel. 
+- `pySpark`:  Sparkmagic's `pyspark` kernel.
 - `Spark`: Sparkmagic's `spark` kernel.
 - `SparkR`: Sparkmagic's `R` kernel.
 
@@ -1158,7 +1177,7 @@ Workflow Orchestrator allows us to upload Machine Learning models and expose the
 
 ## Default Behavior of different Models
 
-- `Tensorflow Models`: Upload a `.tar` or `.tar.gz` archive of your model. The archive will be extracted in the background, and in < 10 minutes, the model will be exposed via the serving APIs on ports ` 8500` for `gRPC`, `8501` for `REST`. For details on how to access serving APIs, visit [TFX serving guide](https://www.tensorflow.org/tfx/guide/serving). 
+- `Tensorflow Models`: Upload a `.tar` or `.tar.gz` archive of your model. The archive will be extracted in the background, and in < 10 minutes, the model will be exposed via the serving APIs on ports ` 8500` for `gRPC`, `8501` for `REST`. For details on how to access serving APIs, visit [TFX serving guide](https://www.tensorflow.org/tfx/guide/serving).
 - `Spark Models`: Any file can be uploaded in this section. Models added in this section are currently not exposed by an API.
 - `Other Models`: There might be some models which you don't want to serve, but might still need. You can upload a `.tar` or `.tar.gz` of your model and the archive will be extracted in the background. However, Models added in this section are not exposed by an API.
 
