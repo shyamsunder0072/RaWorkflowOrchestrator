@@ -4332,6 +4332,7 @@ class AddDagView(AirflowBaseView):
         return self.render_template("airflow/editdag.html",
                                     code=code,
                                     filename=filename,
+                                    dags_folder_path=settings.DAGS_FOLDER,
                                     new=new,
                                     snippets=self.get_snippets())
 
