@@ -577,7 +577,7 @@ INSTALL_REQUIREMENTS = [
     'pygments>=2.0.1, <3.0',
     'python-daemon>=2.1.1, <2.2',
     'python-dateutil>=2.3, <3',
-    'python-jsonrpc-server==0.18',
+    'python-jsonrpc-server==0.3.4',
     'python-language-server[all]==0.18',
     'requests>=2.20.0, <3',
     'setproctitle>=1.1.8, <2',
