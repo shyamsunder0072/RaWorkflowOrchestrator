@@ -72,6 +72,7 @@ from airflow.www_rbac.app import cached_app as cached_app_rbac
 from airflow.www_rbac.app import create_app as create_app_rbac
 from airflow.www_rbac.file_watchers import GitFileSystemWatcher
 from airflow.www_rbac.app import cached_appbuilder
+from airflow.www_rbac.static.python_jsonrpc_server.examples import langserver_ext
 
 from sqlalchemy.orm import exc
 import six
@@ -1592,6 +1593,10 @@ def sync_perm(args): # noqa
                 dag.access_control)
     else:
         print('The sync_perm command only works for rbac UI.')
+		
+@cli_utils.action_logging
+def langserver(args):
+	langserver_ext.start_langserver()
 
 
 class Arg(object):
@@ -2285,6 +2290,11 @@ class CLIFactory(object):
             'help': "Watches Git Repositories and push updates to the git repo whenever a changes occurs",
             'args': ('daemon', )
         },
+		{
+			'func': langserver,
+            'help': "Starts the language server for the code-editor",
+            'args': (),
+		}
     )
     subparsers_dict = {sp['func'].__name__: sp for sp in subparsers}
     dag_subparsers = (
