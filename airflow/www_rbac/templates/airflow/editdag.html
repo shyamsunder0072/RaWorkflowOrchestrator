@@ -185,9 +185,9 @@
 <script src="{{ url_for_asset('codemirror/addon/fold/indent-fold.js') }}"></script>
 <script src="{{ url_for_asset('codemirror/addon/selection/active-line.js') }}"></script>
 <script src="{{ url_for_asset('codemirror/keymap/sublime.js') }}"></script>
-<script src="{{ url_for('static', filename='lsp-editor-adapter/ts/dist/main.js') }}"></script>
+<script src="{{ url_for('static', filename='js/language_server.js') }}"></script>
 <script type="text/javascript">
-
+  
   var diffEditor, snippetEditor, currSnippet;
   const theme = 'idea', keymap = 'sublime', indentUnit = 4;
   var editorConfigs = {
