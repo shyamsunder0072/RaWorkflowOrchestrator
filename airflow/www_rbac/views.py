@@ -2345,8 +2345,14 @@ class VersionView(AirflowBaseView):
     default_view = 'version'
     changelogs = None
     filepath = settings.CHANGELOG_PATH
-    with open (filepath, 'r') as f:
-        changelogs = yaml.safe_load(f)
+    found_file = False
+	
+    try:
+        with open (filepath, 'r') as f:
+            changelogs = yaml.safe_load(f)
+            found_file = True			
+    except IOError:
+        pass
 
     @expose('/version')
     @has_access
@@ -2354,6 +2360,7 @@ class VersionView(AirflowBaseView):
     def version(self):
         return self.render_template(
             'airflow/version.html',
+			found_file = self.found_file,
             changelogs = self.changelogs)
 
 class ConfigurationView(AirflowBaseView):
@@ -4332,7 +4339,7 @@ class AddDagView(AirflowBaseView):
         return self.render_template("airflow/editdag.html",
                                     code=code,
                                     filename=filename,
-                                    dags_folder_path=settings.DAGS_FOLDER,
+									dags_folder_path=settings.DAGS_FOLDER,
                                     new=new,
                                     snippets=self.get_snippets())
 
