@@ -20,7 +20,7 @@ code_artifact = 'obelisk-eda.jar'
 folder_to_copy_summary = '{{folder_to_copy_sum}}'
 
 # path in container where intermediate data is dumped
-data_dump_dir = Path(EDA_HOME).joinpath(*["inputs", folder_to_copy_summary, "preliminary"])
+data_dump_dir = Path(EDA_HOME).joinpath(*["inputs", folder_to_copy_summary, "dataScoreAndImportantFeatures"])
 
 # folders inside data_dump_dir containing table_info and preliminary_summary
 table_score_dump_dir = data_dump_dir.joinpath("table_score")

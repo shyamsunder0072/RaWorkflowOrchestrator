@@ -2345,8 +2345,11 @@ class VersionView(AirflowBaseView):
     default_view = 'version'
     changelogs = None
     # filepath = settings.CHANGELOG_PATH
+
+    # temporary fix
     filepath = os.path.join(
         app.root_path, *['..', 'changelog.yaml'])
+
     with open (filepath, 'r') as f:
         changelogs = yaml.safe_load(f)
 
@@ -3335,7 +3338,7 @@ class EDAView(AirflowBaseView, BaseApi):
 
             # just mock the eda source
             eda_source = models.EdaSource(connection_uri=dest, source_type='local')
-            dag_ids = self.create_eda_dags(eda_source)
+            dag_ids = self.create_eda_dags(eda_source, runtype='L0')
             _parse_dags(update_DagModel=True)
 
             for dag_id in dag_ids:
