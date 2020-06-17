@@ -589,6 +589,7 @@ INSTALL_REQUIREMENTS = [
     'termcolor==1.1.0',
     'text-unidecode==1.2',
     'thrift>=0.9.2',
+    'tornado==6.0.4',
     'typing;python_version<"3.5"',
     'typing-extensions>=3.7.4;python_version<"3.8"',
     'tzlocal>=1.4,<2.0.0',
