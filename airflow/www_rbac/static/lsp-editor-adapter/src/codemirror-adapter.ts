@@ -451,12 +451,14 @@ class CodeMirrorAdapter extends IEditorAdapter<CodeMirror.Editor> {
     }
 
     if (this.connection.isReferencesSupported()) {
+      /*
       const getReferences = document.createElement('div');
       getReferences.innerText = 'Find all References';
       getReferences.addEventListener('click', () => {
         this.connection.getReferences(docPosition);
       });
       htmlElement.appendChild(getReferences);
+      */
     }
 
     const coords = this.editor.charCoords(docPosition, 'page');
