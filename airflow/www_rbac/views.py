@@ -2350,6 +2350,7 @@ class VersionView(AirflowBaseView):
     # filepath = os.path.join(
     #     app.root_path, *['..', 'changelog.yaml'])
 
+
     with open (filepath, 'r') as f:
         changelogs = yaml.safe_load(f)
 
