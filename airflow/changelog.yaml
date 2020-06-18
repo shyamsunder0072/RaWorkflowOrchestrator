@@ -1,1 +1,11 @@
-
+changelog:
+  - version: 2.0.1
+    authors: ['JaiDoshi', 'AnubhavUjjawal', 'AnuAgarwal']
+    newFeatures:
+      - Added experimental support for Feature Importance EDA.
+      - Added changelog for releases.
+      - Added find & replace in code editor
+    bugFixes:
+      - Switched the review code panels in the code editor.
+    improvements:
+      - Added manage & create dag in homepage
