@@ -243,7 +243,7 @@ def configure_vars():
     EDA_HOME = normalize_path(os.path.join(AIRFLOW_HOME, *[os.pardir, 'eda']))
     MODEL_SERVERS = normalize_path(os.path.join(AIRFLOW_HOME, *[os.pardir, 'trained-models']))
     LIVY_CONF_PATH = deepcopy(HADOOP_CONFIGS_FOLDER)
-    CHANGELOG_PATH = os.path.join((os.path.abspath(os.path.dirname(__file__))), 'changelog.yaml')    
+    # CHANGELOG_PATH = os.path.join((os.path.abspath(os.path.dirname(__file__))), 'changelog.yaml')
 
     PLUGINS_FOLDER = conf.get(
         'core',

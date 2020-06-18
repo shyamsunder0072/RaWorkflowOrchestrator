@@ -2344,13 +2344,17 @@ class Airflow(AirflowBaseView):
 class VersionView(AirflowBaseView):
     default_view = 'version'
     changelogs = None
-    filepath = settings.CHANGELOG_PATH
+    # filepath = settings.CHANGELOG_PATH
+
+    # temporary fix
+    filepath = os.path.join(
+        app.root_path, *['..', 'changelog.yaml'])
+
     with open (filepath, 'r') as f:
         changelogs = yaml.safe_load(f)
 
     @expose('/version')
     @has_access
-
     def version(self):
         return self.render_template(
             'airflow/version.html',
@@ -3334,7 +3338,7 @@ class EDAView(AirflowBaseView, BaseApi):
 
             # just mock the eda source
             eda_source = models.EdaSource(connection_uri=dest, source_type='local')
-            dag_ids = self.create_eda_dags(eda_source)
+            dag_ids = self.create_eda_dags(eda_source, runtype='L0')
             _parse_dags(update_DagModel=True)
 
             for dag_id in dag_ids:
@@ -3358,22 +3362,36 @@ class EDAView(AirflowBaseView, BaseApi):
     #     # print(os.stat(dest))
     #     self.add_source(hdfs_fileloc, source_type=models.EdaSourcesEnum.hdfs.value)
 
-    def create_eda_dags(self, eda_source):
+    def create_eda_dags(self, eda_source, runtype):
 
         username = g.user.username
         now = datetime.now()
 
+        if runtype == 'L0':
+            eda_type = 'preliminary'
+            eda_dag_id_prefix = 'EDAPreliminaryDataSummary'
+            viz_dag_id_prefix = 'EDAPreliminaryVisualisation'
+            eda_dag_template = 'dags/default_EDA_preliminary_data_summary.jinja2'
+            viz_dag_template = 'dags/default_EDA_preliminary_visualisations.jinja2'
+        else:
+            # L1 type EDA
+            eda_type = 'data_importance'
+            eda_dag_id_prefix = 'EDADataScoreAndFeatureSummary'
+            viz_dag_id_prefix = 'EDADataScoreAndFeatureVisualisation'
+            eda_dag_template = 'dags/default_EDA_datascore_and_feature_summary.jinja2'
+            viz_dag_template = 'dags/default_EDA_datascore_and_feature_visualisation.jinja2'
+
         if eda_source.source_type == models.EdaSourcesEnum.database:
             output_dirs = [
                 f'{Path(eda_source.connection_uri).resolve().stem}-{eda_source.tablename}',
-                'preliminary',
+                eda_type,
                 now.strftime('%Y-%m-%d-%H:%M:%S')
             ]
         # for hdfs and csv files
         else:
             output_dirs = [
                 Path(eda_source.connection_uri).resolve().stem,
-                'preliminary',
+                eda_type,
                 now.strftime('%Y-%m-%d-%H:%M:%S')
             ]
 
@@ -3383,39 +3401,39 @@ class EDAView(AirflowBaseView, BaseApi):
             Path(eda_source.connection_uri).stem,
             now.strftime("%d-%m-%Y-%H-%M-%S")])
 
-        summ_dag_id = "-".join([
-            "EDAPreliminaryDataSummary",
+        eda_dag_id = "-".join([
+            eda_dag_id_prefix,
             Path(eda_source.connection_uri).resolve().stem,
             now.strftime("%d-%m-%Y-%H-%M-%S")])
-        code = self.render_template('dags/default_EDA_preliminary_data_summary.jinja2',
+        code = self.render_template(eda_dag_template,
                                     username=username,
-                                    dag_id=summ_dag_id,
+                                    dag_id=eda_dag_id,
                                     source=eda_source,
                                     eda_sources_enum=models.EdaSourcesEnum,
                                     folder_to_copy_sum=folder_to_copy_sum,
                                     now=now)
-        with open(os.path.join(settings.DAGS_FOLDER, summ_dag_id + '.py'), 'w') as dag_file:
+        with open(os.path.join(settings.DAGS_FOLDER, eda_dag_id + '.py'), 'w') as dag_file:
             dag_file.write(code)
 
         viz_dag_id = "-".join([
-            "EDAPreliminaryVisualisation",
+            viz_dag_id_prefix,
             Path(eda_source.connection_uri).resolve().stem,
             now.strftime("%d-%m-%Y-%H-%M-%S")])
-        code = self.render_template('dags/default_EDA_preliminary_visualisations.jinja2',
+        code = self.render_template(viz_dag_template,
                                     username=username,
                                     dag_id=viz_dag_id,
                                     source=eda_source,
                                     output_dirs=output_dirs,
-                                    summ_dag_id=summ_dag_id,
+                                    eda_dag_id=eda_dag_id,
                                     folder_to_copy_sum=folder_to_copy_sum,
                                     now=now)
         with open(os.path.join(settings.DAGS_FOLDER, viz_dag_id + '.py'), 'w') as dag_file:
             dag_file.write(code)
 
-        flash_msg = 'EDA run on Source: {} has been scheduled. '.format(str(eda_source)) + \
+        flash_msg = '{} EDA run on Source: {} has been scheduled. '.format(eda_type, str(eda_source)) + \
             'Output will be found in "{}" directory.'.format('/'.join(output_dirs))
         flash(flash_msg)
-        return (viz_dag_id, summ_dag_id)
+        return (viz_dag_id, eda_dag_id)
 
     @expose('/eda/run/<int:source>', methods=['GET', 'POST'])
     @has_access
@@ -3423,7 +3441,8 @@ class EDAView(AirflowBaseView, BaseApi):
     @action_logging
     def run_view(self, source):
         eda_source = models.EdaSource.get_by_id(source_id=source)
-        dag_ids = self.create_eda_dags(eda_source)
+        dag_ids = self.create_eda_dags(eda_source, runtype=request.args.get('type', 'L0'))
+        # TODO: DO _parse_dags in a separate thread.
         _parse_dags(update_DagModel=True)
 
         for dag_id in dag_ids:
