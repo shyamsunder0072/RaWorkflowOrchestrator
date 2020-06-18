@@ -2344,11 +2344,11 @@ class Airflow(AirflowBaseView):
 class VersionView(AirflowBaseView):
     default_view = 'version'
     changelogs = None
-    # filepath = settings.CHANGELOG_PATH
+    filepath = settings.CHANGELOG_PATH
 
     # temporary fix
-    filepath = os.path.join(
-        app.root_path, *['..', 'changelog.yaml'])
+    # filepath = os.path.join(
+    #     app.root_path, *['..', 'changelog.yaml'])
 
     with open (filepath, 'r') as f:
         changelogs = yaml.safe_load(f)
