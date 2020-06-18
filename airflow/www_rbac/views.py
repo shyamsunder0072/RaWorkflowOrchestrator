@@ -2344,11 +2344,12 @@ class Airflow(AirflowBaseView):
 class VersionView(AirflowBaseView):
     default_view = 'version'
     changelogs = None
-    # filepath = settings.CHANGELOG_PATH
+    filepath = settings.CHANGELOG_PATH
 
     # temporary fix
-    filepath = os.path.join(
-        app.root_path, *['..', 'changelog.yaml'])
+    # filepath = os.path.join(
+    #     app.root_path, *['..', 'changelog.yaml'])
+
 
     with open (filepath, 'r') as f:
         changelogs = yaml.safe_load(f)
@@ -2680,8 +2681,8 @@ class TrainedModelsView(FileUploadBaseView):
     fs_path = settings.MODEL_SERVERS
     # accepted_file_extensions = ('.tar', '.tar.gz')
     accepted_file_extensions = ('',)
-    title = 'Trained Models'
-    class_permission_name = 'Trained Models'
+    title = 'Pre-trained models and dataset repositories'
+    class_permission_name = 'Models and Datasets'
     method_permission_name = {
         'list_view': 'access',
         'upload_view': 'access',
@@ -2706,6 +2707,12 @@ class TrainedModelsView(FileUploadBaseView):
         },
         'other_models': {
             'path': os.path.join(base_fs_path, 'other-models'),
+            'extract_on_upload': True,
+            'update_config': False,
+            'accept_extensions': ('.tar', '.gz')
+        },
+        'datasets': {
+            'path': os.path.join(base_fs_path, 'datasets'),
             'extract_on_upload': True,
             'update_config': False,
             'accept_extensions': ('.tar', '.gz')
@@ -2787,7 +2794,7 @@ class TrainedModelsView(FileUploadBaseView):
         # print(pathname)
         AirflowBaseView.audit_logging(
             'TrainedModelsView.extract',
-            file.filename,
+            file,
             request.environ['REMOTE_ADDR'])
         combine_chunks_thread = threading.Thread(
             target=self.extra_work_after_file_save,
