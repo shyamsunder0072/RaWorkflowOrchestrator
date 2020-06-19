@@ -72,7 +72,7 @@ from airflow.www_rbac.app import cached_app as cached_app_rbac
 from airflow.www_rbac.app import create_app as create_app_rbac
 from airflow.www_rbac.file_watchers import GitFileSystemWatcher
 from airflow.www_rbac.app import cached_appbuilder
-from airflow.www_rbac.static import langserver_ext
+from airflow.www_rbac import langserver_ext
 
 from sqlalchemy.orm import exc
 import six
