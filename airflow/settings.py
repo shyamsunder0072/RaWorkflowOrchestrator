@@ -159,6 +159,7 @@ JUPYTER_HOME = None
 EDA_HOME = None
 MODEL_SERVERS = None
 CHANGELOG_PATH = None
+LANGUAGE_SERVER_PATH = None
 
 MAX_CHUNK_SIZE = 512000 * 4  # bytes
 MAX_FILE_SIZE = 1025 * 1025 * 10  # megabytes
@@ -244,6 +245,7 @@ def configure_vars():
     MODEL_SERVERS = normalize_path(os.path.join(AIRFLOW_HOME, *[os.pardir, 'trained-models']))
     LIVY_CONF_PATH = deepcopy(HADOOP_CONFIGS_FOLDER)
     CHANGELOG_PATH = os.path.join((os.path.abspath(os.path.dirname(__file__))), 'changelog.yaml')    
+	LANGUAGE_SERVER_PATH = "/langserver/python"
 
     PLUGINS_FOLDER = conf.get(
         'core',
