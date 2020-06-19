@@ -57,5 +57,5 @@ def start_langserver():
     app = web.Application([
         (settings.LANGUAGE_SERVER_PATH, LanguageServerWebSocketHandler),     
     ])
-    app.listen(3000, address='0.0.0.0')
+    app.listen(8080, address='0.0.0.0')
     ioloop.IOLoop.current().start()
