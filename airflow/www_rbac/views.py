@@ -2360,7 +2360,7 @@ class VersionView(AirflowBaseView):
     def version(self):
         return self.render_template(
             'airflow/version.html',
-			found_file = self.found_file,
+            found_file = self.found_file,
             changelogs = self.changelogs)
 
 class ConfigurationView(AirflowBaseView):
@@ -4339,7 +4339,7 @@ class AddDagView(AirflowBaseView):
         return self.render_template("airflow/editdag.html",
                                     code=code,
                                     filename=filename,
-									dags_folder_path=settings.DAGS_FOLDER,
+                                    dags_folder_path=settings.DAGS_FOLDER,
                                     new=new,
                                     snippets=self.get_snippets())
 
