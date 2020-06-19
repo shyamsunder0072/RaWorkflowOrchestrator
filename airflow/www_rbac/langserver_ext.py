@@ -2,6 +2,8 @@ import logging
 import subprocess
 import threading
 
+from airflow import settings
+
 from tornado import ioloop, process, web, websocket
 
 from pyls_jsonrpc import streams
@@ -53,7 +55,7 @@ class LanguageServerWebSocketHandler(websocket.WebSocketHandler):
 
 def start_langserver():
     app = web.Application([
-        (r"/python", LanguageServerWebSocketHandler),     
+        (settings.LANGUAGE_SERVER_PATH, LanguageServerWebSocketHandler),     
     ])
-    app.listen(3000, address='127.0.0.1')
+    app.listen(3000, address='0.0.0.0')
     ioloop.IOLoop.current().start()
