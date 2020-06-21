@@ -348,7 +348,7 @@
 
   $(document).ready(function() {
     
-    langServer.connectToLangServer("{{dags_folder_path}}", "{{filename}}");
+    langServer.connectToLangServer("{{language_server_path}}", "{{dags_folder_path}}", "{{filename}}");
 	
     langServer.codeEditor.execCommand('goDocEnd');
 
