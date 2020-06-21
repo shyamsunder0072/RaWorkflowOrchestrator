@@ -229,6 +229,8 @@ def configure_vars():
     global MODEL_SERVERS
     global LIVY_CONF_PATH
     global CHANGELOG_PATH
+    global LANGUAGE_SERVER_PATH
+	
     SQL_ALCHEMY_CONN = conf.get('core', 'SQL_ALCHEMY_CONN')
     DAGS_FOLDER = os.path.expanduser(conf.get('core', 'DAGS_FOLDER'))
 
@@ -245,7 +247,7 @@ def configure_vars():
     MODEL_SERVERS = normalize_path(os.path.join(AIRFLOW_HOME, *[os.pardir, 'trained-models']))
     LIVY_CONF_PATH = deepcopy(HADOOP_CONFIGS_FOLDER)
     CHANGELOG_PATH = os.path.join((os.path.abspath(os.path.dirname(__file__))), 'changelog.yaml')    
-	LANGUAGE_SERVER_PATH = "/langserver/python"
+    LANGUAGE_SERVER_PATH = conf.get('webserver', 'language_server_path')
 
     PLUGINS_FOLDER = conf.get(
         'core',
