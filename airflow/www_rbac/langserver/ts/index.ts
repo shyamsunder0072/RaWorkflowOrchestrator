@@ -45,7 +45,11 @@ var codeEditor = CodeMirror.fromTextArea(myTextArea, Configs);
 function connectToLangServer (language_server_path: string, filename: string): void
 {
     if(!language_server_path.startsWith('ws://')) {
-      language_server_path = `ws://${window.location.hostname}/${window.location.port}${language_server_path}`
+      if (window.location.port)
+        language_server_path = `ws://${window.location.hostname}:${window.location.port}${language_server_path}`
+      else {
+        language_server_path = `ws://${window.location.hostname}${language_server_path}`
+      }
     }
     let py  = {
       serverUri: language_server_path,
