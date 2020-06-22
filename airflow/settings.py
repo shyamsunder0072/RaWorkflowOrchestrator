@@ -249,6 +249,7 @@ def configure_vars():
     CHANGELOG_PATH = os.path.join((os.path.abspath(os.path.dirname(__file__))), 'changelog.yaml')    
     LANGUAGE_SERVER_PATH = conf.get('webserver', 'language_server_path')
 
+
     PLUGINS_FOLDER = conf.get(
         'core',
         'plugins_folder',
