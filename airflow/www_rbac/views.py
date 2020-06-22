@@ -2704,6 +2704,12 @@ class TrainedModelsView(FileUploadBaseView):
             'update_config': False,
             'accept_extensions': ('.tar', '.gz')
         },
+        'pytorch_models': {
+            'path': os.path.join(base_fs_path, 'pytorch-models'),
+            'extract_on_upload': True,
+            'update_config': False,
+            'accept_extensions': ('.tar', '.gz')
+        },
         'other_models': {
             'path': os.path.join(base_fs_path, 'other-models'),
             'extract_on_upload': True,
