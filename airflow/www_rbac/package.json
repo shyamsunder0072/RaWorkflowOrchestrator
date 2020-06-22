@@ -84,7 +84,6 @@
     "nvd3": "^1.8.6",
     "url-search-params-polyfill": "^6.0.0",
     "typescript": "^3.9.5",
-    "url-search-params-polyfill": "^6.0.0",
     "vscode-jsonrpc": "^4.0.0",
     "vscode-languageclient": "^5.2.1",
     "vscode-languageserver-protocol": "^3.14.1",

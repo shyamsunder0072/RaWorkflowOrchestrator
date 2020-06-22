@@ -3,9 +3,7 @@ import subprocess
 import threading
 
 from airflow import settings
-
 from tornado import ioloop, process, web, websocket
-
 from pyls_jsonrpc import streams
 
 try:
@@ -53,9 +51,9 @@ class LanguageServerWebSocketHandler(websocket.WebSocketHandler):
     def check_origin(self, origin):
         return True
 
-def start_langserver():
+def start_langserver(port, path):
     app = web.Application([
-        (settings.LANGUAGE_SERVER_PATH, LanguageServerWebSocketHandler),     
+        (path, LanguageServerWebSocketHandler),
     ])
-    app.listen(8080, address='0.0.0.0')
+    app.listen(port, address='0.0.0.0')
     ioloop.IOLoop.current().start()

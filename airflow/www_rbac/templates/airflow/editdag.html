@@ -187,7 +187,7 @@
 <script src="{{ url_for_asset('codemirror/keymap/sublime.js') }}"></script>
 <script src="{{ url_for('static', filename='js/language_server.js') }}"></script>
 <script type="text/javascript">
-  
+
   var diffEditor, snippetEditor, currSnippet;
   const theme = 'idea', keymap = 'sublime', indentUnit = 4;
   var editorConfigs = {
@@ -347,9 +347,9 @@
   }
 
   $(document).ready(function() {
-    
-    langServer.connectToLangServer("{{language_server_path}}", "{{dags_folder_path}}", "{{filename}}");
-	
+
+    langServer.connectToLangServer("{{language_server_url}}", "{{filename}}");
+
     langServer.codeEditor.execCommand('goDocEnd');
 
     langServer.codeEditor.on('drop', function(cm, event) {

@@ -2346,11 +2346,11 @@ class VersionView(AirflowBaseView):
     changelogs = None
     filepath = settings.CHANGELOG_PATH
     found_file = False
-	
+
     try:
         with open (filepath, 'r') as f:
             changelogs = yaml.safe_load(f)
-            found_file = True			
+            found_file = True
     except IOError:
         pass
 
@@ -4359,7 +4359,7 @@ class AddDagView(AirflowBaseView):
         return self.render_template("airflow/editdag.html",
                                     code=code,
                                     filename=filename,
-                                    language_server_path = settings.LANGUAGE_SERVER_PATH                                    
+                                    language_server_url=settings.LANGUAGE_SERVER_URL,
                                     dags_folder_path=settings.DAGS_FOLDER,
                                     new=new,
                                     snippets=self.get_snippets())
