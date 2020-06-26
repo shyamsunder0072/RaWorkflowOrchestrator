@@ -106,15 +106,27 @@ One can change the password by going to top right corner of Navigation bar, then
 
 
 
-**Login as an admin user and configure spark and hadoop configurations as follows.**
+**Login as an admin user and configure spark, hadoop, livy and kerberos configurations as followed.**
 
-## Spark Configurations and Dependencies
+## Spark Hadoop Config Groups
+
+Spark Hadoop Config Groups is used to configure multiple Hadoop/ Ambari Clusters with the same workflow. After configuring them properly, you can easily switch b/w which one to use while running your CoutureSparkOperator and other Spark Hadoop cluster related operator tasks.
+
+1. In the top navigation bar, go to `Admin -> Spark Hadoop Config Groups`
+
+When you are running `Workflow` for the first time, there will not be any `config groups`. However, you can create a config group by clicking on `Add a group` button.
+
+![spark_hadoop_config_groups](./images/spark_hadoop_config_group.png)
+
+
+
+## Spark Configuration
 
 Easily configure spark jobs by providing options through orchestrator using below steps:
 
-1.  In the top navigation bar, go to `Admin` -\>` Spark Configuration`.
+1.  In the Spark Hadoop Config Group page, select the  Spark Configuration link of the respective group.
 
-![spark_config](./images/spark_conf.png)
+![spark_config](./images/spark_configuration.png)
 
 2. Update existing arguments/configurations or add new ones by clicking on `Add in` buttons. Existing options can be deleted by clicking on delete option, next to the option.
 3. Available jars to include on the driver and executor classpaths are listed under `jars` option. Similarly, available list of `.zip`, `.egg`, or ` .py` files to place on the `PYTHONPATH` for Python apps are listed under `py`-files. To upload/delete these jars or python files, visit, `Admin` -\> `Spark Dependencie`s. Upon uploading new `jars`/`python` files under `Spark Dependencies`, the same will be added to respective dropdown here.
@@ -127,17 +139,9 @@ Easily configure spark jobs by providing options through orchestrator using belo
 
 Configurations files required for runtime environment settings of a hadoop cluster can be easily configured  with the help of `Hadoop Configuration Groups` through orchestrator using below steps:
 
-In the top navigation bar, go to `Admin` -\> `Hadoop Configuration`.
+In the Spark Hadoop Config Group page, select the  Hadoop Configuration link of the respective group. You will be redirected to a page containing configuration files for that group.
 
-![hadoop_conf_home](./images/config_groups.png)
-
-1. When you are running `Workflow` for the first time, there will not be any `config groups`. However, you can create a config group by clicking on `Add a group` button.
-
-   ![new_hadoop_group](./images/new_hadoop_group.png)
-
-2. Once, you have successfully added the first group, it will be made as the `default` group. In the groups list, you can click on a group to see its configuration files.
-
-   ![hadoop_conf_files](./images/hadoop_conf_files.png)
+![hadoop_conf_files](./images/hadoop_conf_files.png)
 
 3. New `hadoop conf` files can be added to that group using `Upload file(s)` option. Please note that only XML files are allowed.
 
@@ -149,11 +153,23 @@ In the top navigation bar, go to `Admin` -\> `Hadoop Configuration`.
 
 Configurations for kerberos enabled hadoop clusters can be done by following the below steps:
 
-1. In the top navigation bar, go to `Admin` -\> `Kerberos Configuration`.
+In the Spark Hadoop Config Group page, select the Kerberos Configuration link of the respective group.
 
-2. Upload the `keytab` file from `Upload Keytab File` option. These configurations, if added, are automatically applied to the spark jobs.
+2. Upload the `keytab` file from `Upload Keytab File` option. These configurations, if added, are automatically applied to the spark jobs which use that configuration group.
 
    ![keytab](./images/keytab.png)
+
+## Livy Configuration
+
+<a name="livy-configuration"></a>
+
+ [Livy](https://livy.incubator.apache.org/) enables programmatic, fault-tolerant, multi-tenant submission of Spark jobs from web/mobile apps. To configure default endpoints of sparkmagic kernels present in Jupyterhub, Admin will have to configure Livy Endpoints. 
+
+In the Spark Hadoop Config Group page, select the Livy Configuration link of the respective group.
+
+**NOTE: The livy configuration of the default spark hadoop config group will be used with sparkmagic kernels in jupyterhub**
+
+![livy_config](./images/livy_config.png)
 
 ## LDAP Configurations
 
@@ -190,13 +206,7 @@ Configurations required for ldap can be done by following the below steps:
 | `AUTH_LDAP_TLS_CERTFILE`      | Certificate file for client auth use with `AUTH_LDAP_TLS_KEYFILE` |
 | `AUTH_LDAP_TLS_KEYFILE`       | Certificate key file for `client` auth.                      |
 
-## Livy Configuration
 
-<a name="livy-configuration"></a>
-
- [Livy](https://livy.incubator.apache.org/) enables programmatic, fault-tolerant, multi-tenant submission of Spark jobs from web/mobile apps. To configure default endpoints of sparkmagic kernels present in Jupyterhub, Admin will have to configure Livy Endpoints. To configure `Livy` from the UI, go to (`Admin`->`Livy Configuration`).
-
-![livy_config](./images/livy_config.png)
 
 ## Git Configuration
 
@@ -1169,21 +1179,28 @@ A `DagRun` is the instance of a `DAG` that will run at a time. When it runs, a
 
 ![dag_runs](./images/dag_runs.png)
 
-# Trained Models
+#  Models and Datasets
 
-Workflow Orchestrator allows us to upload Machine Learning models and expose them via an API so that they can be used by clients. Currently, we support 3 different types of models, i.e Tensorflow Models, Spark Models and Other Models. To upload a trained model, visit `Developer->Trained Models`. You will see an UI as attached below:
+Workflow Orchestrator allows us to upload Machine Learning models and datasets and expose them via an API so that they can be used by clients. Currently, we support 4 different types of models, i.e Tensorflow Models, Spark Models, Pytorch models and Other Models, and a Dataset Repository. To upload a trained model, visit `Developer->Models and Datasets`. You will see an UI as attached below:
 
-![trained_models](./images/trained_models.png)
+![trained_models](./images/models_and_datasets.png)
 
 ## Default Behavior of different Models
 
 - `Tensorflow Models`: Upload a `.tar` or `.tar.gz` archive of your model. The archive will be extracted in the background, and in < 10 minutes, the model will be exposed via the serving APIs on ports ` 8500` for `gRPC`, `8501` for `REST`. For details on how to access serving APIs, visit [TFX serving guide](https://www.tensorflow.org/tfx/guide/serving).
 - `Spark Models`: Any file can be uploaded in this section. Models added in this section are currently not exposed by an API.
+- Pytorch Models: Any file can be uploaded in this section. Models added in this section are currently not exposed by an API.
 - `Other Models`: There might be some models which you don't want to serve, but might still need. You can upload a `.tar` or `.tar.gz` of your model and the archive will be extracted in the background. However, Models added in this section are not exposed by an API.
+- `Datasets`: Any file can be uploaded in this section. Files added in this section are treated as datasets and can be used in DAGs.
 
 # Exploratory Data Analysis
 
 Workflow Orchestrator allows us to add and perform Exploratory Data Analysis (EDA) on a SQL database, TSV or CSV file and HDFS data sources. To perform `EDA` on a data source, go to `Developer->Exploratory Data Analysis`.
+
+There are two kinds of EDA:
+
+- `L0 EDA` or `Preliminary EDA`
+- `L1 EDA` or `Feature Importance EDA`
 
 ## Steps to perform EDA
 
@@ -1192,12 +1209,13 @@ Workflow Orchestrator allows us to add and perform Exploratory Data Analysis (ED
 2. Add a new Data Source. The data source can be any one of `SQL Database`, `CSV/ TSV`, or `HDFS Source` (optional).
 
    1. If you select to use `SQL Database`, you will be redirected to `Couture Dashboard`, where you will have to select a table from one of the existing databases from SQL Lab view.
+   2. If you are using a Excel/CSV/TSV Datasource, only Preliminary EDA will be run on the file uploaded, and the file uploaded will not be added to sources list. If you are doing this, you can skip 3rd step.
 
-3. Once you have your required Data source added, you need to click on the `play` button to start `EDA`.
+3. Once you have your required Data source added, you need to click on the `play` button to start `EDA`. You will see a flash message with the output path of the EDA run where the output will be stored once run completes successfully. 
 
-   ![eda_run](./images/eda_run.png)
+   ![eda_trigger](./images/eda_trigger.png)
 
-4. Once an output of EDA is generated, it will be in the `Processed Outputs` Section of the same page. Click on the output and you will be redirected to a new tab showing the EDA Results.
+4. Once an output of EDA is generated, it will be in the `Processed Outputs` Section of the same page. Use the output path described in the last step to find that output. Click on the output and you will be redirected to a new tab showing the EDA Results.
 
 # Visualisations
 
