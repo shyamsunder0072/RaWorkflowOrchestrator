@@ -2850,7 +2850,7 @@ class TrainedModelsView(FileUploadBaseView):
         else:
             return os.path.join(self.fs_path, pathname)
 
-    def update_models_config(self, pathname, model_type):
+    def update_models_config(self, pathname, model_type, delete=False):
         if model_type == 'tf_models':
             config = 'model_config_list: {'
             dirs = [name for name in os.listdir(pathname) if os.path.isdir(os.path.join(pathname, name))]
@@ -2873,11 +2873,15 @@ class TrainedModelsView(FileUploadBaseView):
             model_name = Path(pathname).stem
             # try:
             logging.info(f'Pytorch URL: {settings.PYTORCH_MANAGEMENT_URL}/models')
-            requests.post(f'{settings.PYTORCH_MANAGEMENT_URL}/models',
-                params={
-                    'url': model_name,
-                    'model_name': model_name
-                })
+            if not delete:
+                requests.post(f'{settings.PYTORCH_MANAGEMENT_URL}/models',
+                    params={
+                        'url': model_name,
+                        'model_name': model_name
+                    })
+            else:
+                # TODO: unregister model here
+                pass
             # except Exception as e:
             #     logging.error(str(e))
             AirflowBaseView.audit_logging(
@@ -2903,8 +2907,11 @@ class TrainedModelsView(FileUploadBaseView):
 
         logging.info(f'Final Size of file {file}: {os.path.getsize(pathname)}')
 
-        if not self.fs_mapping[fs_key]['extract_on_upload']:
+        if not self.fs_mapping[fs_key]['extract_on_upload'] and not self.fs_mapping[fs_key]['update_config']:
             return
+
+        if str(pathname).endswith(('.mar', )) and self.fs_mapping[fs_key]['update_config']:
+                self.update_models_config(fs_path, fs_key)
 
         if str(pathname).endswith(('.tar', '.tar.gz')):
             file_path = self.get_file_path(pathname)
@@ -2966,7 +2973,7 @@ class TrainedModelsView(FileUploadBaseView):
             flash('Folder ' + pathname + ' successfully deleted.', category='warning')
             pth = pathname.split('/')[0]
             if self.fs_mapping[pth]['update_config']:
-                self.update_models_config(self.fs_mapping[pth]['path'], pth)
+                self.update_models_config(self.fs_mapping[pth]['path'], pth, delete=True)
         else:
             flash('File/Folder ' + pathname + ' not found.', category='error')
         return redirect(url_for(self.__class__.__name__ + '.list_view', pathname=''))
