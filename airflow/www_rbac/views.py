@@ -3895,7 +3895,7 @@ class KeyTabView(AirflowBaseView):
 class JupyterNotebookView(GitIntegrationMixin, AirflowBaseView):
     default_view = 'jupyter_notebook'
     fs_path = settings.JUPYTER_HOME
-    class_permission_name = 'Trained Models'
+    class_permission_name = 'Jupyter Notebook'
     method_permission_name = {
         'jupyter_notebook': 'access',
         'jupyter_git_status': 'access',
@@ -3915,8 +3915,19 @@ class JupyterNotebookView(GitIntegrationMixin, AirflowBaseView):
             pass
         return val
 
-    def create_jupyter_dag(self, notebook, parameters, schedule=None):
-        dag_id = "-".join(["JupyterNotebookExceution",
+    def get_kernels(self):
+        return [
+            'ml-kernel',
+            'pysparkkernel',
+            'pytorch-kernel',
+            'sparkkernel',
+            'sparkrkernel',
+            'tf-kernel',
+            'python3'
+        ]
+
+    def create_jupyter_dag(self, notebook, parameters, kernel, schedule=None):
+        dag_id = "-".join(["JupyterNotebook",
                            Path(notebook).resolve().stem,
                            datetime.now().strftime("%d-%m-%Y-%H-%M-%S")])
         username = g.user.username
@@ -3926,6 +3937,7 @@ class JupyterNotebookView(GitIntegrationMixin, AirflowBaseView):
                                     username=username,
                                     parameters=parameters,
                                     dag_id=dag_id,
+                                    kernel=kernel,
                                     now=now,
                                     schedule=schedule)
         with open(os.path.join(settings.DAGS_FOLDER, dag_id + '.py'), 'w') as dag_file:
@@ -3942,16 +3954,16 @@ class JupyterNotebookView(GitIntegrationMixin, AirflowBaseView):
     @action_logging
     def jupyter_notebook(self):
         title = "Jupyter Notebook"
-        notebooks = self.get_details(settings.JUPYTER_HOME, '.ipynb')
+        # notebooks = self.get_details(settings.JUPYTER_HOME, '.ipynb')
         current_status, logs = self.get_status()
         return self.render_template('airflow/jupyter_notebook.html',
                                     title=title,
+                                    kernels=self.get_kernels(),
                                     # TODO: Load modal in template using ajax
                                     git_template=self.get_git_template(),
                                     view=self.__class__.__name__,
                                     current_status=current_status,
-                                    logs=logs,
-                                    notebooks=notebooks)
+                                    logs=logs)
 
     @expose('/jupyter/status')
     @has_access
@@ -4018,8 +4030,13 @@ class JupyterNotebookView(GitIntegrationMixin, AirflowBaseView):
     @action_logging
     def run_notebook(self):
         notebook = request.form.get('notebook', None)
+        kernel = request.form.get('kernel', 'python3')
         if not notebook:
             return make_response(('Missing notebook.', 500))
+        abs_notebook_path = os.path.join(self.fs_path, notebook)
+        if not os.path.exists(abs_notebook_path):
+            flash(f'Notebook {notebook} does not exist.', category='error')
+            return redirect(url_for('JupyterNotebookView.jupyter_notebook'))
         parameters = {}
         for key, val in request.form.items():
             if key.startswith('param-key-'):
@@ -4036,7 +4053,7 @@ class JupyterNotebookView(GitIntegrationMixin, AirflowBaseView):
                 return redirect(url_for('JupyterNotebookView.jupyter_notebook'))
         else:
             schedule = '@once'
-        dag_id = self.create_jupyter_dag(notebook, parameters, schedule=schedule)
+        dag_id = self.create_jupyter_dag(notebook, parameters, kernel=kernel, schedule=schedule)
         flash('Your notebook was scheduled as {}, it should be reflected shortly.'.format(dag_id))
 
         _parse_dags(update_DagModel=True)
