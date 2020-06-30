@@ -2871,14 +2871,15 @@ class TrainedModelsView(FileUploadBaseView):
         elif model_type == 'pytorch_models':
             # add/update model to serving
             model_name = Path(pathname).stem
-            try:
-                requests.post(f'{settings.PYTORCH_MANAGEMENT_URL}/models',
-                    params={
-                        'url': model_name,
-                        'model_name': model_name
-                    })
-            except Exception as e:
-                print(e)
+            # try:
+            logging.info(f'Pytorch URL: {settings.PYTORCH_MANAGEMENT_URL}/models')
+            requests.post(f'{settings.PYTORCH_MANAGEMENT_URL}/models',
+                params={
+                    'url': model_name,
+                    'model_name': model_name
+                })
+            # except Exception as e:
+            #     logging.error(str(e))
             AirflowBaseView.audit_logging(
                 'TrainedModelsView.update_models_config',
                 extra='pytorch-models',
