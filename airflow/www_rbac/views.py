@@ -26,6 +26,7 @@ import logging
 import math
 import os
 import re
+import requests
 import socket
 import shutil
 import stat
@@ -2708,9 +2709,9 @@ class TrainedModelsView(FileUploadBaseView):
         },
         'pytorch_models': {
             'path': os.path.join(base_fs_path, 'pytorch-models'),
-            'extract_on_upload': True,
-            'update_config': False,
-            'accept_extensions': ('.tar', '.gz')
+            'extract_on_upload': False,
+            'update_config': True,
+            'accept_extensions': ('.mar',)
         },
         'other_models': {
             'path': os.path.join(base_fs_path, 'other-models'),
@@ -2849,23 +2850,39 @@ class TrainedModelsView(FileUploadBaseView):
         else:
             return os.path.join(self.fs_path, pathname)
 
-    def update_models_config(self, pathname):
-        config = 'model_config_list: {'
-        dirs = [name for name in os.listdir(pathname) if os.path.isdir(os.path.join(pathname, name))]
-        for dname in dirs:
-            # print(dname)
-            config += '''config: {
-                            name: "%s",
-                            base_path: "/usr/local/couture/trained-models/%s/%s",
-                            model_platform: "tensorflow"
-                        },''' % (dname, 'tf-models', dname)
-        config += '}'
-        # flash('All Model servers have been updated')
-        self.set_config(config, pathname)
-        AirflowBaseView.audit_logging(
-            'TrainedModelsView.update_models_config',
-            extra='',
-            source_ip=request.environ['REMOTE_ADDR'])
+    def update_models_config(self, pathname, model_type):
+        if model_type == 'tf_models':
+            config = 'model_config_list: {'
+            dirs = [name for name in os.listdir(pathname) if os.path.isdir(os.path.join(pathname, name))]
+            for dname in dirs:
+                # print(dname)
+                config += '''config: {
+                                name: "%s",
+                                base_path: "/usr/local/couture/trained-models/%s/%s",
+                                model_platform: "tensorflow"
+                            },''' % (dname, 'tf-models', dname)
+            config += '}'
+            # flash('All Model servers have been updated')
+            self.set_config(config, pathname)
+            AirflowBaseView.audit_logging(
+                'TrainedModelsView.update_models_config',
+                extra='tf-models',
+                source_ip=request.environ['REMOTE_ADDR'])
+        elif model_type == 'pytorch_models':
+            # add/update model to serving
+            model_name = Path(pathname).stem
+            try:
+                requests.post(f'{settings.PYTORCH_MANAGEMENT_URL}/models',
+                    params={
+                        'url': model_name,
+                        'model_name': model_name
+                    })
+            except Exception as e:
+                print(e)
+            AirflowBaseView.audit_logging(
+                'TrainedModelsView.update_models_config',
+                extra='pytorch-models',
+                source_ip=request.environ['REMOTE_ADDR'])
 
     def extra_work_after_file_save(self, temp_save_path, file, total_chunks, pathname):
         # TODO: MODIFY THIS HACK.
@@ -2912,7 +2929,7 @@ class TrainedModelsView(FileUploadBaseView):
             # flash('Extracted {}'.format(pathname))
             Path(str(pathname)).unlink()
             if self.fs_mapping[fs_key]['update_config']:
-                self.update_models_config(fs_path)
+                self.update_models_config(fs_path, fs_key)
 
     @has_access
     # @action_logger
@@ -2948,7 +2965,7 @@ class TrainedModelsView(FileUploadBaseView):
             flash('Folder ' + pathname + ' successfully deleted.', category='warning')
             pth = pathname.split('/')[0]
             if self.fs_mapping[pth]['update_config']:
-                self.update_models_config(self.fs_mapping[pth]['path'])
+                self.update_models_config(self.fs_mapping[pth]['path'], pth)
         else:
             flash('File/Folder ' + pathname + ' not found.', category='error')
         return redirect(url_for(self.__class__.__name__ + '.list_view', pathname=''))
