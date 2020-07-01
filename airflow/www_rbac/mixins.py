@@ -27,7 +27,7 @@ class K8GitRepo:
         def exec_kube_cmd(self, cmd, container=None):
             # TODO: Change this method.
             cmd = f'mkdir -p {K8_JHUB_GIT_FS_PATH} && cd {K8_JHUB_GIT_FS_PATH} && git init && {cmd}'
-            container = f'claim-{g.user.username}'
+            container = f'jupyter-{g.user.username}'
             log.info(f'Trying to execute command {cmd} in container {container}')
             kube_config.load_incluster_config()
             core_v1 = core_v1_api.CoreV1Api()
@@ -41,6 +41,7 @@ class K8GitRepo:
                     log.info("Unknown error: %s" % e)
                     exit(1)
                 flash('Please open jupyterhub before executing git commands')
+                return ''
             try:
                 resp = stream(core_v1.connect_get_namespaced_pod_exec,
                     container,
