@@ -11,3 +11,4 @@ changelog:
     improvements:
       - Added manage & create dag in homepage
       - Renamed 'Trained Models' menu option in Developer to 'Models and Datasets'
+

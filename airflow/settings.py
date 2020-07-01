@@ -248,6 +248,7 @@ def configure_vars():
     CHANGELOG_PATH = os.path.join((os.path.abspath(os.path.dirname(__file__))), 'changelog.yaml')
     RUNTIME_ENV = os.getenv('RUNTIME_ENV', 'DOCKER')  # DOCKER, K8
 
+
     PLUGINS_FOLDER = conf.get(
         'core',
         'plugins_folder',
