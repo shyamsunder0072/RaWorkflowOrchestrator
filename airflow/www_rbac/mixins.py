@@ -15,7 +15,7 @@ from kubernetes.stream import stream
 
 log = LoggingMixin().log
 
-K8_JHUB_GIT_FS_PATH = 'home/jovyan/work/git_workspace'
+K8_JHUB_GIT_FS_PATH = '/home/jovyan/work/git_workspace'
 
 class K8GitRepo:
     class git:
@@ -27,6 +27,7 @@ class K8GitRepo:
         def exec_kube_cmd(self, cmd, container=None):
             # TODO: Change this method.
             cmd = f'mkdir -p {K8_JHUB_GIT_FS_PATH} && cd {K8_JHUB_GIT_FS_PATH} && git init && {cmd}'
+            cmd = ['/bin/bash', '-c', cmd]
             container = f'jupyter-{g.user.username}'
             log.info(f'Trying to execute command {cmd} in container {container}')
             # kube_config.load_incluster_config()
@@ -37,11 +38,13 @@ class K8GitRepo:
                 resp = core_v1.read_namespaced_pod(
                     name=container,
                     namespace='default')
-            except ApiException as e:
-                if e.status != 404:
+            except Exception as e:
+                if isinstance(e, ApiException) and e.status != 404:
                     log.info("Unknown error: %s" % e)
-                else:
+                elif isinstance(e, ApiException):
                     flash('Please open jupyterhub and start atleast one  server before executing git commands')
+                else:
+                    flash('Unknown error occured while executing git command !')
                 return ''
             try:
                 resp = stream(core_v1.connect_get_namespaced_pod_exec,
