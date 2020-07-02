@@ -39,8 +39,8 @@ class K8GitRepo:
             except ApiException as e:
                 if e.status != 404:
                     log.info("Unknown error: %s" % e)
-                    exit(1)
-                flash('Please open jupyterhub before executing git commands')
+                else:
+                    flash('Please open jupyterhub and start atleast one  server before executing git commands')
                 return ''
             try:
                 resp = stream(core_v1.connect_get_namespaced_pod_exec,
