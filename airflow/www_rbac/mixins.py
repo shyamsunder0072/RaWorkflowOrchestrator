@@ -228,6 +228,11 @@ class GitIntegrationMixin:
 
     def __convert_logs(self, s):
         # s looks something like this: `13de430 Update abcd.txt`
+        if not s:
+            return {
+                'hash': '',
+                'msg': ''
+            }
         s = s.split()
         # s = (s[0:2], s[2:].strip())
         return {
