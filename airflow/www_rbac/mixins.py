@@ -42,12 +42,11 @@ class K8GitRepo:
                     name=container,
                     namespace='default')
             except Exception as e:
-                if isinstance(e, ApiException) and e.status != 404:
-                    log.info("Unknown error: %s" % e)
-                elif isinstance(e, ApiException):
-                    flash('Please open jupyterhub and start atleast one  server before executing git commands')
-                else:
-                    flash('Unknown error occured while executing git command !')
+                log.info("Error while trying to reach pod: %s" % e)
+                # if isinstance(e, ApiException):
+                #     flash('Please open jupyterhub and start atleast one  server before executing git commands')
+                # else:
+                #     flash('Unknown error occured while executing git command !')
                 return ''
             try:
                 resp = stream(core_v1.connect_get_namespaced_pod_exec,
@@ -56,10 +55,12 @@ class K8GitRepo:
                     command=cmd,
                     stderr=True, stdin=False,
                     stdout=True, tty=False)
+                log.info("Recieved resp: %s" % resp)
+                return resp
             except Exception as e:
                 log.info(e)
             # print(cmd)
-            return cmd
+            return ''
 
         def pull(self, *args):
             cmd =  f'git pull {" ".join(args)}'
