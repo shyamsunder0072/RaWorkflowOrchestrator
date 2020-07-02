@@ -80,7 +80,7 @@ class K8GitRepo:
             return self.exec_kube_cmd(cmd)
 
         def add(self, *args):
-            cmd =  f'git push {" ".join(args)}'
+            cmd =  f'git add {" ".join(args)}'
             return self.exec_kube_cmd(cmd)
 
         def init(self, *args):
