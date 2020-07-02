@@ -598,7 +598,6 @@ INSTALL_REQUIREMENTS = [
     # docker and k8s python client
     'docker',
     'kubernetes',
-    'gevent>=0.13',
 ]
 
 
