@@ -29,7 +29,8 @@ class K8GitRepo:
             cmd = f'mkdir -p {K8_JHUB_GIT_FS_PATH} && cd {K8_JHUB_GIT_FS_PATH} && git init && {cmd}'
             container = f'jupyter-{g.user.username}'
             log.info(f'Trying to execute command {cmd} in container {container}')
-            kube_config.load_incluster_config()
+            # kube_config.load_incluster_config()
+            kube_config.load_kube_config()
             core_v1 = core_v1_api.CoreV1Api()
 
             try:
