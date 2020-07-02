@@ -163,7 +163,7 @@ class GitIntegrationMixin:
 
     def get_status(self):
         current_status = self.git_status()
-        logs = self.git_logs("--pretty=%C(auto)%h %s, Author=<%aN>, Date=%ai")
+        logs = self.git_logs("--pretty='%C(auto)%h %s, Author=<%aN>, Date=%ai'")
         return current_status, logs
 
     @classmethod
