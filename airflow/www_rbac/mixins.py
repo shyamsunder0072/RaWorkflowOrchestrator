@@ -26,7 +26,7 @@ class K8GitRepo:
 
         def exec_kube_cmd(self, cmd, container=None):
             # TODO: Change this method.
-            cmd = f'mkdir -p {K8_JHUB_GIT_FS_PATH} && cd {K8_JHUB_GIT_FS_PATH} && git init && {cmd}'
+            cmd = f'mkdir -p {K8_JHUB_GIT_FS_PATH} && cd {K8_JHUB_GIT_FS_PATH} && git init -q && {cmd}'
             cmd = ['/bin/bash', '-c', cmd]
             container = f'jupyter-{g.user.username}'
             log.info(f'Trying to execute command {cmd} in container {container}')
@@ -220,7 +220,7 @@ class GitIntegrationMixin:
         self.repo.git.config('user.email', author.email)
         self.repo.git.config('user.name', author.username)
         self.repo.git.commit('-m',
-                             commit_msg,
+                             f'"{commit_msg}"',
                              '--author', '{} <{}>'.format(author.username,
                                                           author.email))
 
