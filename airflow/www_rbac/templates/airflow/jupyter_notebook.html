@@ -68,8 +68,13 @@
               <label for="notebook">Notebook</label>
               <input type="text" name="notebook" class="form-control" required>
               <span class="help-block">
-                Relative path of notebook from shared workspace root directory.
+                Relative path of notebook from root directory.
+                For example: `common_workspace/mynotebook.ipynb`.
                 Please provide the correct path or the execution will fail.
+              </span>
+              <span class="help-block">
+                Only notebooks inside of <code>common_workspace</code> can be
+                scheduled as of now.
               </span>
             </div>
             <div class="form-group">
