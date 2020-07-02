@@ -66,11 +66,16 @@
           <div class="modal-body">
             <div class="form-group">
               <label for="notebook">Notebook</label>
-              <select name="notebook" class="form-control select-notebook" required>
-                {% for notebook in notebooks %}
-                <option value="{{ notebook }}">{{ notebook }}</option>
-                {% endfor %}
-              </select>
+              <input type="text" name="notebook" class="form-control" required>
+              <span class="help-block">
+                Relative path of notebook from root directory.
+                For example: `common_workspace/mynotebook.ipynb`.
+                Please provide the correct path or the execution will fail.
+              </span>
+              <span class="help-block">
+                Only notebooks inside of <code>common_workspace</code> can be
+                scheduled as of now.
+              </span>
             </div>
             <div class="form-group">
               <label for="notebook">Schedule Later</label>
@@ -85,6 +90,18 @@
               <input type="text" placeholder="* * * * * * *" name="schedule" class="form-control" value="" required>
               <span class="help-block">
                 Enter a valid cron schedule expression.
+              </span>
+            </div>
+            <div class="form-group" id="cron-schedule">
+              <label for="kernel">Kernel</label>
+              <select name="kernel" class="form-control" required>
+                {% for kernel in kernels %}
+                <option value="{{kernel}}">{{kernel}}</option>
+                {% endfor %}
+              </select>
+              <span class="help-block">
+                Which kernel to use for executing this notebook. Usually the kernel name
+                is present in the top right corner of your notebook.
               </span>
             </div>
             <div class="form-group" id="injected-parameters">

@@ -599,6 +599,10 @@ INSTALL_REQUIREMENTS = [
     'watchdog==0.10.2',
     'werkzeug<1.0.0',
     'zope.deprecation>=4.0, <5.0',
+
+    # docker and k8s python client
+    'docker',
+    'kubernetes',
 ]
 
 

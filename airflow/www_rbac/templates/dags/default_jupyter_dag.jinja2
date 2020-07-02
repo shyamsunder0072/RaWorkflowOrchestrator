@@ -27,4 +27,5 @@ notebook = CoutureJupyterOperator(
     output_notebook='{{notebook}}',
     parameters=parameters,
     dag=dag,
+    kernel='{{kernel}}',
     description='Jupyter notebook execution')
