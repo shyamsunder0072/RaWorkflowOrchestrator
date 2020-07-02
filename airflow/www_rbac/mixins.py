@@ -221,7 +221,7 @@ class GitIntegrationMixin:
         self.repo.git.config('user.name', author.username)
         self.repo.git.commit('-m',
                              f'"{commit_msg}"',
-                             '--author', '{} <{}>'.format(author.username,
+                             '--author', '"{} <{}>"'.format(author.username,
                                                           author.email))
 
     def __convert_logs(self, s):
