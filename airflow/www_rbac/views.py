@@ -2862,10 +2862,11 @@ class TrainedModelsView(FileUploadBaseView):
         config += '}'
         # flash('All Model servers have been updated')
         self.set_config(config, pathname)
-        AirflowBaseView.audit_logging(
-            'TrainedModelsView.update_models_config',
-            extra='',
-            source_ip=request.environ['REMOTE_ADDR'])
+        # ERROR: (1406, "Data too long for column 'event' at row 1")
+        # AirflowBaseView.audit_logging(
+        #     'TrainedModelsView.update_models_config',
+        #     extra='',
+        #     source_ip=request.environ['REMOTE_ADDR'])
 
     def extra_work_after_file_save(self, temp_save_path, file, total_chunks, pathname):
         # TODO: MODIFY THIS HACK.
@@ -2926,10 +2927,11 @@ class TrainedModelsView(FileUploadBaseView):
 
             f.flush()
             f.seek(0)
-            AirflowBaseView.audit_logging(
-                'TrainedModelsView.download_view',
-                arcname,
-                request.environ['REMOTE_ADDR'])
+            # ERROR: (1406, "Data too long for column 'event' at row 1")
+            # AirflowBaseView.audit_logging(
+            #     'TrainedModelsView.download_view',
+            #     arcname,
+            #     request.environ['REMOTE_ADDR'])
             return send_file(f,
                              as_attachment=True,
                              conditional=True,
@@ -3944,11 +3946,12 @@ class JupyterNotebookView(GitIntegrationMixin, AirflowBaseView):
                                     schedule=schedule)
         with open(os.path.join(settings.DAGS_FOLDER, dag_id + '.py'), 'w') as dag_file:
             dag_file.write(code)
-        AirflowBaseView.audit_logging(
-            'JupyterNoetbook.create_jupyter_dag',
-            notebook,
-            request.environ['REMOTE_ADDR'],
-        )
+        # ERROR: (1406, "Data too long for column 'event' at row 1")
+        # AirflowBaseView.audit_logging(
+        #     'JupyterNoetbook.create_jupyter_dag',
+        #     notebook,
+        #     request.environ['REMOTE_ADDR'],
+        # )
         return dag_id
 
     @expose('/jupyter_notebook')

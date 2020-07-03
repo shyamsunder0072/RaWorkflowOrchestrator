@@ -163,10 +163,10 @@ def create_app(config=None, session=None, testing=False, app_name="Workflow"):
                                 "Models and Datasets",
                                 category="Developer",
                                 category_icon="fa-user")
-            appbuilder.add_view(views.ConfigurationView,
-                                "Configurations",
-                                category="Admin",
-                                category_icon="fa-user")
+            # appbuilder.add_view(views.ConfigurationView,
+            #                     "Configurations",
+            #                     category="Admin",
+            #                     category_icon="fa-user")
             # appbuilder.add_view(views.SparkConfView,
             #                     "Spark Configuration",
             #                     category="Admin",
