@@ -3968,6 +3968,7 @@ class JupyterNotebookView(GitIntegrationMixin, AirflowBaseView):
                                     git_template=self.get_git_template(),
                                     view=self.__class__.__name__,
                                     current_status=current_status,
+                                    port=settings.JUPYTERHUB_ACCESS_PORT,
                                     logs=logs)
 
     @expose('/jupyter/status')
