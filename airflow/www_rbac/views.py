@@ -2804,9 +2804,11 @@ class TrainedModelsView(FileUploadBaseView):
             'TrainedModelsView.extract',
             file,
             request.environ['REMOTE_ADDR'])
+        remote_addr = str(request.environ['REMOTE_ADDR'])
+        # print("RMEOTE ADDR" + remote_addr)
         combine_chunks_thread = threading.Thread(
             target=self.extra_work_after_file_save,
-            args=(temp_save_path, file, total_chunks, pathname))
+            args=(temp_save_path, file, total_chunks, pathname, remote_addr))
         combine_chunks_thread.start()
         return make_response(('Thread to combine files has started.', 200))
 
@@ -2850,7 +2852,7 @@ class TrainedModelsView(FileUploadBaseView):
         else:
             return os.path.join(self.fs_path, pathname)
 
-    def update_models_config(self, pathname, model_type, delete=False):
+    def update_models_config(self, pathname, model_type, file=None, delete=False, remote_addr=None):
         if model_type == 'tf_models':
             config = 'model_config_list: {'
             dirs = [name for name in os.listdir(pathname) if os.path.isdir(os.path.join(pathname, name))]
@@ -2867,7 +2869,7 @@ class TrainedModelsView(FileUploadBaseView):
             AirflowBaseView.audit_logging(
                 'TrainedModelsView.update_models_config',
                 extra='tf-models',
-                source_ip=request.environ['REMOTE_ADDR'])
+                source_ip=remote_addr)
         elif model_type == 'pytorch_models':
             # add/update model to serving
             model_name = Path(pathname).stem
@@ -2876,8 +2878,8 @@ class TrainedModelsView(FileUploadBaseView):
             if not delete:
                 requests.post(f'{settings.PYTORCH_MANAGEMENT_URL}/models',
                     params={
-                        'url': model_name,
-                        'model_name': model_name
+                        'url': file,
+                        'model_name': str(Path(file).stem)
                     })
             else:
                 # TODO: unregister model here
@@ -2887,9 +2889,9 @@ class TrainedModelsView(FileUploadBaseView):
             AirflowBaseView.audit_logging(
                 'TrainedModelsView.update_models_config',
                 extra='pytorch-models',
-                source_ip=request.environ['REMOTE_ADDR'])
+                source_ip=remote_addr)
 
-    def extra_work_after_file_save(self, temp_save_path, file, total_chunks, pathname):
+    def extra_work_after_file_save(self, temp_save_path, file, total_chunks, pathname, remote_addr=None):
         # TODO: MODIFY THIS HACK.
         fs_key = pathname
         fs_path = self.fs_mapping[fs_key]['path']
@@ -2911,7 +2913,7 @@ class TrainedModelsView(FileUploadBaseView):
             return
 
         if str(pathname).endswith(('.mar', )) and self.fs_mapping[fs_key]['update_config']:
-                self.update_models_config(fs_path, fs_key)
+                self.update_models_config(fs_path, fs_key, file, remote_addr=remote_addr)
 
         if str(pathname).endswith(('.tar', '.tar.gz')):
             file_path = self.get_file_path(pathname)
@@ -2937,7 +2939,7 @@ class TrainedModelsView(FileUploadBaseView):
             # flash('Extracted {}'.format(pathname))
             Path(str(pathname)).unlink()
             if self.fs_mapping[fs_key]['update_config']:
-                self.update_models_config(fs_path, fs_key)
+                self.update_models_config(fs_path, fs_key, remote_addr=remote_addr)
 
     @has_access
     # @action_logger
@@ -2973,7 +2975,8 @@ class TrainedModelsView(FileUploadBaseView):
             flash('Folder ' + pathname + ' successfully deleted.', category='warning')
             pth = pathname.split('/')[0]
             if self.fs_mapping[pth]['update_config']:
-                self.update_models_config(self.fs_mapping[pth]['path'], pth, delete=True)
+                self.update_models_config(self.fs_mapping[pth]['path'],
+                    pth, delete=True, remote_addr=str(request.environ['REMOTE_ADDR']))
         else:
             flash('File/Folder ' + pathname + ' not found.', category='error')
         return redirect(url_for(self.__class__.__name__ + '.list_view', pathname=''))
