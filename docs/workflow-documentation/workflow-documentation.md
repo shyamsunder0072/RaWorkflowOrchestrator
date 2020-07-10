@@ -163,7 +163,7 @@ In the Spark Hadoop Config Group page, select the Kerberos Configuration link of
 
 <a name="livy-configuration"></a>
 
- [Livy](https://livy.incubator.apache.org/) enables programmatic, fault-tolerant, multi-tenant submission of Spark jobs from web/mobile apps. To configure default endpoints of sparkmagic kernels present in Jupyterhub, Admin will have to configure Livy Endpoints. 
+ [Livy](https://livy.incubator.apache.org/) enables programmatic, fault-tolerant, multi-tenant submission of Spark jobs from web/mobile apps. To configure default endpoints of sparkmagic kernels present in Jupyterhub, Admin will have to configure Livy Endpoints.
 
 In the Spark Hadoop Config Group page, select the Livy Configuration link of the respective group.
 
@@ -219,6 +219,8 @@ To connect the remote repository, from the UI, go to (Developer -> Git Configura
 
 
 After saving the files, they can execute common git actions via the `Git Actions` button in (`Developer`->`Jupyter Notebook`) View.
+
+- You can only execute these commands after you have authenticated to jupyterhub server and your Jupyter server has started.
 
 ![git_actions](./images/git_actions.png)
 
@@ -876,6 +878,8 @@ fetch_videos = CoutureTensorflowOperator(
 
 You can schedule `.ipynb` notebooks to run in workflow by using the `CoutureJupyterNotebook` operator. You can also `parameterize` the notebook. To do this, tag notebook cells with `parameters`. These parameters are later used when the notebook is executed or run.
 
+- You can only schedule notebooks present inside `common_workspace` and output notebooks inside `common_workspace`. If you output notebooks outside `common_workspace` then the notebook will be run successfully but the output notebook will be discarded.
+
 - Adding tags to a notebook:
 
   1.	Open the `notebook` on which you want to add tags.
@@ -906,7 +910,7 @@ You can schedule `.ipynb` notebooks to run in workflow by using the `CoutureJupy
 
 ```python
 from airflow import DAG
-from airflow.operators.jupyter_operator import CoutureJupyterOperator
+from airflow.operators import CoutureJupyterOperator
 from datetime import datetime, timedelta
 
 
@@ -926,10 +930,9 @@ dag = DAG('JupyterDAG', default_args=default_args, schedule_interval=timedelta(d
 # t1 is an example of task created by instantiating CoutureJupyterOperator.
 # input_nb and output_nb are notebook paths.
 t1 = CoutureJupyterOperator(task_id='jupyter_task',
-                            input_nb='testFile2.ipynb',
-                            output_nb='plotTestFile2.ipynb',
+                            input_notebook='testFile2.ipynb',
+                            output_notebook='plotTestFile2.ipynb',
                             parameters={"a": 10},
-                            export_html=False,
                             dag=dag)
 ```
 
@@ -1278,7 +1281,7 @@ There are two kinds of EDA:
    1. If you select to use `SQL Database`, you will be redirected to `Couture Dashboard`, where you will have to select a table from one of the existing databases from SQL Lab view.
    2. If you are using a Excel/CSV/TSV Datasource, only Preliminary EDA will be run on the file uploaded, and the file uploaded will not be added to sources list. If you are doing this, you can skip 3rd step.
 
-3. Once you have your required Data source added, you need to click on the `play` button to start `EDA`. You will see a flash message with the output path of the EDA run where the output will be stored once run completes successfully. 
+3. Once you have your required Data source added, you need to click on the `play` button to start `EDA`. You will see a flash message with the output path of the EDA run where the output will be stored once run completes successfully.
 
    ![eda_trigger](./images/eda_trigger.png)
 

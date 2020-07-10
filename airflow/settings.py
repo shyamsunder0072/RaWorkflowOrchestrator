@@ -159,8 +159,10 @@ JUPYTER_HOME = None
 EDA_HOME = None
 MODEL_SERVERS = None
 CHANGELOG_PATH = None
+RUNTIME_ENV = None
 LANGUAGE_SERVER_URL = None
 PYTORCH_MANAGEMENT_URL = None
+JUPYTERHUB_ACCESS_PORT = None
 
 MAX_CHUNK_SIZE = 512000 * 4  # bytes
 MAX_FILE_SIZE = 1025 * 1025 * 10  # megabytes
@@ -230,9 +232,11 @@ def configure_vars():
     global MODEL_SERVERS
     global LIVY_CONF_PATH
     global CHANGELOG_PATH
+    global RUNTIME_ENV
     global LANGUAGE_SERVER_URL
     global PYTORCH_MANAGEMENT_URL
     # global PYTORCH_SERVING_URL
+    global JUPYTERHUB_ACCESS_PORT
 
     SQL_ALCHEMY_CONN = conf.get('core', 'SQL_ALCHEMY_CONN')
     DAGS_FOLDER = os.path.expanduser(conf.get('core', 'DAGS_FOLDER'))
@@ -250,6 +254,9 @@ def configure_vars():
     MODEL_SERVERS = normalize_path(os.path.join(AIRFLOW_HOME, *[os.pardir, 'trained-models']))
     LIVY_CONF_PATH = deepcopy(HADOOP_CONFIGS_FOLDER)
     CHANGELOG_PATH = os.path.join((os.path.abspath(os.path.dirname(__file__))), 'changelog.yaml')
+    RUNTIME_ENV = os.getenv('RUNTIME_ENV', 'DOCKER')  # DOCKER, K8
+    JUPYTERHUB_ACCESS_PORT = os.getenv('JUPYTERHUB_ACCESS_PORT', '8888')
+
     LANGUAGE_SERVER_URL = conf.get('langserver', 'langserver_url')
 
     pytorch_model_server_host = conf.get('modelservers', 'pytorch_model_server_host')

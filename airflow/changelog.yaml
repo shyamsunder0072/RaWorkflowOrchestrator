@@ -1,4 +1,21 @@
 changelog:
+  - version: 2.0.3
+    authors: ['AnubhavUjjawal', 'VivekKaushal']
+    newFeatures:
+      - Basic Pytorch integration.
+    bugFixes:
+      - None
+    improvements:
+      - Updated help documentation
+  - version: 2.0.2
+    authors: ['AnubhavUjjawal', 'RahulNarayana']
+    newFeatures:
+      - CoutureJupyterOperator now supports K8s as well as docker-compose.
+      - GitIntegration with JupyterHub.
+    bugFixes:
+      - Temprorarily fixed errors caused at some places due to Audit logs.
+    improvements:
+      - Removed Configuration from Admin dropdown.
   - version: 2.0.1
     authors: ['JaiDoshi', 'AnubhavUjjawal', 'AnuAgrawal']
     newFeatures:
@@ -11,3 +28,4 @@ changelog:
     improvements:
       - Added manage & create dag in homepage
       - Renamed 'Trained Models' menu option in Developer to 'Models and Datasets'
+

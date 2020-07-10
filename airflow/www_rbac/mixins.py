@@ -3,17 +3,102 @@ import git
 import os
 from urllib.parse import urlparse, urlunparse, quote
 from pathlib import Path
-from flask import g
+from flask import g, flash
 from airflow.settings import GIT_CONF_PATH
+from airflow import settings
 from airflow.utils.log.logging_mixin import LoggingMixin
 
+from kubernetes import config as kube_config
+from kubernetes.client.api import core_v1_api
+from kubernetes.client.rest import ApiException
+from kubernetes.stream import stream
+
 log = LoggingMixin().log
+
+K8_JHUB_GIT_FS_PATH = '/home/jovyan/work/git_workspace'
+
+class K8GitRepo:
+    class git:
+        '''Simple Git Class to work with k8s'''
+        def __init__(self, fs_path, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self.fs_path = fs_path
+
+        def exec_kube_cmd(self, cmd, container=None):
+            # TODO: Change this method.
+            cmd = f'mkdir -p {K8_JHUB_GIT_FS_PATH} && cd {K8_JHUB_GIT_FS_PATH} && git init -q && {cmd}'
+            cmd = ['/bin/bash', '-c', cmd]
+            container = f'jupyter-{g.user.username}'
+            log.info(f'Trying to execute command {cmd} in container {container}')
+            # kube_config.load_incluster_config()
+            kube_config.load_kube_config()
+            core_v1 = core_v1_api.CoreV1Api()
+
+            try:
+                resp = core_v1.read_namespaced_pod(
+                    name=container,
+                    namespace='default')
+            except Exception as e:
+                log.info("Error while trying to reach pod: %s" % e)
+                # if isinstance(e, ApiException):
+                #     flash('Please open jupyterhub and start atleast one  server before executing git commands')
+                # else:
+                #     flash('Unknown error occured while executing git command !')
+                raise Exception('Cannot reach jupyter server.')
+            try:
+                resp = stream(core_v1.connect_get_namespaced_pod_exec,
+                    container,
+                    'default',
+                    command=cmd,
+                    stderr=True, stdin=False,
+                    stdout=True, tty=False)
+                log.info("Recieved resp: %s" % resp)
+                return resp
+            except Exception as e:
+                log.info(e)
+            # print(cmd)
+            return ''
+
+        def pull(self, *args):
+            cmd =  f'git pull {" ".join(args)}'
+            return self.exec_kube_cmd(cmd)
+
+        def push(self, *args):
+            cmd =  f'git push {" ".join(args)}'
+            return self.exec_kube_cmd(cmd)
+
+        def config(self, *args):
+            cmd =  f'git config {" ".join(args)}'
+            return self.exec_kube_cmd(cmd)
+
+        def commit(self, *args):
+            cmd =  f'git commit {" ".join(args)}'
+            return self.exec_kube_cmd(cmd)
+
+        def log(self, *args):
+            cmd =  f'git log {" ".join(args)}'
+            return self.exec_kube_cmd(cmd)
+
+        def add(self, *args):
+            cmd =  f'git add {" ".join(args)}'
+            return self.exec_kube_cmd(cmd)
+
+        def init(self, *args):
+            cmd =  f'git init {" ".join(args)}'
+            return self.exec_kube_cmd(cmd)
+
+        def status(self, *args):
+            cmd =  f'git status {" ".join(args)}'
+            return self.exec_kube_cmd(cmd)
+
+    def __init__(self, fs_path, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.git = K8GitRepo.git(fs_path)
 
 
 class GitIntegrationMixin:
     # MASTER_BRANCH = 'master'
     # ORIGIN = 'origin'
-
     fs_path = None
     config_section = None
     _repo = None
@@ -59,8 +144,13 @@ class GitIntegrationMixin:
         if not self._repo:
             if self.fs_path:
                 try:
-                    # creating git repo if it doesn't exists.
-                    self._repo = git.Repo.init(self.fs_path)
+                    if settings.RUNTIME_ENV == 'DOCKER':
+                        # creating git repo if it doesn't exists.
+                        self._repo = git.Repo.init(self.fs_path)
+                    else:
+                        # TODO: Call k8s here.
+                        self._repo = K8GitRepo(K8_JHUB_GIT_FS_PATH)
+                        # self._repo.git.init()
                 except Exception as e:
                     log.error(e)
         return self._repo
@@ -71,7 +161,7 @@ class GitIntegrationMixin:
 
     def get_status(self):
         current_status = self.git_status()
-        logs = self.git_logs("--pretty=%C(auto)%h %s, Author=<%aN>, Date=%ai")
+        logs = self.git_logs("--pretty='%C(auto)%h %s, Author=<%aN>, Date=%ai'")
         return current_status, logs
 
     @classmethod
@@ -102,7 +192,8 @@ class GitIntegrationMixin:
         branch = section['branch']
         try:
             self.repo.git.pull(origin, branch)
-        except git.exc.GitCommandError as err:
+        # except git.exc.GitCommandError as err:
+        except Exception as err:
             log.error(err)
             return False
         return True
@@ -117,7 +208,8 @@ class GitIntegrationMixin:
         branch = section['branch']
         try:
             self.repo.git.push(origin, branch)
-        except git.exc.GitCommandError as err:
+        # except git.exc.GitCommandError as err:
+        except Exception as err:
             log.error(err)
             return False
         return True
@@ -130,12 +222,17 @@ class GitIntegrationMixin:
         self.repo.git.config('user.email', author.email)
         self.repo.git.config('user.name', author.username)
         self.repo.git.commit('-m',
-                             commit_msg,
-                             '--author', '{} <{}>'.format(author.username,
+                             f'"{commit_msg}"',
+                             '--author', '"{} <{}>"'.format(author.username,
                                                           author.email))
 
     def __convert_logs(self, s):
         # s looks something like this: `13de430 Update abcd.txt`
+        if not s:
+            return {
+                'hash': '',
+                'msg': ''
+            }
         s = s.split()
         # s = (s[0:2], s[2:].strip())
         return {
@@ -147,7 +244,8 @@ class GitIntegrationMixin:
         try:
             logs = list(map(lambda s: self.__convert_logs(
                 s), self.repo.git.log(*args).split('\n')))
-        except git.exc.GitCommandError:
+        # except git.exc.GitCommandError:
+        except Exception:
             logs = []
         return logs
 
@@ -180,9 +278,12 @@ class GitIntegrationMixin:
         }
 
     def git_status(self):
-        status = self.repo.git.status('--porcelain').split('\n')
-        return list(filter(lambda s: True if s['name'] else False,
-                           (map(lambda s: self.__convert_status(s), status))))
+        try:
+            status = self.repo.git.status('--porcelain').split('\n')
+            return list(filter(lambda s: True if s['name'] else False,
+                            (map(lambda s: self.__convert_status(s), status))))
+        except Exception:
+            return
 
     def git_set_origin(self, origin_url):
         self.repo.remote('set-url', self.ORIGIN, origin_url)
