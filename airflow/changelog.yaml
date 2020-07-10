@@ -1,4 +1,12 @@
 changelog:
+  - version: 2.0.3
+    authors: ['AnubhavUjjawal', 'VivekKaushal']
+    newFeatures:
+      - Basic Pytorch integration.
+    bugFixes:
+      - None
+    improvements:
+      - Updated help documentation
   - version: 2.0.2
     authors: ['AnubhavUjjawal', 'RahulNarayana']
     newFeatures:

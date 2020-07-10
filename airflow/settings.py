@@ -161,6 +161,7 @@ MODEL_SERVERS = None
 CHANGELOG_PATH = None
 RUNTIME_ENV = None
 LANGUAGE_SERVER_URL = None
+PYTORCH_MANAGEMENT_URL = None
 JUPYTERHUB_ACCESS_PORT = None
 
 MAX_CHUNK_SIZE = 512000 * 4  # bytes
@@ -233,6 +234,8 @@ def configure_vars():
     global CHANGELOG_PATH
     global RUNTIME_ENV
     global LANGUAGE_SERVER_URL
+    global PYTORCH_MANAGEMENT_URL
+    # global PYTORCH_SERVING_URL
     global JUPYTERHUB_ACCESS_PORT
 
     SQL_ALCHEMY_CONN = conf.get('core', 'SQL_ALCHEMY_CONN')
@@ -255,6 +258,10 @@ def configure_vars():
     JUPYTERHUB_ACCESS_PORT = os.getenv('JUPYTERHUB_ACCESS_PORT', '8888')
 
     LANGUAGE_SERVER_URL = conf.get('langserver', 'langserver_url')
+
+    pytorch_model_server_host = conf.get('modelservers', 'pytorch_model_server_host')
+    pytorch_model_server_management_port = conf.get('modelservers', 'pytorch_model_server_management_port')
+    PYTORCH_MANAGEMENT_URL = f'http://{pytorch_model_server_host}:{pytorch_model_server_management_port}'
 
     PLUGINS_FOLDER = conf.get(
         'core',

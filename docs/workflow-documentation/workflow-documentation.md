@@ -1190,11 +1190,78 @@ Workflow Orchestrator allows us to upload Machine Learning models and datasets a
 
 ## Default Behavior of different Models
 
-- `Tensorflow Models`: Upload a `.tar` or `.tar.gz` archive of your model. The archive will be extracted in the background, and in < 10 minutes, the model will be exposed via the serving APIs on ports ` 8500` for `gRPC`, `8501` for `REST`. For details on how to access serving APIs, visit [TFX serving guide](https://www.tensorflow.org/tfx/guide/serving).
-- `Spark Models`: Any file can be uploaded in this section. Models added in this section are currently not exposed by an API.
-- Pytorch Models: Any file can be uploaded in this section. Models added in this section are currently not exposed by an API.
-- `Other Models`: There might be some models which you don't want to serve, but might still need. You can upload a `.tar` or `.tar.gz` of your model and the archive will be extracted in the background. However, Models added in this section are not exposed by an API.
-- `Datasets`: Any file can be uploaded in this section. Files added in this section are treated as datasets and can be used in DAGs.
+### Tensorflow Models
+
+Upload a `.tar` or `.tar.gz` archive of your model. The archive will be extracted in the background, and in < 10 minutes, the model will be exposed via the serving APIs on ports ` 8500` for `gRPC`, `8501` for `REST`. For details on how to access serving APIs, visit [TFX serving guide](https://www.tensorflow.org/tfx/guide/serving).
+
+### Spark Models
+
+Any file can be uploaded in this section. Models added in this section are currently not exposed by an API.
+
+### Pytorch Models
+
+`.mar` files can be uploaded in this section. Models added in this section are currently exposed by an inference API on port 8600. For information on how to use this API, visit [*pytorchserve-inference-api*](https://github.com/pytorch/serve/blob/master/docs/inference_api.md).
+
+Before you upload your PyTorch model using the provided drag and drop utility, it needs to be processed by the [*torch-model-archiver*](https://github.com/pytorch/serve/tree/master/model-archiver#torch-model-archiver-for-torchserve).
+To do so, follow the steps below:
+
+- **Install torch-model-archiver** : To install the torch-model-archiver, clone the pytorch/serve repository and install the model-archiver utility using pip, as follows:
+
+  ```shell
+  git clone https://github.com/pytorch/serve.git
+  cd serve/model-archiver
+  pip install .
+  ```
+
+- To run the torch-model-archiver that you’ve installed you are required to provide the following information:
+
+  - A name for your model
+  - Model’s version
+  - The model file
+  - The serialized file
+  - Index to name JSON file
+  - Handler Type
+
+- Run the following command:
+
+  ```shell
+  torch-model-archiver
+  --model-name <model_name> 
+  --version <model_version_number> 
+  --model-file <path_to_model_architecture_file> 
+  --serialized-file <path_to_serialized_file> --extra-files <path_to_index_to_name_json_file>
+  --handler <handler_type>
+  ```
+
+  - Model Name: You can choose any name for your model based on your discretion.
+  - Version Number: You can choose a version number for your model. The latest version is served in deployment.
+  - Model File: The path and name of your model architecture file needs to be provided here.
+  - Index to name JSON file: A JSON file containing the mapping of predicted index to class needs to be provided here.
+  - Handler: `torch-model-archiver` supports four handlers out of the box, these are:
+    - image-classifier
+    - object-detector
+    - text-classifier
+    - Image-segmenter
+
+  A default or custom handler needs to be provided here. For more information on supported handlers, check handler documentation.
+
+- An example to explain the usage of torch-model-archiver as as follows:
+
+  ```shell
+  torch-model-archiver --model-name densenet161 --version 1.0 --model-file examples/image_classifier/densenet_161/model.py --serialized-file densenet161-8d451a50.pth --extra-files examples/image_classifier/index_to_name.json --handler image_classifier
+  ```
+
+  
+
+  For more information on using torch-model-archiver use the documentation available [here](https://github.com/pytorch/serve/tree/master/model-archiver#torch-model-archiver-for-torchserve). Following this process would generate a .mar file, which is your required model archive file.
+
+### Other Models
+
+There might be some models which you don't want to serve, but might still need. You can upload a `.tar` or `.tar.gz` of your model and the archive will be extracted in the background. However, Models added in this section are not exposed by an API.
+
+### Datasets
+
+Any file can be uploaded in this section. Files added in this section are treated as datasets and can be used in DAGs.
 
 # Exploratory Data Analysis
 
