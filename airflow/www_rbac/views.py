@@ -2885,6 +2885,7 @@ class TrainedModelsView(FileUploadBaseView):
                 # Have at least 1 worker running!
                 # https://github.com/pytorch/serve/blob/master/docs/management_api.md#scale-workers
                 requests.put(f'{settings.PYTORCH_MANAGEMENT_URL}/models/{model_name}')
+
             else:
                 # TODO: unregister model here
                 pass
