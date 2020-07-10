@@ -2873,15 +2873,18 @@ class TrainedModelsView(FileUploadBaseView):
             #     source_ip=remote_addr)
         elif model_type == 'pytorch_models':
             # add/update model to serving
-            model_name = Path(pathname).stem
+            model_name = str(Path(file).stem)
             # try:
             logging.info(f'Pytorch URL: {settings.PYTORCH_MANAGEMENT_URL}/models')
             if not delete:
                 requests.post(f'{settings.PYTORCH_MANAGEMENT_URL}/models',
                     params={
                         'url': file,
-                        'model_name': str(Path(file).stem)
+                        'model_name': model_name
                     })
+                # Have at least 1 worker running!
+                # https://github.com/pytorch/serve/blob/master/docs/management_api.md#scale-workers
+                requests.put(f'{settings.PYTORCH_MANAGEMENT_URL}/models/{model_name}')
             else:
                 # TODO: unregister model here
                 pass
