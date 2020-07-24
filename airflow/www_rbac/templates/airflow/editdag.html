@@ -1,44 +1,54 @@
 {% extends "airflow/master.html" %}
 {% block title %}
-  {{ title }}
+{{ title }}
 {% endblock %}
 
 {% block head_css %}
-  {{ super() }}
+{{ super() }}
 <style>
   .CodeMirror {
     font-size: 14px;
     border: 1px solid #eee;
     height: 600px !important;
   }
+
   .CodeMirror-merge-gap {
     height: 600px !important;
   }
-  .margin-top-lg { margin-top: 2em; }
-  .padding-sm { padding: .5em; }
-  #codebrickList{
+
+  .margin-top-lg {
+    margin-top: 2em;
+  }
+
+  .padding-sm {
+    padding: .5em;
+  }
+
+  #codebrickList {
     height: 480px;
     margin-bottom: 10px;
-    overflow:scroll;
+    overflow: scroll;
     -webkit-overflow-scrolling: touch;
   }
+
   .disabledDiv {
     pointer-events: none;
     opacity: 0.4;
   }
+
   .hover-cursor-pointer:hover {
     cursor: pointer;
   }
 </style>
 <link rel="stylesheet" href="{{ url_for_asset('codemirror/codemirrorlib/codemirror.css') }}" />
 <link rel="stylesheet" href="{{ url_for_asset('codemirror/theme/idea.css') }}" />
-<link rel=stylesheet href="{{url_for_asset('codemirror/addon/merge/merge.css')}}">
-<link rel=stylesheet href="{{url_for_asset('codemirror/addon/fold/foldgutter.css')}}">
-<link rel=stylesheet href="{{url_for_asset('codemirror/addon/dialog/dialog.css')}}">
+<link rel="stylesheet" href="{{url_for_asset('codemirror/addon/merge/merge.css')}}">
+<link rel="stylesheet" href="{{url_for_asset('codemirror/addon/fold/foldgutter.css')}}">
+<link rel="stylesheet" href="{{url_for_asset('codemirror/addon/dialog/dialog.css')}}">
 {% endblock %}
 
 {% block head_js %}
-  {{ super() }}
+{{ super() }}
 {% endblock %}
 
 {% block content %}
@@ -46,22 +56,23 @@
   <h3>{{filename}}</h3>
   <div class="col-md-8 col-sm-8 padding-sm codeEditorDiv">
     <!-- <ul class="nav nav-tabs" id="codeEditorTab"> -->
-      <div class="pull-right hidden" id="editCodeAnchor">
-        <a class="btn btn-primary" id="backToEditButton" data-toggle="tab" href="#code-content">
-          <i class="fa fa-arrow-left" aria-hidden="true"></i>
-          Back to edit mode
-        </a>
-        <button class="btn btn-primary" onclick="submitCode()">
-          Save Code
-          <i class="fa fa-floppy-o" aria-hidden="true"></i>
-        </button>
-      </div>
-      <a class="btn btn-primary pull-right" data-toggle="tab" href="#review-content" id="reviewCodeAnchor">Review & Save</a>
+    <div class="pull-right hidden" id="editCodeAnchor">
+      <a class="btn btn-primary" id="backToEditButton" data-toggle="tab" href="#code-content">
+        <i class="fa fa-arrow-left" aria-hidden="true"></i>
+        Back to edit mode
+      </a>
+      <button class="btn btn-primary" onclick="submitCode()">
+        Save Code
+        <i class="fa fa-floppy-o" aria-hidden="true"></i>
+      </button>
+    </div>
+    <a class="btn btn-primary pull-right" data-toggle="tab" href="#review-content" id="reviewCodeAnchor">Review &
+      Save</a>
     <!-- </ul> -->
     <div class="tab-content">
       <div id="code-content" class="tab-pane fade in active codeTab">
         <h4>Edit Code</h4>
-          <textarea id="code" name="code" wrap="hard" style="min-width: 100%" rows="50">{{code}}</textarea>
+        <textarea id="code" name="code" wrap="hard" style="min-width: 100%" rows="50">{{code}}</textarea>
       </div>
       <div id="review-content" class="tab-pane fade">
         <h4>Review Changes</h4>
@@ -73,7 +84,8 @@
     <div data-toggle="tooltip" title="Add pre-built code recipes (prebuilt task and sub-DAG) in your current DAG code">
       <h3>
         Obelisk Code Bricks
-        <span class="glyphicon glyphicon-info-sign" aria-hidden="true" style="font-size: 13px; margin-bottom: 0.5em;"></span>
+        <span class="glyphicon glyphicon-info-sign" aria-hidden="true"
+          style="font-size: 13px; margin-bottom: 0.5em;"></span>
       </h3>
     </div>
 
@@ -84,7 +96,8 @@
     <br>
     <ul class="list-group" id="codebrickList">
       {% for title in snippets %}
-      <a class="list-group-item" ondragstart="setContentOfEvent(event, '{{loop.index}}')" data-toggle="collapse" data-parent="#codebrickList" href="#codebrick-{{loop.index}}">
+      <a class="list-group-item" ondragstart="setContentOfEvent(event, '{{loop.index}}')" data-toggle="collapse"
+        data-parent="#codebrickList" href="#codebrick-{{loop.index}}">
         <strong>{{ title }}</strong>
         <div id="codebrick-{{loop.index}}" class="collapse">
           <span>
@@ -92,11 +105,13 @@
               <pre style="border: none;">{{snippets[title]['description']}}</pre>
             </i>
 
-            <button class="btn btn-success pull-right codebrick-insert-btn" onclick="insertSnip(this, '{{loop.index}}')">
+            <button class="btn btn-success pull-right codebrick-insert-btn"
+              onclick="insertSnip(this, '{{loop.index}}')">
               INSERT
             </button>
             <br>
-            <pre class="margin-top-lg" id="codebrick-code-{{loop.index}}" style="background-color: #ffffff;">{{snippets[title]['snippet']}}</pre>
+            <pre class="margin-top-lg" id="codebrick-code-{{loop.index}}"
+              style="background-color: #ffffff;">{{snippets[title]['snippet']}}</pre>
           </span>
         </div>
       </a>
@@ -113,22 +128,23 @@
           <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
           <h4 class="modal-title">Add a codebrick to codebrick repo.</h4>
         </div>
-        <form role="form" id="snippetForm" method="POST" action="{{ url_for('AddDagView.save_snippet', filename=filename) }}">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+        <form role="form" id="snippetForm" method="POST"
+          action="{{ url_for('AddDagView.save_snippet', filename=filename) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
           <div class="modal-body">
-              <div class="form-group">
-                <label for="snippetTitle">Title</label>
-                <input type="text" class="form-control" name="title" oninput="checkTitle(this)" required>
-                <p class="help-block">Title can contain characters <code>A-Z, a-z, 0-9, _, -, space</code>.
-              </div>
-              <div class="form-group">
-                <label for="snippetDescription">Description</label>
-                <textarea class="form-control" name="description" rows="5"></textarea>
-              </div>
-              <div class="form-group">
-                <label for="snippet">Codebrick</label>
-                <textarea class="form-control" name="snippet" id="snippetInput"></textarea>
-              </div>
+            <div class="form-group">
+              <label for="snippetTitle">Title</label>
+              <input type="text" class="form-control" name="title" oninput="checkTitle(this)" required>
+              <p class="help-block">Title can contain characters <code>A-Z, a-z, 0-9, _, -, space</code>.
+            </div>
+            <div class="form-group">
+              <label for="snippetDescription">Description</label>
+              <textarea class="form-control" name="description" rows="5"></textarea>
+            </div>
+            <div class="form-group">
+              <label for="snippet">Codebrick</label>
+              <textarea class="form-control" name="snippet" id="snippetInput"></textarea>
+            </div>
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
@@ -152,7 +168,8 @@
             <span class="pull-left" style="color: red;">* = mandatory field</span>
             <!-- <button type="button" class="btn btn-danger pull-left" onclick="insertSnippetWithoutTemplateParam(true);">Skip Optional</button> -->
             <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
-            <button type="button" class="btn btn-primary" onclick="insertSnippetWithoutTemplateParam(true)">Insert</button>
+            <button type="button" class="btn btn-primary"
+              onclick="insertSnippetWithoutTemplateParam(true)">Insert</button>
           </div>
         </form>
       </div>
@@ -166,7 +183,14 @@
 {% endblock %}
 
 {% block tail_js %}
-  {{ super() }}
+{{ super() }}
+<script type="text/javascript">
+  window.onerror = function (e) {
+    if (e == "Uncaught Error: Connection is disposed.") {
+      return true;
+    }
+  }
+</script>
 <script src="{{ url_for('static', filename='js/jquery-3.4.1.min.js') }}"></script>
 <script src="{{ url_for_asset('diff_match_patch.js') }}"></script>
 <script src="{{ url_for_asset('codemirror/codemirrorlib/codemirror.js') }}"></script>
@@ -227,17 +251,17 @@
     });
     diffEditor.edit.setOption('readOnly', true);
     diffEditor.edit.on('change', function (_cm, change) {
-        langServer.codeEditor.setValue(_cm.getValue());
-        langServer.codeEditor.refresh();
+      langServer.codeEditor.setValue(_cm.getValue());
+      langServer.codeEditor.refresh();
     });
   }
 
   function findPlaceholders(text) {
     var optional = text.match({{ '/{{[a-zA-Z0-9_-\s]+?}}/gm' }}) || [];
-    var required = text.match({{ '/{%[a-zA-Z0-9_-\s]+?%}/gm' }}) || [];
+  var required = text.match({{ '/{%[a-zA-Z0-9_-\s]+?%}/gm' }}) || [];
 
-    var placeholders = required.concat(optional);
-    return new Set(placeholders);
+  var placeholders = required.concat(optional);
+  return new Set(placeholders);
   }
 
   function setContentOfEvent(event, index) {
@@ -269,14 +293,14 @@
 
   function checkValidityofTemplateParams(skipOptional) {
     let valid = true;
-    $("form#insertSnippetForm :input:not(:button)").each(function(){
+    $("form#insertSnippetForm :input:not(:button)").each(function () {
       var input = $(this);
       input[0].setCustomValidity('');
     });
-    if(!skipOptional) {
-      $("form#insertSnippetForm :input:not(:button)").each(function(){
+    if (!skipOptional) {
+      $("form#insertSnippetForm :input:not(:button)").each(function () {
         var input = $(this);
-        if (!input.val() ) {
+        if (!input.val()) {
           input[0].setCustomValidity('This value is required !');
           valid = false && valid;
         } else {
@@ -285,26 +309,26 @@
       });
     }
 
-    if(! $('#insertSnippetForm')[0].checkValidity()) {
+    if (!$('#insertSnippetForm')[0].checkValidity()) {
       $('#insertSnippetForm')[0].reportValidity();
       return false;
     }
     return valid;
   }
 
-  function insertSnippetWithoutTemplateParam(skip=false) {
-    if(!checkValidityofTemplateParams(skip)) {
+  function insertSnippetWithoutTemplateParam(skip = false) {
+    if (!checkValidityofTemplateParams(skip)) {
       return;
     }
     const formVal = {};
-    $.each($("#insertSnippetForm").serializeArray(), function(_, kv) {
+    $.each($("#insertSnippetForm").serializeArray(), function (_, kv) {
       formVal[kv.name] = kv.value;
     });
     var placeholders = findPlaceholders(currSnippet);
     var currSnippetCopy = (' ' + currSnippet).slice(1);
     if (placeholders) {
       placeholders.forEach(function (param) {
-        formKey =  param.replace('{{"{{"}}', '').replace('{{"}}"}}', '').replace('{{"{%"}}', '').replace('{{"%}"}}', '')
+        formKey = param.replace('{{"{{"}}', '').replace('{{"}}"}}', '').replace('{{"{%"}}', '').replace('{{"%}"}}', '')
         currSnippetCopy = currSnippetCopy.replace(new RegExp(param, 'g'), formVal[formKey])
       })
     }
@@ -313,25 +337,25 @@
   }
 
   function insertSnip(btn, index) {
-    var text = $('#codebrick-code-'+index).text();
+    var text = $('#codebrick-code-' + index).text();
     var placeholders = findPlaceholders(text);
     if (placeholders.size) {
       // if have placeholders, need to fill their values before inserting.
       currSnippet = text;
       $('#insertSnippetBody').html('')
       placeholders.forEach(function (param) {
-        if(param.includes('{{"{{"}}') && param.includes('{{"}}"}}')) {
-          param =  param.replace('{{"{{"}}', '').replace('{{"}}"}}', '')
+        if (param.includes('{{"{{"}}') && param.includes('{{"}}"}}')) {
+          param = param.replace('{{"{{"}}', '').replace('{{"}}"}}', '')
           temp = '<div class="form-group">' +
-          '<label for="'+ param + '">' + param + '</label>' +
-          '<input type="text" class="form-control" name="'+ param  + '">' +
-          '</div>'
+            '<label for="' + param + '">' + param + '</label>' +
+            '<input type="text" class="form-control" name="' + param + '">' +
+            '</div>'
         } else {
-          param =  param.replace('{{"{%"}}', '').replace('{{"%}"}}', '')
+          param = param.replace('{{"{%"}}', '').replace('{{"%}"}}', '')
           temp = '<div class="form-group">' +
-          '<label for="'+ param + '">' + param + '<span style="color:red;">* </span> </label>' +
-          '<input type="text" class="form-control" name="'+ param  + '" required>' +
-          '</div>'
+            '<label for="' + param + '">' + param + '<span style="color:red;">* </span> </label>' +
+            '<input type="text" class="form-control" name="' + param + '" required>' +
+            '</div>'
         }
         $('#insertSnippetBody').append(temp)
       })
@@ -346,90 +370,125 @@
     $(btn).addClass('disabled');
   }
 
-  $(document).ready(function() {
+  $(document).ready(function () {
 
-    langServer.connectToLangServer("{{language_server_url}}", "{{filename}}");
+    var tries = 0;
 
-    langServer.codeEditor.execCommand('goDocEnd');
+    handleDisconnect = function () {
+      // try for every 30 seconds
+      every30Seconds = setTimeout(function () {
 
-    langServer.codeEditor.on('drop', function(cm, event) {
-      if(event.dataTransfer.getData("codebrick-index")) {
-        var coords = cm.coordsChar({
-          left: event.x,
-          top: event.y
-        }, 'window');
-        cm.getDoc().setCursor(coords);
-        event.preventDefault();
-        insertSnip(null, event.dataTransfer.getData("codebrick-index"))
-      }
-    })
+        ws = new WebSocket("{{language_server_url}}");
+        langServer.connectToLangServer("{{language_server_url}}", "{{filename}}");
+        tries += 1;
 
-    jQuery.noConflict();
-    $('a[data-toggle="tab"]').on('shown.bs.tab', function (e) {
-      compareChanges();
+        ws.addEventListener('close', function (event) {
+          if (tries == 0) {
+            console.log("Language server connection closed, trying to reconnect ...")
+          }
+          handleDisconnect();
+        });
+
+        ws.addEventListener('open', function (event) {
+          tries = 0
+          console.log("Language server connected");
+        });
+      }, {{ reconnect_interval }});
+    }
+
+  // socket listener
+  ws = new WebSocket("{{language_server_url}}");
+  ws.addEventListener('close', function (event) {
+    console.log("Language server connection closed, trying to reconnect ...")
+    handleDisconnect();
+  });
+  ws.addEventListener('open', function (event) {
+    tries = 0;
+    console.log("Language server connected");
+  });
+
+  // connect to language server
+  langServer.connectToLangServer("{{language_server_url}}", "{{filename}}");
+
+  langServer.codeEditor.execCommand('goDocEnd');
+  langServer.codeEditor.on('drop', function (cm, event) {
+    if (event.dataTransfer.getData("codebrick-index")) {
+      var coords = cm.coordsChar({
+        left: event.x,
+        top: event.y
+      }, 'window');
+      cm.getDoc().setCursor(coords);
+      event.preventDefault();
+      insertSnip(null, event.dataTransfer.getData("codebrick-index"))
+    }
+  })
+
+  jQuery.noConflict();
+  $('a[data-toggle="tab"]').on('shown.bs.tab', function (e) {
+    compareChanges();
+  });
+
+  $('[data-toggle="tooltip"]').tooltip();
+
+  $('#addSnippet').on('shown.bs.modal', function (e) {
+    if (!snippetEditor) {
+      var snipArea = document.getElementById('snippetInput');
+      snippetEditor = CodeMirror.fromTextArea(snipArea, editorConfigs);
+    }
+  })
+
+  var $codeBrickList = $('#codebrickList');
+  $codeBrickList.on('show.bs.collapse', '.collapse', function () {
+    $codeBrickList.find('.collapse.in').collapse('hide');
+
+    // enable all insert codebrick btns when the div is toggled.
+    $('.codebrick-insert-btn').removeClass('disabled');
+  });
+
+  $("[data-toggle='collapse']").click(function (event) {
+    if (event.target.classList.contains('codebrick-insert-btn')) {
+      event.stopPropagation();
+    }
+  });
+
+
+  // WARNING: DO NOT TOUCH.
+  // this method adds and removes classes based on which tab is active.
+  $('a[data-toggle="tab"]').on('shown.bs.tab', function (e) {
+    var target = $(e.target).attr("href") // activated tab
+    switch (target) {
+      case '#review-content':
+        $('.codebricksDiv').addClass('hidden');
+        $('.codeEditorDiv').removeClass('col-md-8 col-sm-8');
+        $('.codeEditorDiv').addClass('col-md-12 col-sm-12');
+        $('#reviewCodeAnchor').addClass('hidden');
+        $('#editCodeAnchor').removeClass('hidden');
+        break;
+      case '#code-content':
+        $('.codebricksDiv').removeClass('hidden');
+        $('.codeEditorDiv').removeClass('col-md-12 col-sm-12');
+        $('.codeEditorDiv').addClass('col-md-8 col-sm-8');
+        $('#reviewCodeAnchor').removeClass('hidden');
+        $('#editCodeAnchor').addClass('hidden');
+        langServer.codeEditor.refresh();
+        break;
+      default:
+        $('.codebricksDiv').removeClass('hidden');
+        $('.codeEditorDiv').removeClass('col-md-12 col-sm-12');
+        $('.codeEditorDiv').addClass('col-md-8 col-sm-8');
+        $('#reviewCodeAnchor').removeClass('hidden');
+        $('#editCodeAnchor').addClass('hidden');
+        langServer.codeEditor.refresh();
+        break;
+    }
+  });
+
+  $("#codebrickSearch").on("keyup", function () {
+    var value = $(this).val().toLowerCase();
+    $("#codebrickList a").filter(function () {
+      $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1);
     });
-
-    $('[data-toggle="tooltip"]').tooltip();
-
-    $('#addSnippet').on('shown.bs.modal', function (e) {
-      if(!snippetEditor){
-        var snipArea = document.getElementById('snippetInput');
-        snippetEditor = CodeMirror.fromTextArea(snipArea, editorConfigs);
-      }
-    })
-
-    var $codeBrickList = $('#codebrickList');
-    $codeBrickList.on('show.bs.collapse','.collapse', function() {
-        $codeBrickList.find('.collapse.in').collapse('hide');
-
-        // enable all insert codebrick btns when the div is toggled.
-        $('.codebrick-insert-btn').removeClass('disabled');
-    });
-
-    $("[data-toggle='collapse']").click(function(event) {
-        if (event.target.classList.contains('codebrick-insert-btn')) {
-          event.stopPropagation();
-        }
-    });
-
-
-    // WARNING: DO NOT TOUCH.
-    // this method adds and removes classes based on which tab is active.
-    $('a[data-toggle="tab"]').on('shown.bs.tab', function (e) {
-      var target = $(e.target).attr("href") // activated tab
-      switch (target) {
-        case '#review-content':
-          $('.codebricksDiv').addClass('hidden');
-          $('.codeEditorDiv').removeClass('col-md-8 col-sm-8');
-          $('.codeEditorDiv').addClass('col-md-12 col-sm-12');
-          $('#reviewCodeAnchor').addClass('hidden');
-          $('#editCodeAnchor').removeClass('hidden');
-          break;
-        case '#code-content':
-          $('.codebricksDiv').removeClass('hidden');
-          $('.codeEditorDiv').removeClass('col-md-12 col-sm-12');
-          $('.codeEditorDiv').addClass('col-md-8 col-sm-8');
-          $('#reviewCodeAnchor').removeClass('hidden');
-          $('#editCodeAnchor').addClass('hidden');
-          langServer.codeEditor.refresh();
-          break;
-        default:
-          $('.codebricksDiv').removeClass('hidden');
-          $('.codeEditorDiv').removeClass('col-md-12 col-sm-12');
-          $('.codeEditorDiv').addClass('col-md-8 col-sm-8');
-          $('#reviewCodeAnchor').removeClass('hidden');
-          $('#editCodeAnchor').addClass('hidden');
-          langServer.codeEditor.refresh();
-          break;
-      }
-    });
-
-    $("#codebrickSearch").on("keyup", function() {
-      var value = $(this).val().toLowerCase();
-      $("#codebrickList a").filter(function() {
-          $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1);
-      });
-    });
+  });
   });
 
   /**
@@ -456,9 +515,9 @@
       }
     }
 
-      document.body.appendChild(form);
-      form.submit();
-    }
+    document.body.appendChild(form);
+    form.submit();
+  }
 
   function submitCode() {
     var path = "{{ url_for('AddDagView.editdag', filename=filename, new=new) }}";
@@ -468,11 +527,11 @@
   function snippetExists(title) {
     const snippets = [
       {% for snippet in snippets %}
-        "{{snippet}}",
-      {% endfor %}
+  "{{snippet}}",
+    {% endfor %}
     ];
-    if( snippets.includes(title) ) return true;
-    return false;
+  if (snippets.includes(title)) return true;
+  return false;
   }
 
   function checkTitle(input) {

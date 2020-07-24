@@ -4422,6 +4422,7 @@ class AddDagView(AirflowBaseView):
                                     language_server_url=settings.LANGUAGE_SERVER_URL,
                                     dags_folder_path=settings.DAGS_FOLDER,
                                     new=new,
+                                    reconnect_interval=settings.RECONNECT_INTERVAL,
                                     snippets=self.get_snippets())
 
     @expose("/save_snippet/<string:filename>", methods=['POST'])
