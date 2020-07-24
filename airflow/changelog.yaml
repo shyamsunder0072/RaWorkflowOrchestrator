@@ -1,4 +1,12 @@
 changelog:
+  - version: 2.0.4
+    authors: ['AnubhavUjjawal', 'VivekKaushal', 'SaiRathan']
+    newFeatures:
+      - Updated TFServing Commons
+    bugFixes:
+      - None
+    improvements:
+      - Temp. fixed Language Server issue in Workflow Orchestrator.
   - version: 2.0.3
     authors: ['AnubhavUjjawal', 'VivekKaushal']
     newFeatures:
