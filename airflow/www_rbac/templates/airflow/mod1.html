@@ -26,6 +26,167 @@
 {{ super() }}
 
 <style>
+  /*
+* {
+  box-sizing: border-box;
+}
+
+input[type=text], select, textarea {
+  width: 93%;
+  padding: 12px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  resize: vertical;
+  height: 30px;
+}
+
+.couturelabel {
+  padding: 12px 12px 12px 0;
+  display: inline-block;
+  word-wrap: break-word;
+  max-width: 280px;
+}
+
+
+input[type=submit] {
+  background-color: #4CAF50;
+  color: white;
+  padding: 12px 20px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-left: 50%;
+  margin-top: 10px;
+  text-align: center;
+  text-decoration: none;
+  display: inline-block;
+}
+
+.couturebutton {
+  background-color: #4CAF50;
+  border: none;
+  border-radius: 4px;
+  color: white;
+  padding: 12px 20px;
+  cursor: pointer;
+  float: right;
+  text-align: center;
+  text-decoration: none;
+  display: inline-block;
+  margin-left: 5px;
+  margin-top: 10px;
+}
+
+.couturebutton-delete {
+  border: none;
+  padding: inherit;
+  cursor: pointer;
+  margin-left: 2px;
+}
+
+input[type=submit]:hover {
+  background-color: #45a049;
+}
+
+.ccontainer {
+  border-radius: 5px;
+  padding: 20px;
+}
+
+.couturecol-25 {
+  float: left;
+  width: 25%;
+  margin-top: 6px;
+}
+
+.couturecol-20 {
+  float: left;
+  width: 20%;
+  margin-top: 6px;
+}
+
+.couturecol-75 {
+  float: right;
+  width: 75%;
+  margin-top: 6px;
+  display : table;
+}
+
+/* Clear floats after the columns *//*
+.couturerow:after {
+  content: "";
+  display: table;
+  clear: both;
+}
+
+/* Responsive layout - when the screen is less than 600px wide, make the two columns stack on top of each other instead of next to each other *//*
+@media screen and (max-width: 600px) {
+  .couturecol-25, .couturecol-75, input[type=submit] {
+    width: 100%;
+    margin-top: 0;
+    display : table;
+  }
+}
+
+.couture-multiselect {
+}
+
+.couture-selectBox {
+  position: relative;
+}
+
+.couture-selectBox select {
+  width: 93%;
+  font-weight: bold;
+}
+
+.couture-overSelect {
+  width: 93%;
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+}
+
+#couturecheckboxes {
+  display: none;
+  border: 1px #dadada solid;
+}
+
+#couturecheckboxes label {
+  display: block;
+}
+
+#couturecheckboxes label:hover {
+  background-color: #1e90ff;
+}
+
+#Py_couturecheckboxes {
+  display: none;
+  border: 1px #dadada solid;
+}
+
+#Py_couturecheckboxes label {
+  display: block;
+}
+
+#Py_couturecheckboxes label:hover {
+  background-color: #1e90ff;
+}
+#kt_couturecheckboxes {
+  display: none;
+  border: 1px #dadada solid;
+  width: 93%;
+}
+
+#kt_couturecheckboxes label {
+  display: block;
+}
+
+#kt_couturecheckboxes label:hover {
+  background-color: #1e90ff;
+}*/
 </style>
 
 {% endblock %}
@@ -36,169 +197,133 @@
 
 
 <body>
-<div class="container">
+<link href="css/bootstrap.min.css" rel="stylesheet">
+<div class="ccontainer">
   <h2>{{title}} - {{group}} </h2><br>
   <form action="", method="post" >
-    <div class="row">
-      <div class="col-xs-3">
-        <div >
-          <input  name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
-          <h3>Arguments</h3>
-        </div>
-      </div>
-    </div>
-
-    <div id="container1" >
-      
-      {%for i in Arguments%}
-      <div >  
-        {%if i == 'jars' and len_jar>0%}<!-- JARS-->
-          <div class="row"><!-- row1 begin --> 
-            <div class="col-xs-3"> <!-- col1 begin -->
-              <label for={{i}} >{{i}}</label>
-            </div><!-- col1 end -->
-            
-            <div class="col-xs-8"><!-- col2 begin -->
-              <div onclick="javascript:getAllNames({{Files}},'{{Arguments[i]}}'); javascript:showcouturecheckboxes(); ">
-                <select class="form-control">
-                  <option>Click to select jar files</option>
-                </select>
-              </div>
-            </div><!-- col2  end -->
-            
-            <div ><!-- col3  begin -->
-              <button onclick="javascript:del_feed('{{i}}')" class="close" aria-label="Close" title="Delete Argument">
-                <i class="glyphicon glyphicon-remove-circle" style="color:red; float:right" aria-hidden="true"></i>
-              </button>
-            </div><!-- col3  end -->
-          </div> 
-          <div class="col-xs-offset-3" id="couturecheckboxes" ></div>
-        {% endif %}
-
-
-        {%if i == 'py-files' and len_py>0%}<!-- JARS-->
-          <div class="row"><!-- row1 begin --> 
-            <div class="col-xs-3"> <!-- col1 begin -->
-              <label for={{i}} >{{i}}</label>
-            </div><!-- col1 end -->
-            
-            <div class="col-xs-8"><!-- col2 begin -->
-              <div >
-                <select class="form-control" onclick="javascript:Py_getAllNames({{Py_Files}},'{{Arguments[i]}}'); javascript:Py_showcouturecheckboxes(); ">
-                  <option >Click to select python files</option>
-                </select>
-              </div>
-            </div><!-- col2  end -->
-            
-            <div ><!-- col3  begin -->
-              <button onclick="javascript:del_feed('{{i}}')" class="close" aria-label="Close" title="Delete Argument">
-                <i class="glyphicon glyphicon-remove-circle" style="color:red; float:right" aria-hidden="true"></i>
-              </button>
-            </div><!-- col3  end -->
-          </div> 
-          <div class="col-xs-offset-3" id="Py_couturecheckboxes" ></div>
-        {% endif %}
-
-        {%if i == 'keytab' and kt_len>0%}<!-- JARS-->
-          <div class="row"><!-- row1 begin --> 
-            <div class="col-xs-3"> <!-- col1 begin -->
-              <label for={{i}} >{{i}}</label>
-            </div><!-- col1 end -->
-            
-            <div class="col-xs-8"><!-- col2 begin -->
-              <div onclick="javascript:kt_getAllNames({{kt_Files}},'{{Arguments[i]}}'); javascript:kt_showcouturecheckboxes(); ">
-                <select class="form-control">
-                  <option>Click to select keytab files</option>
-                </select>
-              </div>
-            </div><!-- col2  end -->
-            
-            <div ><!-- col3  begin -->
-              <button onclick="javascript:del_feed('{{i}}')" class="close" aria-label="Close" title="Delete Argument">
-                <i class="glyphicon glyphicon-remove-circle" style="color:red; float:right" aria-hidden="true"></i>
-              </button>
-            </div><!-- col3  end -->
-          </div> 
-          <div class="col-xs-offset-3" id="kt_couturecheckboxes" ></div>
-        {% endif %}
-
-      
-
-        {%if i!='jars' and i!='py-files' and i!='keytab'%}
-          <div class="row"><!-- row begin -->
-            <div class="col-xs-3">
-              <label for={{i}} >{{i}}</label>
-            </div>
-            <div class="col-xs-8">
-              <input class="form-control" id={{i}} name={{i}} type="text" value="{{Arguments[i]}}">
-              
-            </div>
-
-            <button onclick="javascript:del_feed('{{i}}')" class="close" aria-label="Close" title="Delete Argument"> 
-              <i class="glyphicon glyphicon-remove-circle" style="color:red" aria-hidden="true"></i>
-            </button>
-          </div><!-- row end -->
-        {%endif%}
-      </div>
-      {%endfor%}
-
-
-      
-    </div>
-
-    <br>
     <div class="form-group">
-      <div class="row">
-        <div class="col-xs-offset-10">
-          <a href="javascript:add_feed()" class="btn btn-success">Add In Arguments</a>
+      <input class ="form-control"name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
+      <h3>Arguments</h3>
+    </div> 
+
+    <div class="form-group">
+      <div class = "form control" id="container1">
+        {%for i in Arguments%}
+        <div class="couturerow">
+          {%if i == 'jars' and len_jar>0%}
+          <div class="couturecol-25">
+            <label for={{i}} class="couturelabel">{{i}}</label>
+          </div>
+          <div class="couturecol-75">
+            <div class="couturerow">
+              <div class="couture-multiselect">
+                <div class="couture-selectBox" onclick="javascript:getAllNames({{Files}},'{{Arguments[i]}}'); javascript:showcouturecheckboxes(); ">
+                  <select >
+                    <option>Click to select jar files</option>
+                  </select>
+                  <button onclick="javascript:del_feed('{{i}}')" class="btn btn-default" title="Delete Argument"><i class="glyphicon glyphicon-remove-circle" style="color:red; float:right" aria-hidden="true"></i></button>
+                  <div class="couture-overSelect"></div>
+                </div>
+                <div id="couturecheckboxes" ></div>
+              </div>
+            </div>
+          </div>
+          {% endif %}
+          {%if i == 'py-files' and len_py>0%}
+          <div class="couturecol-25">
+            <label for={{i}} class="couturelabel">{{i}}</label>
+          </div>
+          <div class="couturecol-75">
+            <div class="couturerow">
+              <div class="couture-multiselect">
+                <div class="couture-selectBox" onclick="javascript:Py_getAllNames({{Py_Files}},'{{Arguments[i]}}'); javascript:Py_showcouturecheckboxes(); " >
+                  <select >
+                    <option>Click to select python files</option>
+                  </select>
+                  <button onclick="javascript:del_feed('{{i}}')" class="btn btn-default" title="Delete Argument"><i class="glyphicon glyphicon-remove-circle" style="color:red" aria-hidden="true"></i></button>
+                  <div class="couture-overSelect"></div>
+                </div>
+                <div id="Py_couturecheckboxes" ></div>
+              </div>
+            </div>
+          </div>
+          {%endif%}
+          {%if i == 'keytab' and kt_len>0%}
+          <div class="couturecol-25">
+            <label for={{i}} class="couturelabel">{{i}}</label>
+          </div>
+          <div class="couturecol-75">
+            <div class="couturerow">
+              <div class="couture-multiselect">
+                <div class="couture-selectBox" onclick="javascript:kt_getAllNames({{kt_Files}},'{{Arguments[i]}}'); javascript:kt_showcouturecheckboxes(); " >
+                  <select >
+                    <option>Click to select keytab files</option>
+                  </select>
+                  <button onclick="javascript:del_feed('{{i}}')" class="couturebutton-delete" title="Delete Argument"><i class="glyphicon glyphicon-remove-circle" style="color:red" aria-hidden="true"></i></button>
+                  <div class="couture-overSelect"></div>
+                </div>
+                <div id="kt_couturecheckboxes" ></div>
+              </div>
+            </div>
+          </div>
+          {%endif%}
+          {%if i!='jars' and i!='py-files' and i!='keytab'%}
+          <div class="couturecol-25">
+            <label for={{i}} class="couturelabel">{{i}}</label>
+          </div>
+          <div class="couturecol-75">
+            <input class = "form control" id={{i}} name={{i}} type="text" value="{{Arguments[i]}}">
+            <button onclick="javascript:del_feed('{{i}}')" class="couturebutton" title="Delete Argument"> <i class="glyphicon glyphicon-remove-circle" style="color:red" aria-hidden="true"></i></button>
+          </div>
+          {%endif%}
         </div>
+        {%endfor%}
       </div>
     </div>
-    
-    
-    <div class= "form-group" >
+
+    <div class="form-group">
+      <div class="couturerow">
+      <a href="javascript:add_feed()" class="btn btn-default">Add In Arguments</a>
+      </div>
+    </div>
+
+    <div class="form-group">
       <h3>Configurations</h3>
-    </div>
-    
-
-    <div id="container2" >
+      <div class = "form control" id="container2">
       {%for j in Configurations%}
-        <div class="row">
-          <div class="col-xs-3">
-            <label for={{j}}  >{{j}}</label>
-          </div>
-
-          <div class="col-xs-8">
-            <input class="form-control" id={{j}} name={{j}} type="text" value="{{Configurations[j]}}">
-          </div>
-
-          <div class="col-xs-push-9">
-            <button onclick= "javascript:del_feed_config('{{j}}')" class="close" aria-label="Close" title="Delete Configuration"> <i class="glyphicon glyphicon-remove-circle" style="color:red" aria-hidden="true"></i></button>
-          </div>
+      <div class="couturerow">
+        <div class="couturecol-25">
+          <label for={{j}}  class="couturelabel">{{j}}</label>
         </div>
-      {%endfor%}
-    </div>
-    <br>
-    <div class="row">
-      <div class="col-xs-offset-10">
-        <a href="javascript:add_feed_config()" class="btn btn-success">Add In Configurations</a>
+        <div class="couturecol-75">
+          <input class = "form control" id={{j}} name={{j}} type="text" value="{{Configurations[j]}}">
+          <button onclick="javascript:del_feed_config('{{j}}')" class="btn btn-default" title="Delete Configuration"> <i class="glyphicon glyphicon-remove-circle" style="color:red" aria-hidden="true"></i></button>
+        </div>
       </div>
-      <div class="col-xs-offset-6">
-        <input type="submit" class="btn btn-success" value="Submit">
+      {%endfor%}
+      </div>
+    </div>
+
+    <div class="form-group">
+      <div class="couturerow">
+      <a href="javascript:add_feed_config()" class="btn btn-default">Add In Configurations</a>
+      <input class = "form control"  align="middle" type="submit" value="Submit">
       </div>
     </div>
   </form>
 </div>
 
 <!-- Template begins-->
-<div class="ccontainer" id="newfield_for_delete" style="display:none">
-  <input class="form-control" name="option_title_args_delete" id="for_delete" type="hidden" placeholder="Enter name">
+<div class="container">
+  <div class="ccontainer" id="newfield_for_delete" style="display:none">
+    <input class = "form control"  name="option_title_args_delete" id="for_delete" type="hidden" placeholder="Enter name">
+  </div>
 </div>
 <!-- Template ends -->
 
 <!-- Template begins-->
 <div class="ccontainer" id="newfield_for_delete_config" style="display:none">
-  <input class="form-control" name="option_title_config_delete" id="for_delete_config" type="hidden" placeholder="Enter name">
+  <input class = "form control"  name="option_title_config_delete" id="for_delete_config" type="hidden" placeholder="Enter name">
 </div>
 <!-- Template ends -->
 
@@ -219,12 +344,12 @@ function add_feed()
   var div1 = document.createElement('div');
 
   // creating template here.
-  const template = '<div class="row">'
-    + '<div class="col-xs-3">'
-      + '<input class="form-control" name="new-arg-key-'+ globalValues.newArgKeySN + '" type="text" value="" placeholder="Enter key">'
+  const template = '<div class="couturerow">'
+    + '<div class="couturecol-20">'
+      + '<input name="new-arg-key-'+ globalValues.newArgKeySN + '" type="text" value="" placeholder="Enter key">'
     + '</div>'
-    + '<div class="col-xs-8">'
-    +   '<input class="form-control" name="new-arg-value-' + globalValues.newArgKeySN + '" type="text" value="" placeholder="Enter value">'
+    + '<div class="couturecol-75">'
+    + '<input name="new-arg-value-' + globalValues.newArgKeySN + '" type="text" value="" placeholder="Enter value">'
     + '</div>';
   '</div>'
   div1.innerHTML = template;
@@ -237,12 +362,12 @@ function add_feed_config()
   var div1 = document.createElement('div');
 
   // creating template here.
-  const template = '<div class="row">'
-    + '<div class="col-xs-3">'
-      + '<input class="form-control" name="new-config-key-'+ globalValues.newConfigKeySN + '" type="text" value="" placeholder="Enter key">'
+  const template = '<div class="couturerow">'
+    + '<div class="couturecol-20">'
+      + '<input name="new-config-key-'+ globalValues.newConfigKeySN + '" type="text" value="" placeholder="Enter key">'
     + '</div>'
-    + '<div class="col-xs-8">'
-    + '<input class="form-control" name="new-config-value-' + globalValues.newConfigKeySN + '" type="text" value="" placeholder="Enter value">'
+    + '<div class="couturecol-75">'
+    + '<input name="new-config-value-' + globalValues.newConfigKeySN + '" type="text" value="" placeholder="Enter value">'
     + '</div>';
   '</div>'
   div1.innerHTML = template;
@@ -359,7 +484,7 @@ function Py_getAllNames(files,selected_py) {
         selected[i]=file_name;
         }
     var myDiv = document.getElementById("Py_couturecheckboxes");
-    if (Py_count_of_clicks >= 0 && Py_count_of_clicks<=1)
+    if (Py_count_of_clicks == 1)
     {
         var checkbox = "";
         for(var t=0; t<files.length; t++) {
@@ -473,6 +598,3 @@ $(document).ready(function () {
 // }
 </script>
 {% endblock %}
-
-
-
