@@ -337,16 +337,16 @@ function Py_showcouturecheckboxes(f_2) {
   Py_count_of_clicks++;
   var Py_couturecheckboxes = document.getElementById("Py_couturecheckboxes");
 
-  if (!expanded) {
+  if (!Py_expanded) {
     Py_couturecheckboxes.style.display = "block";
-    expanded = true;
+    Py_expanded = true;
   } else {
     Py_couturecheckboxes.style.display = "none";
-    expanded = false;
+    Py_expanded = false;
   }
   if(f_2){
     Py_couturecheckboxes.style.display = "none";
-    expanded = false;
+    Py_expanded = false;
   }
 }
 
@@ -395,16 +395,16 @@ kt_count_of_clicks=1
 function kt_showcouturecheckboxes(f_3) {
   kt_count_of_clicks++;
   var kt_couturecheckboxes = document.getElementById("kt_couturecheckboxes");
-  if (!expanded) {
+  if (!kt_expanded) {
     kt_couturecheckboxes.style.display = "block";
-    expanded = true;
+    kt_expanded = true;
   } else {
     kt_couturecheckboxes.style.display = "none";
-    expanded = false;
+    kt_expanded = false;
   }
   if(f_3) {
     kt_couturecheckboxes.style.display = "none";
-    expanded = false;
+    kt_expanded = false;
   }
 }
 
