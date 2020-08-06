@@ -3614,10 +3614,6 @@ class SparkConfView(AirflowBaseView):
                         filesList.append(fn)
                     updateFiles = ",".join(filesList)
                     config.set('arguments', i, updateFiles)# saving the new updated fields
-                else:
-                    config.set('arguments', i, request.form[i])# saving the new updated fields
-            for j in configs:
-                config.set('configurations', j, request.form[j])  # saving the new updated fields
 
             # filtering out new keys:
             for key in request.form: #EDITED
