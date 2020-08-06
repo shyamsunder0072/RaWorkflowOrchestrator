@@ -6,18 +6,7 @@
 {% block head_js %}
 {{ super() }}
 <script type="text/javascript">
-// Commented because this was causing unpredictable behavior
 
-//  window.onload = function(){
-// getAllNames({{Files | safe}},'{{Arguments['jars']}}');
-// showcouturecheckboxes(true);
-
-// Py_getAllNames({{Py_Files | safe}},'{{Arguments['py-files']}}');
-//  Py_showcouturecheckboxes(true);
-
-// kt_getAllNames({{kt_Files | safe}},'{{Arguments['keytab']}}');
-// kt_showcouturecheckboxes(true);
-//   }
   </script>
 
 {% endblock %}
@@ -73,8 +62,9 @@
             </div><!-- col3  end -->
           </div> 
           <div class="col-xs-offset-3" id="couturecheckboxes" ></div>
+          <br>
         {% endif %}
-
+          
 
         {%if i == 'py-files' and len_py>0%}<!-- JARS-->
           <div class="row"><!-- row1 begin --> 
@@ -88,6 +78,10 @@
                   <option >Click to select python files</option>
                 </select>
               </div>
+
+              <div class="row">
+                <div id="Py_couturecheckboxes" ></div>
+              </div>
             </div><!-- col2  end -->
             
             <div ><!-- col3  begin -->
@@ -96,7 +90,8 @@
               </button>
             </div><!-- col3  end -->
           </div> 
-          <div class="col-xs-offset-3" id="Py_couturecheckboxes" ></div>
+          <br>
+          <!-- <div class="col-xs-offset-3" id="Py_couturecheckboxes" ></div> -->
         {% endif %}
 
         {%if i == 'keytab' and kt_len>0%}<!-- JARS-->
@@ -120,6 +115,7 @@
             </div><!-- col3  end -->
           </div> 
           <div class="col-xs-offset-3" id="kt_couturecheckboxes" ></div>
+          <br>
         {% endif %}
 
       
@@ -138,6 +134,7 @@
               <i class="glyphicon glyphicon-remove-circle" style="color:red" aria-hidden="true"></i>
             </button>
           </div><!-- row end -->
+          <br>
         {%endif%}
       </div>
       {%endfor%}
@@ -148,11 +145,11 @@
 
     <br>
     <div class="form-group">
-      <div class="row">
-        <div class="col-xs-offset-10">
-          <a href="javascript:add_feed()" class="btn btn-success">Add In Arguments</a>
+      
+        <div >
+          <a href="javascript:add_feed()" class="btn btn-success col-xs-2 col-xs-offset-9">Add In Arguments</a>
         </div>
-      </div>
+      
     </div>
     
     
@@ -176,28 +173,31 @@
             <button onclick= "javascript:del_feed_config('{{j}}')" class="close" aria-label="Close" title="Delete Configuration"> <i class="glyphicon glyphicon-remove-circle" style="color:red" aria-hidden="true"></i></button>
           </div>
         </div>
+        <br>
       {%endfor%}
     </div>
     <br>
-    <div class="row">
-      <div class="col-xs-offset-10">
-        <a href="javascript:add_feed_config()" class="btn btn-success">Add In Configurations</a>
+    
+      <div >
+        <a href="javascript:add_feed_config()" class="btn btn-success col-xs-2 col-xs-offset-9">Add In Configurations</a>
       </div>
-      <div class="col-xs-offset-6">
-        <input type="submit" class="btn btn-success" value="Submit">
+      <br>
+      <div >
+        <input type="submit" class="btn btn-success col-xs-1 col-xs-offset-6" value="Submit">
       </div>
-    </div>
+    
   </form>
 </div>
 
 <!-- Template begins-->
-<div class="ccontainer" id="newfield_for_delete" style="display:none">
+<div class="container" id="newfield_for_delete" style="display:none">
   <input class="form-control" name="option_title_args_delete" id="for_delete" type="hidden" placeholder="Enter name">
+
 </div>
 <!-- Template ends -->
 
 <!-- Template begins-->
-<div class="ccontainer" id="newfield_for_delete_config" style="display:none">
+<div class="container" id="newfield_for_delete_config" style="display:none">
   <input class="form-control" name="option_title_config_delete" id="for_delete_config" type="hidden" placeholder="Enter name">
 </div>
 <!-- Template ends -->
@@ -222,6 +222,7 @@ function add_feed()
   const template = '<div class="row">'
     + '<div class="col-xs-3">'
       + '<input class="form-control" name="new-arg-key-'+ globalValues.newArgKeySN + '" type="text" value="" placeholder="Enter key">'
+      +'<br>'
     + '</div>'
     + '<div class="col-xs-8">'
     +   '<input class="form-control" name="new-arg-value-' + globalValues.newArgKeySN + '" type="text" value="" placeholder="Enter value">'
@@ -240,7 +241,9 @@ function add_feed_config()
   const template = '<div class="row">'
     + '<div class="col-xs-3">'
       + '<input class="form-control" name="new-config-key-'+ globalValues.newConfigKeySN + '" type="text" value="" placeholder="Enter key">'
+      +'<br>'
     + '</div>'
+    
     + '<div class="col-xs-8">'
     + '<input class="form-control" name="new-config-value-' + globalValues.newConfigKeySN + '" type="text" value="" placeholder="Enter value">'
     + '</div>';
