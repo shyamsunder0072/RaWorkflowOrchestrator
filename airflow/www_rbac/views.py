@@ -3568,62 +3568,55 @@ class SparkConfView(AirflowBaseView):
         import configparser as CP
         config = CP.ConfigParser()
         config.optionxform = str
-        conf_path = os.path.join(settings.HADOOP_CONFIGS_FOLDER, *[group, 'couture-spark.conf'])
-        setup_path = os.path.join(settings.AIRFLOW_HOME, *[os.pardir, 'jars'])
-        keytab_path = os.path.join(settings.HADOOP_CONFIGS_FOLDER, *[group, 'keytab'])
-        if os.path.exists(conf_path): #CANT REDUCE - create conf file
+
+        conf_path = os.path.join(settings.HADOOP_CONFIGS_FOLDER, *[group, 'couture-spark.conf'])#path for config file
+        setup_path = os.path.join(settings.AIRFLOW_HOME, *[os.pardir, 'jars'])#path to the folder where py files and jar files are
+        keytab_path = os.path.join(settings.HADOOP_CONFIGS_FOLDER, *[group, 'keytab'])#path for config file
+
+        if os.path.exists(conf_path): #Basically if the config file exists, get the args and configs
             config.read(filenames=conf_path)
-            # orderedDictionary used so that the order displayed is same as in file
-            args = collections.OrderedDict(config.items('arguments'))
-            configs = collections.OrderedDict(config.items('configurations'))  # dictionary created
-        else:
+            args = collections.OrderedDict(config.items('arguments'))# orderedDictionary used so that the order displayed is same as in file
+            configs = collections.OrderedDict(config.items('configurations'))  
+        else: #create the config file if not already done
             config.add_section('arguments')
             config.add_section('configurations')
             args = collections.OrderedDict()
             configs = collections.OrderedDict()
-        # print(config.items('arguments'))
-        # print(args)
-        # print(configs)
+
         files = []
         py_files = []
-        # QUESTION(@ANU): Do we need os.walk here ?? -- maybe use listdir
-        for r, d, f in os.walk(setup_path):
+        
+        for r, d, f in os.walk(setup_path):#get the py and jar files
             for file in f:
                 if file.endswith(".jar"):
                     files.append(file)
                 if file.endswith(".py") or file.endswith(".egg") or file.endswith(".zip"):
                     py_files.append(file)
         kt_files = []
-        for r, d, f in os.walk(keytab_path):
+        for r, d, f in os.walk(keytab_path):#get the kt files
             for file in f:
                 kt_files.append(file)
-        # print(files)
-        # print(py_files)
-        # print(kt_files)
+       
 
         if request.method == 'POST':
             config.read(filenames=conf_path)
-            # orderedDictionary used so that the order displayed is same as in file
             args = collections.OrderedDict(config.items('arguments'))
-            configs = collections.OrderedDict(config.items('configurations'))  # dictionary created
-            # print(args)
-            # print(configs)
+            configs = collections.OrderedDict(config.items('configurations'))  
+           
             for i in args: #EDITED
                 if i=='jars' or i=='keytab' or i=='py-files':
-                    fileType = {'jars':'check','keytab':'kt_check','py-files':'py_check'}
-                    filePath = {'jars':setup_path, 'keytab':keytab_path, 'py-files': setup_path } 
+                    fileType = {'jars':'check','keytab':'kt_check','py-files':'py_check'} #dict for accessing checked files
+                    filePath = {'jars':setup_path, 'keytab':keytab_path, 'py-files': setup_path } #dict for file paths
                     filesList=[]
-                    filenames = request.form.getlist(fileType[i])
+                    filenames = request.form.getlist(fileType[i])#checked files stored here
                     for f in filenames:
                         fn = os.path.join(filePath[i], f)  # joining the filenames with their path
                         filesList.append(fn)
                     updateFiles = ",".join(filesList)
-                    config.set('arguments', i, updateFiles)
+                    config.set('arguments', i, updateFiles)# saving the new updated fields
                 else:
-                    config.set('arguments', i, request.form[i])
+                    config.set('arguments', i, request.form[i])# saving the new updated fields
             for j in configs:
-                # print("printing j", j, request.form[j])
-                # print("j="+j)
                 config.set('configurations', j, request.form[j])  # saving the new updated fields
 
             # filtering out new keys:
@@ -3663,7 +3656,7 @@ class SparkConfView(AirflowBaseView):
         len_jar = len(files) #EDITED
         len_py = len(py_files)
         kt_len = len(kt_files)
-        return self.render_template(
+        return self.render_template(#rendering template
             'airflow/couture_config.html',
             title=title,
             len=len(args), #What is the use of this? was only present in return template if request.method=='GET'; POST didnt have it
@@ -3675,8 +3668,6 @@ class SparkConfView(AirflowBaseView):
             group=group,
             kt_Files=kt_files)
 
-    # def dummyfunc(self,group):
-    #     return "f"
     
 
 
