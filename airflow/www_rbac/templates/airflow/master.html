@@ -27,7 +27,6 @@
   {% endif %}
   <link href="{{ url_for_asset('main.css') }}" rel="stylesheet">
   <link href="{{ url_for_asset('bootstrap-datetimepicker.min.css') }}" rel="stylesheet">
-  <link href="css/bootstrap.css" rel="stylesheet">
   <link rel="icon" type="image/png" href="{{ url_for('static', filename='pin_32.png') }}">
 {% endblock %}
 
@@ -73,7 +72,7 @@
   <script src="{{ url_for_asset('bootstrap3-typeahead.min.js') }}"></script>
   
 
-  <script src="bootstrap-3.3.7-dist/js/bootstrap.min.js"></script>
+
 
   {% if analytics_tool is defined and analytics_tool %}
     {% include "analytics/" + analytics_tool + ".html" %}

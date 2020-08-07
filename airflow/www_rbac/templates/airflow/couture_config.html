@@ -4,12 +4,13 @@
 {% endblock %}
 
 {% block head_js %}
-
 {{ super() }}
 <script type="text/javascript">
-  if ( window.history.replaceState ) {
-    window.history.replaceState( null, null, window.location.href );
-  }
+
+    if ( window.history.replaceState ) {
+      window.history.replaceState( null, null, window.location.href );
+    }
+    
   </script>
 
 {% endblock %}
@@ -51,7 +52,7 @@
             </div><!-- col1 end -->
             
             <div class="col-xs-8"><!-- col2 begin -->
-              <div onclick="javascript:getAllNames({{Files}},'{{Arguments[i]}}'); javascript:showcouturecheckboxes(); ">
+              <div onclick="javascript:getAllNames_test({{Files}},'{{Arguments[i]}}',1); javascript:showcouturecheckboxes(); ">
                 <select class="form-control">
                   <option>Click to select jar files</option>
                 </select>
@@ -78,7 +79,7 @@
             
             <div class="col-xs-8"><!-- col2 begin -->
               <div >
-                <select class="form-control" onclick="javascript:Py_getAllNames({{Py_Files}},'{{Arguments[i]}}'); javascript:Py_showcouturecheckboxes(); ">
+                <select class="form-control" onclick="javascript:getAllNames_test({{Py_Files}},'{{Arguments[i]}}',2); javascript:Py_showcouturecheckboxes(); ">
                   <option >Click to select python files</option>
                 </select>
               </div>
@@ -105,7 +106,7 @@
             </div><!-- col1 end -->
             
             <div class="col-xs-8"><!-- col2 begin -->
-              <div onclick="javascript:kt_getAllNames({{kt_Files}},'{{Arguments[i]}}'); javascript:kt_showcouturecheckboxes(); ">
+              <div onclick="javascript:getAllNames_test({{kt_Files}},'{{Arguments[i]}}',3); javascript:kt_showcouturecheckboxes(); ">
                 <select class="form-control">
                   <option>Click to select keytab files</option>
                 </select>
@@ -135,7 +136,7 @@
               
             </div>
 
-            <button onclick="javascript:del_feed('{{i}}')" class="close" aria-label="Close" title="Delete Argument"> 
+            <button onclick="javascript:del_feed_test('{{i}}' , 'for_delete')" class="close" aria-label="Close" title="Delete Argument"> 
               <i class="glyphicon glyphicon-remove-circle" style="color:red" aria-hidden="true"></i>
             </button>
           </div><!-- row end -->
@@ -175,7 +176,7 @@
           </div>
 
           <div class="col-xs-push-9">
-            <button onclick= "javascript:del_feed_config('{{j}}')" class="close" aria-label="Close" title="Delete Configuration"> <i class="glyphicon glyphicon-remove-circle" style="color:red" aria-hidden="true"></i></button>
+            <button onclick= "javascript:del_feed_test('{{j}}', 'for_delete_config')" class="close" aria-label="Close" title="Delete Configuration"> <i class="glyphicon glyphicon-remove-circle" style="color:red" aria-hidden="true"></i></button>
           </div>
         </div>
         <br>
@@ -194,18 +195,16 @@
   </form>
 </div>
 
-<!-- Template begins-->
+
 <div class="container" id="newfield_for_delete" style="display:none">
   <input class="form-control" name="option_title_args_delete" id="for_delete" type="hidden" placeholder="Enter name">
 
 </div>
-<!-- Template ends -->
 
-<!-- Template begins-->
 <div class="container" id="newfield_for_delete_config" style="display:none">
   <input class="form-control" name="option_title_config_delete" id="for_delete_config" type="hidden" placeholder="Enter name">
 </div>
-<!-- Template ends -->
+
 
 </body>
 {% endblock %}
@@ -219,11 +218,10 @@ const globalValues = {
   newArgKeySN: 0,
 };
 
+//function to add another row of fields for arguments inputs
 function add_feed()
 {
   var div1 = document.createElement('div');
-
-  // creating template here.
   const template = '<div class="row">'
     + '<div class="col-xs-3">'
       + '<input class="form-control" name="new-arg-key-'+ globalValues.newArgKeySN + '" type="text" value="" placeholder="Enter key">'
@@ -238,11 +236,10 @@ function add_feed()
   document.getElementById('container1').appendChild(div1);
 }
 
+//function to add another row of fields for configurations inputs
 function add_feed_config()
 {
   var div1 = document.createElement('div');
-
-  // creating template here.
   const template = '<div class="row">'
     + '<div class="col-xs-3">'
       + '<input class="form-control" name="new-config-key-'+ globalValues.newConfigKeySN + '" type="text" value="" placeholder="Enter key">'
@@ -258,28 +255,32 @@ function add_feed_config()
   document.getElementById('container2').appendChild(div1);
 }
 
-function del_feed(option)
+//deletes an entire row of the field for args or configs as specified by user
+function del_feed_test(option, element)
 {
   let del = confirm("Are you sure you want to delete?");
+  let update = 'newfield_for_delete';
+  let containerNo = 'container1';
+  if(element == 'for_delete_config'){
+    update += '_config';
+    containerNo = 'container2';
+  }
   if(del) {
-    document.getElementById("for_delete").value = option;
+    document.getElementById(element).value = option;
     var div1 = document.createElement('div');
-    div1.innerHTML = document.getElementById('newfield_for_delete').innerHTML;
-    document.getElementById('container1').appendChild(div1);
+    div1.innerHTML = document.getElementById(update).innerHTML;
+    document.getElementById(containerNo).appendChild(div1);
   }
 }
-function del_feed_config(option)
-{
-  let del = confirm("Are you sure you want to delete?");
-  if(del) {
-    document.getElementById("for_delete_config").value = option;
-    var div1 = document.createElement('div');
-    div1.innerHTML = document.getElementById('newfield_for_delete_config').innerHTML;
-    document.getElementById('container2').appendChild(div1);
-  }
-}
+
 var expanded = false;
-count_of_clicks=1
+count_of_clicks=1;
+var Py_expanded = false;
+Py_count_of_clicks=1;
+var kt_expanded = false;
+kt_count_of_clicks=1;
+
+//3 functions to display checkboxes of the 3 types of files - jar, py ,kt
 function showcouturecheckboxes(f_1) {
   count_of_clicks++;
   var couturecheckboxes = document.getElementById("couturecheckboxes");
@@ -298,49 +299,6 @@ function showcouturecheckboxes(f_1) {
 
 }
 
-function getAllNames(files,selected_jars) {
-    var selected_jars = selected_jars.split(',');
-    selected=[]
-    for(var i=0; i<selected_jars.length; i++){
-        y=selected_jars[i];
-        file_name = y.split('\\').pop().split('/').pop();
-        selected[i]=file_name;
-        }
-    var myDiv = document.getElementById("couturecheckboxes");
-    if (count_of_clicks == 1)
-    {
-        var checkbox = "";
-        for(var t=0; t<files.length; t++) {
-            file_name=files[t];
-            var checkBox = document.createElement("input");
-            var label = document.createElement("label");
-            var in_selected = false;
-            for (var i=0;i<selected.length;i++)
-            {
-                if(file_name == selected[i]) {
-                    in_selected= true;
-                }
-            }
-            if (in_selected==true) {
-                checkBox.checked = "true";
-            }
-            checkBox.type = "checkbox";
-            checkBox.value = file_name;
-            checkBox.name = "check";
-            checkBox.id = "checkBox";
-            checkBox.onclick = "javascript:showValue()";
-            label.for = file_name;
-            myDiv.appendChild(label);
-            label.appendChild(checkBox);
-            checkBox.appendChild(document.createTextNode(file_name));
-            label.appendChild(document.createTextNode(file_name));
-        }
-    }
-}
-
-
-var Py_expanded = false;
-Py_count_of_clicks=1
 function Py_showcouturecheckboxes(f_2) {
   Py_count_of_clicks++;
   var Py_couturecheckboxes = document.getElementById("Py_couturecheckboxes");
@@ -358,48 +316,7 @@ function Py_showcouturecheckboxes(f_2) {
   }
 }
 
-function Py_getAllNames(files,selected_py) {
-    var selected_py = selected_py.split(',');
-    selected=[]
-    for(var i=0; i<selected_py.length; i++){
-        y=selected_py[i];
-        file_name = y.split('\\').pop().split('/').pop();
-        selected[i]=file_name;
-        }
-    var myDiv = document.getElementById("Py_couturecheckboxes");
-    if (Py_count_of_clicks >= 0 && Py_count_of_clicks<=1)
-    {
-        var checkbox = "";
-        for(var t=0; t<files.length; t++) {
-            file_name=files[t];
-            var py_checkBox = document.createElement("input");
-            var label = document.createElement("label");
-            var in_selected = false;
-            for (var i=0;i<selected.length;i++)
-            {
-                if(file_name == selected[i]) {
-                    in_selected= true;
-                }
-            }
-            if (in_selected==true) {
-                py_checkBox.checked = "true";
-            }
-            py_checkBox.type = "checkbox";
-            py_checkBox.value = file_name;
-            py_checkBox.name = "py_check";
-            py_checkBox.id = "py_checkBox";
-            py_checkBox.onclick = "javascript:showValue()";
-            label.for = file_name;
-            myDiv.appendChild(label);
-            label.appendChild(py_checkBox);
-            py_checkBox.appendChild(document.createTextNode(file_name));
-            label.appendChild(document.createTextNode(file_name));
-        }
-  }
 
-}
-var kt_expanded = false;
-kt_count_of_clicks=1
 function kt_showcouturecheckboxes(f_3) {
   kt_count_of_clicks++;
   var kt_couturecheckboxes = document.getElementById("kt_couturecheckboxes");
@@ -416,69 +333,80 @@ function kt_showcouturecheckboxes(f_3) {
   }
 }
 
-function kt_getAllNames(files,selected_kt) {
-    var selected_kt = selected_kt.split(',');
-    selected=[]
-    for(var i=0; i<selected_kt.length; i++){
-        y=selected_kt[i];
-        file_name = y.split('\\').pop().split('/').pop();
-        selected[i]=file_name;
-
-        }
-    var myDiv = document.getElementById("kt_couturecheckboxes");
-    if (kt_count_of_clicks == 1)
-    {
-        var checkbox = "";
-        for(var t=0; t<files.length; t++) {
-            file_name=files[t];
-            var kt_checkBox = document.createElement("input");
-            var label = document.createElement("label");
-            var in_selected = false;
-            for (var i=0;i<selected.length;i++)
-            {
-                if(file_name == selected[i]) {
-                    in_selected= true;
-                }
-            }
-            if (in_selected==true) {
-                kt_checkBox.checked = "true";
-            }
-            kt_checkBox.type = "checkbox";
-            kt_checkBox.value = file_name;
-            kt_checkBox.name = "kt_check";
-            kt_checkBox.id = "kt_checkBox";
-            kt_checkBox.onclick = "javascript:showValue()";
-            label.for = file_name;
-            myDiv.appendChild(label);
-            label.appendChild(kt_checkBox);
-            kt_checkBox.appendChild(document.createTextNode(file_name));
-            label.appendChild(document.createTextNode(file_name));
-        }
-}
-
-}
-$(document).ready(function () {
-    getAllNames({{Files | safe}},'{{Arguments['jars']}}');
-    showcouturecheckboxes(true);
-
-    Py_getAllNames({{Py_Files | safe}},'{{Arguments['py-files']}}');
-    Py_showcouturecheckboxes(true);
-
-    kt_getAllNames({{kt_Files | safe}},'{{Arguments['keytab']}}');
-    kt_showcouturecheckboxes(true);
+//function that gets the names of files and puts it onto the required labels
+function getAllNames_test(files,selected_files,num) {
+  var selected_files = selected_files.split(',');
+  selected=[]
+  let checkboxes = "",checkName="",checkId="";
+  if(num==1){
+    clickCount = count_of_clicks;
+    checkboxes = "couturecheckboxes";
+    checkName = "check";
+    checkId = "checkBox";
   }
-)
-// window.onload = function() {
-//     console.log("yohhoo")
-//     getAllNames({{Files | safe}},'{{Arguments['jars']}}');
-//     showcouturecheckboxes(true);
+  else if(num==2){
+    clickCount = Py_count_of_clicks;
+    checkboxes = "Py_couturecheckboxes";
+    checkName = "py_check";
+    checkId = "py_checkBox";
+  }
+  else if(num==3){
+    clickCount = kt_count_of_clicks;
+    checkboxes = "kt_couturecheckboxes";
+    checkName = "kt_check";
+    checkId = "kt_checkBox";
+  }
+  
+  for(var i=0; i<selected_files.length; i++){
+      y=selected_files[i];
+      file_name = y.split('\\').pop().split('/').pop();
+      selected[i]=file_name;
+      }
+  var myDiv = document.getElementById(checkboxes);
+  if (clickCount == 1)
+  {
+    var checkbox = "";
+    for(var t=0; t<files.length; t++) {
+        file_name=files[t];
+        var checkBox = document.createElement("input");
+        var label = document.createElement("label");
+        var in_selected = false;
+        for (var i=0;i<selected.length;i++)
+        {
+            if(file_name == selected[i]) {
+                in_selected= true;
+            }
+        }
+        if (in_selected==true) {
+            checkBox.checked = "true";
+        }
+        checkBox.type = "checkbox";
+        checkBox.value = file_name;
+        checkBox.name = checkName;
+        checkBox.id = checkId;
+        checkBox.onclick = "javascript:showValue()";
+        label.for = file_name;
+        myDiv.appendChild(label);
+        label.appendChild(checkBox);
+        checkBox.appendChild(document.createTextNode(file_name));
+        label.appendChild(document.createTextNode(file_name));
+    }
+  }
+}
 
-//     Py_getAllNames({{Py_Files | safe}},'{{Arguments['py-files']}}');
-//     Py_showcouturecheckboxes(true);
+$(document).ready(function () {
 
-//     kt_getAllNames({{kt_Files | safe}},'{{Arguments['keytab']}}');
-//     kt_showcouturecheckboxes(true);
-// }
+    getAllNames_test({{Files|safe}},'{{Arguments['jars']}}', 1);
+    showcouturecheckboxes(true);
+    getAllNames_test({{Py_Files|safe}},'{{Arguments['py-files']}}', 2);
+    Py_showcouturecheckboxes(true);
+    getAllNames_test({{kt_Files|safe}},'{{Arguments['keytab']}}', 3);
+    kt_showcouturecheckboxes(true);
+
+  }
+);
+
+
 </script>
 {% endblock %}
 

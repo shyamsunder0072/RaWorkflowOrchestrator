@@ -3561,7 +3561,7 @@ class SparkConfView(AirflowBaseView):
     @expose('/couture_config/<string:group>', methods=['GET', 'POST'])
     @has_access
     @action_logging
-
+    
     #function that updates couture_conf.html page and writes changes to couture-spark config file 
     def update_spark_conf(self, group):
         title = "Couture Spark Configuration"
