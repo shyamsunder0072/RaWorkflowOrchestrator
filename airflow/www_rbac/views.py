@@ -18,6 +18,8 @@
 # under the License.
 #
 import ast
+import collections
+import configparser as CP
 import copy
 import functools
 import itertools
@@ -3562,12 +3564,12 @@ class SparkConfView(AirflowBaseView):
     @has_access
     @action_logging
     
+
     #function that updates couture_conf.html page and writes changes to couture-spark config file 
     def update_spark_conf(self, group):
         title = "Couture Spark Configuration"
         default_view = 'update_spark_conf'
-        import collections
-        import configparser as CP
+
         config = CP.ConfigParser()
         config.optionxform = str
 
