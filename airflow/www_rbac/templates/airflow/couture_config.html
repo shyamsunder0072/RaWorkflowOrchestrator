@@ -60,16 +60,22 @@
               <div id="couturecheckboxes" ></div>
             </div><!-- col2  end -->
             
-            <div ><!-- col3  begin -->
-              <button onclick="javascript:del_feed('{{i}}')" class="close" aria-label="Close" title="Delete Argument">
-                <i class="glyphicon glyphicon-remove-circle" style="color:red; float:right" aria-hidden="true"></i>
-              </button>
-            </div><!-- col3  end -->
-          </div> 
-          
+          </div>
           <br>
-        {% endif %}
+        {% elif i=='jars' and len_jar == 0%}
+        <div class="row"><!-- row1 begin --> 
+          <div class="col-xs-3"> <!-- col1 begin -->
+            <label for={{i}} >{{i}}</label>
+          </div><!-- col1 end -->
+            
+          <div class="col-xs-8"><!-- col2 begin -->
+            No files at location.
+          </div>
+        </div> 
           
+        <br>
+        {% endif %}
+        
 
         {%if i == 'py-files' and len_py>0%}<!-- JARS-->
           <div class="row"><!-- row1 begin --> 
@@ -89,14 +95,21 @@
               
             </div><!-- col2  end -->
             
-            <div ><!-- col3  begin -->
-              <button onclick="javascript:del_feed('{{i}}')" class="close" aria-label="Close" title="Delete Argument">
-                <i class="glyphicon glyphicon-remove-circle" style="color:red; float:right" aria-hidden="true"></i>
-              </button>
-            </div><!-- col3  end -->
+            
           </div> 
           <br>
-          <!-- <div class="col-xs-offset-3" id="Py_couturecheckboxes" ></div> -->
+        {% elif i=='py-files' and len_py == 0%}
+        <div class="row"><!-- row1 begin --> 
+          <div class="col-xs-3"> <!-- col1 begin -->
+            <label for={{i}} >{{i}}</label>
+          </div><!-- col1 end -->
+            
+          <div class="col-xs-8"><!-- col2 begin -->
+            No files at location.
+          </div>
+        </div> 
+          <br>
+          
         {% endif %}
 
         {%if i == 'keytab' and kt_len>0%}<!-- JARS-->
@@ -114,12 +127,19 @@
               <div id="kt_couturecheckboxes" ></div>
             </div><!-- col2  end -->
             
-            <div ><!-- col3  begin -->
-              <button onclick="javascript:del_feed('{{i}}')" class="close" aria-label="Close" title="Delete Argument">
-                <i class="glyphicon glyphicon-remove-circle" style="color:red; float:right" aria-hidden="true"></i>
-              </button>
-            </div><!-- col3  end -->
+            
           </div> 
+          <br>
+        {% elif i=='keytab' and kt_len == 0%}
+        <div class="row"><!-- row1 begin --> 
+          <div class="col-xs-3"> <!-- col1 begin -->
+            <label for={{i}} >{{i}}</label>
+          </div><!-- col1 end -->
+            
+          <div class="col-xs-8"><!-- col2 begin -->
+            No files at location.
+          </div>
+        </div> 
           
           <br>
         {% endif %}
@@ -128,17 +148,17 @@
 
         {%if i!='jars' and i!='py-files' and i!='keytab'%}
           <div class="row"><!-- row begin -->
+            
             <div class="col-xs-3">
               <label for={{i}} >{{i}}</label>
             </div>
+            
             <div class="col-xs-8">
               <input class="form-control" id={{i}} name={{i}} type="text" value="{{Arguments[i]}}">
-              
             </div>
-
-            <button onclick="javascript:del_feed_test('{{i}}' , 'for_delete')" class="close" aria-label="Close" title="Delete Argument"> 
-              <i class="glyphicon glyphicon-remove-circle" style="color:red" aria-hidden="true"></i>
-            </button>
+            
+            <button onclick= "javascript:del_feed_test('{{j}}', 'for_delete_config')" class="close pull-left" aria-label="Close" title="Delete Configuration"> 
+              <i class="glyphicon glyphicon-remove-circle" style="color:red" aria-hidden="true"></i></button>
           </div><!-- row end -->
           <br>
         {%endif%}
@@ -175,10 +195,11 @@
             <input class="form-control" id={{j}} name={{j}} type="text" value="{{Configurations[j]}}">
           </div>
 
-          <div class="col-xs-push-9">
-            <button onclick= "javascript:del_feed_test('{{j}}', 'for_delete_config')" class="close" aria-label="Close" title="Delete Configuration"> <i class="glyphicon glyphicon-remove-circle" style="color:red" aria-hidden="true"></i></button>
-          </div>
+          
+          <button onclick= "javascript:del_feed_test('{{j}}', 'for_delete_config')" class="close pull-left" aria-label="Close" title="Delete Configuration"> 
+            <i class="glyphicon glyphicon-remove-circle" style="color:red" aria-hidden="true"></i></button>
         </div>
+        
         <br>
       {%endfor%}
     </div>
@@ -405,6 +426,8 @@ $(document).ready(function () {
 
   }
 );
+
+
 
 
 </script>
