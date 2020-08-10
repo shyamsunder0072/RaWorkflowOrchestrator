@@ -3566,18 +3566,14 @@ class SparkConfView(AirflowBaseView):
         files = []
         for r, d, f in os.walk(path):
             for file in f:
-                if file.endswith(ext):
+                if ext=="kt":
                     files.append(file)
-                if ext == ".py" and (
+                else:
+                    if file.endswith(ext):
+                        files.append(file)
+                    if ext == ".py" and (
                         file.endswith(".egg") or file.endswith(".zip")):
-                    files.append(file)
-        return files
-
-    def get_ktfiles(self, path):
-        files = []
-        for r, d, f in os.walk(path):
-            for file in f:
-                files.append(file)
+                        files.append(file)
         return files
 
     # remove deleted fields from the conf file
@@ -3678,7 +3674,7 @@ class SparkConfView(AirflowBaseView):
 
         files = self.get_files(".jar", setup_path)
         py_files = self.get_files(".py", setup_path)
-        kt_files = self.get_ktfiles(keytab_path)
+        kt_files = self.get_files("kt",keytab_path)
 
         if request.method == 'POST':
             config.read(filenames=conf_path)
