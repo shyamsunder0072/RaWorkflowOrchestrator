@@ -3557,100 +3557,134 @@ class EDAView(AirflowBaseView, BaseApi):
             pass
         return self.render_template('eda/eda_outputs.html', visualisations=viz)
 
-
 class SparkConfView(AirflowBaseView):
-       
-    @expose('/couture_config/<string:group>', methods=['GET', 'POST'])
-    @has_access
-    @action_logging
-    
 
-    #function that updates couture_conf.html page and writes changes to couture-spark config file 
-    def update_spark_conf(self, group):
-        title = "Couture Spark Configuration"
-        default_view = 'update_spark_conf'
+    def get_files(self, ext, path):
+        files = []
+        for r, d, f in os.walk(path):
+            for file in f:
+                if file.endswith(ext):
+                    files.append(file)
+                if ext == ".py" and (
+                        file.endswith(".egg") or file.endswith(".zip")):
+                    files.append(file)
+        return files
 
-        config = CP.ConfigParser()
-        config.optionxform = str
+    def get_ktfiles(self, path):
+        files = []
+        for r, d, f in os.walk(path):
+            for file in f:
+                files.append(file)
+        return files
 
-        conf_path = os.path.join(settings.HADOOP_CONFIGS_FOLDER, *[group, 'couture-spark.conf'])
-        setup_path = os.path.join(settings.AIRFLOW_HOME, *[os.pardir, 'jars'])
-        keytab_path = os.path.join(settings.HADOOP_CONFIGS_FOLDER, *[group, 'keytab'])
+    # remove deleted fields from the conf file
+    def delete_fields(self, config):
+        try:
+            if config.has_option('arguments',
+                                 request.form['option_title_args_delete']):
+                config.remove_option(
+                    'arguments', request.form['option_title_args_delete'])
+        except Exception:
+            print("Sorry ! No field found in delete in args")
 
-        #if the config file exists, get the current args and configs
-        #if the config file doesn't exist, create one and initialise the 2 sections
-        #orderedDictionary used so that the order displayed is same as in config file
-        if os.path.exists(conf_path): 
+        try:
+            if config.has_option('configurations',
+                                 request.form['option_title_config_delete']):
+                config.remove_option(
+                    'configurations',
+                    request.form['option_title_config_delete'])
+        except Exception:
+            print("Sorry ! No field found in delete in config")
+
+    # if the conf file is there initialise args,confids else make the conf
+    # file and initialize sections,
+    def init_args_configs(self, conf_path, config):
+        if os.path.exists(conf_path):
             config.read(filenames=conf_path)
             args = collections.OrderedDict(config.items('arguments'))
-            configs = collections.OrderedDict(config.items('configurations'))  
-        else: 
+            configs = collections.OrderedDict(config.items('configurations'))
+        else:
             config.add_section('arguments')
             config.add_section('configurations')
             args = collections.OrderedDict()
             configs = collections.OrderedDict()
+        return args, configs
 
-        files = []
-        py_files = []
-        kt_files = []
-        #get the jar, py and kt files from the respective directories
-        for r, d, f in os.walk(setup_path):
-            for file in f:
-                if file.endswith(".jar"):
-                    files.append(file)
-                if file.endswith(".py") or file.endswith(".egg") or file.endswith(".zip"):
-                    py_files.append(file)
-        
-        for r, d, f in os.walk(keytab_path):
-            for file in f:
-                kt_files.append(file)
-       
+    # update the Arguments, Configurations sections in config file
+    def update_args_configs(
+            self,
+            args,
+            configs,
+            setup_path,
+            keytab_path,
+            config):
+        for i in args:
+            if i == 'jars' or i == 'keytab' or i == 'py-files':
+                fileType = {
+                    'jars': 'check',
+                    'keytab': 'kt_check',
+                    'py-files': 'py_check'}
+                filePath = {
+                    'jars': setup_path,
+                    'keytab': keytab_path,
+                    'py-files': setup_path}
+                filesList = []
+                filenames = request.form.getlist(fileType[i])
+                for f in filenames:
+                    fn = os.path.join(filePath[i], f)
+                    filesList.append(fn)
+                updateFiles = ",".join(filesList)
+                config.set('arguments', i, updateFiles)
+            else:
+                config.set('arguments', i, request.form[i])
+
+        for j in configs:
+            config.set('configurations', j, request.form[j])
+        return
+
+    # add the new fields to the conf file
+    def update_new_args_configs(self, config):
+        for key in request.form:
+            if request.form[key]:
+                key_no = key.split('-')[-1]
+                if key.startswith('new-arg-key'):
+                    config.set('arguments',
+                               request.form[key],
+                               request.form['new-arg-value-' + key_no])
+                elif key.startswith('new-config-key'):
+                    config.set('configurations',
+                               request.form[key],
+                               request.form['new-config-value-' + key_no])
+
+    @expose('/couture_config/<string:group>', methods=['GET', 'POST'])
+    @has_access
+    @action_logging
+    # function that updates couture_conf.html page and writes changes to
+    # couture-spark config file
+    def update_spark_conf(self, group):
+        title = "Couture Spark Configuration"
+        default_view = 'update_spark_conf'
+        config = CP.ConfigParser()
+        config.optionxform = str
+        conf_path = os.path.join(
+            settings.HADOOP_CONFIGS_FOLDER, *[group, 'couture-spark.conf'])
+        setup_path = os.path.join(settings.AIRFLOW_HOME, *[os.pardir, 'jars'])
+        keytab_path = os.path.join(
+            settings.HADOOP_CONFIGS_FOLDER, *[group, 'keytab'])
+        args, configs = self.init_args_configs(conf_path, config)
+
+        files = self.get_files(".jar", setup_path)
+        py_files = self.get_files(".py", setup_path)
+        kt_files = self.get_ktfiles(keytab_path)
 
         if request.method == 'POST':
             config.read(filenames=conf_path)
             args = collections.OrderedDict(config.items('arguments'))
-            configs = collections.OrderedDict(config.items('configurations'))  
-           
-            #update the Arguments section in config file 
-            for i in args: 
-                if i=='jars' or i=='keytab' or i=='py-files':
-                    fileType = {'jars':'check','keytab':'kt_check','py-files':'py_check'} 
-                    filePath = {'jars':setup_path, 'keytab':keytab_path, 'py-files': setup_path } 
-                    filesList=[]
-                    filenames = request.form.getlist(fileType[i])
-                    for f in filenames:
-                        fn = os.path.join(filePath[i], f)  
-                        filesList.append(fn)
-                    updateFiles = ",".join(filesList)
-                    config.set('arguments', i, updateFiles)
-                else:
-                    config.set('arguments', i, request.form[i])
-            
-            for j in configs:
-                config.set('configurations', j, request.form[j]) 
-
-
-            #update the Arguments and Configurations section in config file
-            #For the new arguments and configurations that have been typed in
-            for key in request.form: 
-                if request.form[key]:
-                    key_no = key.split('-')[-1]
-                    if key.startswith('new-arg-key'):      
-                        config.set('arguments', request.form[key], request.form['new-arg-value-' + key_no])
-                    elif key.startswith('new-config-key'):                      
-                        config.set('configurations', request.form[key], request.form['new-config-value-' + key_no])
-            
-            #deleting the fields that have been removed
-            try:
-                if config.has_option('arguments', request.form['option_title_args_delete']):
-                    config.remove_option('arguments', request.form['option_title_args_delete'])
-            except Exception:
-                print("Sorry ! No field found in delete in args")
-            try:
-                if config.has_option('configurations', request.form['option_title_config_delete']):
-                    config.remove_option('configurations', request.form['option_title_config_delete'])
-            except Exception:
-                print("Sorry ! No field found in delete in config")
+            configs = collections.OrderedDict(config.items('configurations'))
+            self.update_args_configs(
+                args, configs, setup_path, keytab_path, config)
+            self.update_new_args_configs(config)
+            self.delete_fields(config)
 
             # writing all the changes to the config file
             with open(conf_path, 'w') as configfile:
@@ -3658,8 +3692,8 @@ class SparkConfView(AirflowBaseView):
 
             args = collections.OrderedDict(config.items('arguments'))
             configs = collections.OrderedDict(config.items('configurations'))
-       
-        len_jar = len(files) 
+
+        len_jar = len(files)
         len_py = len(py_files)
         kt_len = len(kt_files)
         return self.render_template(
