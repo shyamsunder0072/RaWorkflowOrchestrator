@@ -3612,7 +3612,6 @@ class SparkConfView(AirflowBaseView):
             configs = collections.OrderedDict(config.items('configurations'))  
            
             #update the Arguments section in config file 
-            #(Only for jar, py and kt files that have been checked in the form)
             for i in args: 
                 if i=='jars' or i=='keytab' or i=='py-files':
                     fileType = {'jars':'check','keytab':'kt_check','py-files':'py_check'} 
@@ -3624,6 +3623,12 @@ class SparkConfView(AirflowBaseView):
                         filesList.append(fn)
                     updateFiles = ",".join(filesList)
                     config.set('arguments', i, updateFiles)
+                else:
+                    config.set('arguments', i, request.form[i])
+            
+            for j in configs:
+                config.set('configurations', j, request.form[j]) 
+
 
             #update the Arguments and Configurations section in config file
             #For the new arguments and configurations that have been typed in
