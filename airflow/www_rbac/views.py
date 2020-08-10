@@ -18,9 +18,9 @@
 # under the License.
 #
 import ast
+import copy
 import collections
 import configparser as CP
-import copy
 import functools
 import itertools
 import json
@@ -3557,8 +3557,11 @@ class EDAView(AirflowBaseView, BaseApi):
             pass
         return self.render_template('eda/eda_outputs.html', visualisations=viz)
 
+
+ 
 class SparkConfView(AirflowBaseView):
 
+    
     def get_files(self, ext, path):
         files = []
         for r, d, f in os.walk(path):
@@ -3663,7 +3666,7 @@ class SparkConfView(AirflowBaseView):
     # couture-spark config file
     def update_spark_conf(self, group):
         title = "Couture Spark Configuration"
-        default_view = 'update_spark_conf'
+        
         config = CP.ConfigParser()
         config.optionxform = str
         conf_path = os.path.join(
@@ -3705,9 +3708,7 @@ class SparkConfView(AirflowBaseView):
             len_jar=len_jar, len_py=len_py,
             kt_len=kt_len,
             group=group,
-            kt_Files=kt_files)
-
-    
+            kt_Files=kt_files)  
 
 
 class LdapConfView(AirflowBaseView):

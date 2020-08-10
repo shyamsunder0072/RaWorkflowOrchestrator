@@ -91,7 +91,7 @@
               </div>
 
               
-            <div id="Py_couturecheckboxes" ></div>
+            <div id="py_couturecheckboxes" ></div>
               
             </div><!-- col2  end -->
             
@@ -281,23 +281,23 @@ function delFeed(option, element)
 {
   let del = confirm("Are you sure you want to delete?");
   let update = 'newfield_for_delete';
-  let containerNo = 'container1';
+  let container_no = 'container1';
   if(element == 'for_delete_config'){
     update += '_config';
-    containerNo = 'container2';
+    container_no = 'container2';
   }
   if(del) {
     document.getElementById(element).value = option;
     var div1 = document.createElement('div');
     div1.innerHTML = document.getElementById(update).innerHTML;
-    document.getElementById(containerNo).appendChild(div1);
+    document.getElementById(container_no).appendChild(div1);
   }
 }
 
 var expanded = false;
 count_of_clicks=1;
-var Py_expanded = false;
-Py_count_of_clicks=1;
+var py_expanded = false;
+py_count_of_clicks=1;
 var kt_expanded = false;
 kt_count_of_clicks=1;
 
@@ -321,19 +321,19 @@ function showCoutureCheckBoxes(f_1) {
 }
 
 function pyShowCoutureCheckBoxes(f_2) {
-  Py_count_of_clicks++;
-  var Py_couturecheckboxes = document.getElementById("Py_couturecheckboxes");
+  py_count_of_clicks++;
+  var py_couturecheckboxes = document.getElementById("py_couturecheckboxes");
 
-  if (!Py_expanded) {
-    Py_couturecheckboxes.style.display = "block";
-    Py_expanded = true;
+  if (!py_expanded) {
+    py_couturecheckboxes.style.display = "block";
+    py_expanded = true;
   } else {
-    Py_couturecheckboxes.style.display = "none";
-    Py_expanded = false;
+    py_couturecheckboxes.style.display = "none";
+    py_expanded = false;
   }
   if(f_2){
-    Py_couturecheckboxes.style.display = "none";
-    Py_expanded = false;
+    py_couturecheckboxes.style.display = "none";
+    py_expanded = false;
   }
 }
 
@@ -358,24 +358,24 @@ function ktShowCoutureCheckBoxes(f_3) {
 function getAllNames(files,selected_files,num) {
   var selected_files = selected_files.split(',');
   selected=[]
-  let checkboxes = "",checkName="",checkId="";
+  let checkboxes = "",check_name="",check_id="";
   if(num==1){
-    clickCount = count_of_clicks;
+    click_count = count_of_clicks;
     checkboxes = "couturecheckboxes";
-    checkName = "check";
-    checkId = "checkBox";
+    check_name = "check";
+    check_id = "checkbox";
   }
   else if(num==2){
-    clickCount = Py_count_of_clicks;
-    checkboxes = "Py_couturecheckboxes";
-    checkName = "py_check";
-    checkId = "py_checkBox";
+    click_count = py_count_of_clicks;
+    checkboxes = "py_couturecheckboxes";
+    check_name = "py_check";
+    check_id = "py_checkbox";
   }
   else if(num==3){
-    clickCount = kt_count_of_clicks;
+    click_count = kt_count_of_clicks;
     checkboxes = "kt_couturecheckboxes";
-    checkName = "kt_check";
-    checkId = "kt_checkBox";
+    check_name = "kt_check";
+    check_id = "kt_checkbox";
   }
   
   for(var i=0; i<selected_files.length; i++){
@@ -383,13 +383,13 @@ function getAllNames(files,selected_files,num) {
       file_name = y.split('\\').pop().split('/').pop();
       selected[i]=file_name;
       }
-  var myDiv = document.getElementById(checkboxes);
-  if (clickCount == 1)
+  var my_div = document.getElementById(checkboxes);
+  if (click_count == 1)
   {
     var checkbox = "";
     for(var t=0; t<files.length; t++) {
         file_name=files[t];
-        var checkBox = document.createElement("input");
+        var checkbox = document.createElement("input");
         var label = document.createElement("label");
         var in_selected = false;
         for (var i=0;i<selected.length;i++)
@@ -399,19 +399,19 @@ function getAllNames(files,selected_files,num) {
             }
         }
         if (in_selected==true) {
-            checkBox.checked = "true";
+            checkbox.checked = "true";
         }
-        checkBox.type = "checkbox";
-        checkBox.value = file_name;
-        checkBox.name = checkName;
-        checkBox.id = checkId;
-        checkBox.onclick = "javascript:showValue()";
+        checkbox.type = "checkbox";
+        checkbox.value = file_name;
+        checkbox.name = check_name;
+        checkbox.id = check_id;
+        checkbox.onclick = "javascript:showValue()";
         label.for = file_name;
-        myDiv.appendChild(label);
-        label.appendChild(checkBox);
+        my_div.appendChild(label);
+        label.appendChild(checkbox);
         linebreak = document.createElement("br");
-        myDiv.appendChild(linebreak);
-        checkBox.appendChild(document.createTextNode(file_name));
+        my_div.appendChild(linebreak);
+        checkbox.appendChild(document.createTextNode(file_name));
         label.appendChild(document.createTextNode(file_name));
     }
   }
