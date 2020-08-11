@@ -3557,11 +3557,9 @@ class EDAView(AirflowBaseView, BaseApi):
             pass
         return self.render_template('eda/eda_outputs.html', visualisations=viz)
 
-
- 
 class SparkConfView(AirflowBaseView):
 
-    
+    default_view = 'update_spark_conf'
     def get_files(self, ext, path):
         files = []
         for r, d, f in os.walk(path):
@@ -3613,21 +3611,21 @@ class SparkConfView(AirflowBaseView):
             config):
         for i in args:
             if i == 'jars' or i == 'keytab' or i == 'py-files':
-                fileType = {
+                file_type = {
                     'jars': 'check',
                     'keytab': 'kt_check',
                     'py-files': 'py_check'}
-                filePath = {
+                file_path = {
                     'jars': setup_path,
                     'keytab': keytab_path,
                     'py-files': setup_path}
-                filesList = []
-                filenames = request.form.getlist(fileType[i])
+                files_list = []
+                filenames = request.form.getlist(file_type[i])
                 for f in filenames:
-                    fn = os.path.join(filePath[i], f)
-                    filesList.append(fn)
-                updateFiles = ",".join(filesList)
-                config.set('arguments', i, updateFiles)
+                    fn = os.path.join(file_path[i], f)
+                    files_list.append(fn)
+                update_files = ",".join(files_list)
+                config.set('arguments', i, update_files)
             else:
                 config.set('arguments', i, request.form[i])
 
@@ -3692,13 +3690,13 @@ class SparkConfView(AirflowBaseView):
         return self.render_template(
             'airflow/couture_config.html',
             title=title,
-            Arguments=args,
-            Configurations=configs,
-            Files=files, Py_Files=py_files,
+            arguments=args,
+            configurations=configs,
+            files=files, py_files=py_files,
             len_jar=len_jar, len_py=len_py,
             kt_len=kt_len,
             group=group,
-            kt_Files=kt_files)  
+            kt_files=kt_files) 
 
 
 class LdapConfView(AirflowBaseView):

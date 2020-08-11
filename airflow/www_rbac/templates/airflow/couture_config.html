@@ -43,7 +43,7 @@
 
     <div id="container1" >
       
-      {%for i in Arguments%}
+      {%for i in arguments%}
       <div >  
         {%if i == 'jars' and len_jar>0%}<!-- JARS-->
           <div class="row"><!-- row1 begin --> 
@@ -52,7 +52,7 @@
             </div><!-- col1 end -->
             
             <div class="col-xs-8"><!-- col2 begin -->
-              <div onclick="javascript:getAllNames({{Files}},'{{Arguments[i]}}',1); javascript:showCoutureCheckBoxes(); ">
+              <div onclick="javascript:getAllNames({{files}},'{{arguments[i]}}',1); javascript:showCoutureCheckBoxes(); ">
                 <select class="form-control">
                   <option>Click to select jar files</option>
                 </select>
@@ -85,7 +85,7 @@
             
             <div class="col-xs-8"><!-- col2 begin -->
               <div >
-                <select class="form-control" onclick="javascript:getAllNames({{Py_Files}},'{{Arguments[i]}}',2); javascript:pyShowCoutureCheckBoxes(); ">
+                <select class="form-control" onclick="javascript:getAllNames({{py_files}},'{{arguments[i]}}',2); javascript:pyShowCoutureCheckBoxes(); ">
                   <option >Click to select python files</option>
                 </select>
               </div>
@@ -119,7 +119,7 @@
             </div><!-- col1 end -->
             
             <div class="col-xs-8"><!-- col2 begin -->
-              <div onclick="javascript:getAllNames({{kt_Files}},'{{Arguments[i]}}',3); javascript:ktShowCoutureCheckBoxes(); ">
+              <div onclick="javascript:getAllNames({{kt_files}},'{{arguments[i]}}',3); javascript:ktShowCoutureCheckBoxes(); ">
                 <select class="form-control">
                   <option>Click to select keytab files</option>
                 </select>
@@ -154,7 +154,7 @@
             </div>
             
             <div class="col-xs-8">
-              <input class="form-control" id={{i}} name={{i}} type="text" value="{{Arguments[i]}}">
+              <input class="form-control" id={{i}} name={{i}} type="text" value="{{arguments[i]}}">
             </div>
             
             <button onclick= "javascript:delFeed('{{i}}', 'for_delete')" class="close pull-left" aria-label="Close" title="Delete Argument"> 
@@ -185,14 +185,14 @@
     
 
     <div id="container2" >
-      {%for j in Configurations%}
+      {%for j in configurations%}
         <div class="row">
           <div class="col-xs-3">
             <label for={{j}}  >{{j}}</label>
           </div>
 
           <div class="col-xs-8">
-            <input class="form-control" id={{j}} name={{j}} type="text" value="{{Configurations[j]}}">
+            <input class="form-control" id={{j}} name={{j}} type="text" value="{{configurations[j]}}">
           </div>
 
           
@@ -235,8 +235,8 @@
 <script type="text/javascript">
 
 const globalValues = {
-  newConfigKeySN: 0,
-  newArgKeySN: 0,
+  new_config_key_sn: 0,
+  new_arg_key_sn: 0,
 };
 
 //function to add another row of fields for arguments inputs
@@ -245,15 +245,15 @@ function addFeed()
   var div1 = document.createElement('div');
   const template = '<div class="row">'
     + '<div class="col-xs-3">'
-      + '<input class="form-control" name="new-arg-key-'+ globalValues.newArgKeySN + '" type="text" value="" placeholder="Enter key">'
+      + '<input class="form-control" name="new-arg-key-'+ globalValues.new_arg_key_sn + '" type="text" value="" placeholder="Enter key">'
       +'<br>'
     + '</div>'
     + '<div class="col-xs-8">'
-    +   '<input class="form-control" name="new-arg-value-' + globalValues.newArgKeySN + '" type="text" value="" placeholder="Enter value">'
+    +   '<input class="form-control" name="new-arg-value-' + globalValues.new_arg_key_sn + '" type="text" value="" placeholder="Enter value">'
     + '</div>';
   '</div>'
   div1.innerHTML = template;
-  globalValues.newArgKeySN += 1;
+  globalValues.new_arg_key_sn += 1;
   document.getElementById('container1').appendChild(div1);
 }
 
@@ -263,16 +263,16 @@ function addFeedConfig()
   var div1 = document.createElement('div');
   const template = '<div class="row">'
     + '<div class="col-xs-3">'
-      + '<input class="form-control" name="new-config-key-'+ globalValues.newConfigKeySN + '" type="text" value="" placeholder="Enter key">'
+      + '<input class="form-control" name="new-config-key-'+ globalValues.new_config_key_sn + '" type="text" value="" placeholder="Enter key">'
       +'<br>'
     + '</div>'
     
     + '<div class="col-xs-8">'
-    + '<input class="form-control" name="new-config-value-' + globalValues.newConfigKeySN + '" type="text" value="" placeholder="Enter value">'
+    + '<input class="form-control" name="new-config-value-' + globalValues.new_config_key_sn + '" type="text" value="" placeholder="Enter value">'
     + '</div>';
   '</div>'
   div1.innerHTML = template;
-  globalValues.newConfigKeySN += 1;
+  globalValues.new_config_key_sn += 1;
   document.getElementById('container2').appendChild(div1);
 }
 
@@ -419,11 +419,11 @@ function getAllNames(files,selected_files,num) {
 
 $(document).ready(function () {
 
-    getAllNames({{Files|safe}},'{{Arguments['jars']}}', 1);
+    getAllNames({{files|safe}},'{{arguments['jars']}}', 1);
     showCoutureCheckBoxes(true);
-    getAllNames({{Py_Files|safe}},'{{Arguments['py-files']}}', 2);
+    getAllNames({{py_files|safe}},'{{arguments['py-files']}}', 2);
     pyShowCoutureCheckBoxes(true);
-    getAllNames({{kt_Files|safe}},'{{Arguments['keytab']}}', 3);
+    getAllNames({{kt_files|safe}},'{{arguments['keytab']}}', 3);
     ktShowCoutureCheckBoxes(true);
 
   }
