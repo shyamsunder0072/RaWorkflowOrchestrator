@@ -19,6 +19,8 @@
 #
 import ast
 import copy
+import collections
+import configparser as CP
 import functools
 import itertools
 import json
@@ -3555,157 +3557,150 @@ class EDAView(AirflowBaseView, BaseApi):
             pass
         return self.render_template('eda/eda_outputs.html', visualisations=viz)
 
-
 class SparkConfView(AirflowBaseView):
+
     default_view = 'update_spark_conf'
+    def get_files(self, path, ext=[]):
+        files = []
+        for r, d, f in os.walk(path):
+            for file in f:
+                print(Path(file).stem, ext)
+                if not ext or Path(file).suffix in ext:
+                    files.append(file)
+        return files
 
-    @expose('/couture_config/<string:group>', methods=['GET', 'POST'])
-    @has_access
-    @action_logging
-    def update_spark_conf(self, group):
-        # print(request.form)
-        title = "Couture Spark Configuration"
-        import collections
-        import configparser as CP
-        config = CP.ConfigParser()
-        config.optionxform = str
-        conf_path = os.path.join(settings.HADOOP_CONFIGS_FOLDER, *[group, 'couture-spark.conf'])
-        setup_path = os.path.join(settings.AIRFLOW_HOME, *[os.pardir, 'jars'])
-        keytab_path = os.path.join(settings.HADOOP_CONFIGS_FOLDER, *[group, 'keytab'])
+    # remove deleted fields from the conf file
+    def delete_fields(self, config):
+        try:
+            if config.has_option('arguments',
+                                 request.form['option_title_args_delete']):
+                config.remove_option(
+                    'arguments', request.form['option_title_args_delete'])
+        except Exception:
+            print("Sorry ! No field found in delete in args")
 
+        try:
+            if config.has_option('configurations',
+                                 request.form['option_title_config_delete']):
+                config.remove_option(
+                    'configurations',
+                    request.form['option_title_config_delete'])
+        except Exception:
+            print("Sorry ! No field found in delete in config")
+
+    # if the conf file is there initialise args,confids else make the conf
+    # file and initialize sections,
+    def init_args_configs(self, conf_path, config):
         if os.path.exists(conf_path):
             config.read(filenames=conf_path)
-            # orderedDictionary used so that the order displayed is same as in file
             args = collections.OrderedDict(config.items('arguments'))
-            configs = collections.OrderedDict(config.items('configurations'))  # dictionary created
+            configs = collections.OrderedDict(config.items('configurations'))
         else:
             config.add_section('arguments')
             config.add_section('configurations')
             args = collections.OrderedDict()
             configs = collections.OrderedDict()
+        return args, configs
 
-        files = []
-        py_files = []
-        # QUESTION(@ANU): Do we need os.walk here ??
-        for r, d, f in os.walk(setup_path):
-            for file in f:
-                if file.endswith(".jar"):
-                    files.append(file)
-                if file.endswith(".py") or file.endswith(".egg") or file.endswith(".zip"):
-                    py_files.append(file)
-        kt_files = []
-        for r, d, f in os.walk(keytab_path):
-            for file in f:
-                kt_files.append(file)
+    # update the Arguments, Configurations sections in config file
+    def update_args_configs(
+            self,
+            args,
+            configs,
+            setup_path,
+            keytab_path,
+            config):
+        for i in args:
+            if i == 'jars' or i == 'keytab' or i == 'py-files':
+                file_type = {
+                    'jars': 'check',
+                    'keytab': 'kt_check',
+                    'py-files': 'py_check'}
+                file_path = {
+                    'jars': setup_path,
+                    'keytab': keytab_path,
+                    'py-files': setup_path}
+                files_list = []
+                filenames = request.form.getlist(file_type[i])
+                for f in filenames:
+                    fn = os.path.join(file_path[i], f)
+                    files_list.append(fn)
+                update_files = ",".join(files_list)
+                config.set('arguments', i, update_files)
+            else:
+                config.set('arguments', i, request.form[i])
+
+        for j in configs:
+            config.set('configurations', j, request.form[j])
+        return
+
+    # add the new fields to the conf file
+    def update_new_args_configs(self, config):
+        for key in request.form:
+            if request.form[key]:
+                key_no = key.split('-')[-1]
+                if key.startswith('new-arg-key'):
+                    config.set('arguments',
+                               request.form[key],
+                               request.form['new-arg-value-' + key_no])
+                elif key.startswith('new-config-key'):
+                    config.set('configurations',
+                               request.form[key],
+                               request.form['new-config-value-' + key_no])
+
+    @expose('/couture_config/<string:group>', methods=['GET', 'POST'])
+    @has_access
+    @action_logging
+    # function that updates couture_conf.html page and writes changes to
+    # couture-spark config file
+    def update_spark_conf(self, group):
+        title = "Couture Spark Configuration"
+
+        config = CP.ConfigParser()
+        config.optionxform = str
+        conf_path = os.path.join(
+            settings.HADOOP_CONFIGS_FOLDER, *[group, 'couture-spark.conf'])
+        setup_path = settings.SPARK_DEPENDENCIES_FOLDER
+        keytab_path = os.path.join(
+            settings.HADOOP_CONFIGS_FOLDER, *[group, 'keytab'])
+        args, configs = self.init_args_configs(conf_path, config)
+
+        files = self.get_files(setup_path, [".jar"])
+        print(files, setup_path)
+        py_files = self.get_files(setup_path, [".py",".egg",".zip"])
+        kt_files = self.get_files(keytab_path)
 
         if request.method == 'POST':
             config.read(filenames=conf_path)
-            # orderedDictionary used so that the order displayed is same as in file
             args = collections.OrderedDict(config.items('arguments'))
-            configs = collections.OrderedDict(config.items('configurations'))  # dictionary created
-            # print(request.form.getlist('check'))
-            # print(request.form.getlist('kt_check'))
-            # print(request.form.getlist('py_check'))
-            for i in args:
-                if i != 'jars' and i != 'py-files' and i != 'keytab':
-                    config.set('arguments', i, request.form[i])
-                elif i == 'jars':  # if the field is jars
-                    list_file = []
-                    filenames = request.form.getlist('check')
-                    for f in filenames:
-                        fn = os.path.join(setup_path, f)  # joining the filenames with their path
-                        list_file.append(fn)
-                    jarfiles = ",".join(list_file)  # joining all the filenames in a string
+            configs = collections.OrderedDict(config.items('configurations'))
+            self.update_args_configs(
+                args, configs, setup_path, keytab_path, config)
+            self.update_new_args_configs(config)
+            self.delete_fields(config)
 
-                    config.set('arguments', i, jarfiles)  # saving the new updated list of files
-                elif i == 'keytab':  # if the field is keytab
-                    kt_file = []
-                    filenames = request.form.getlist('kt_check')
-                    for f in filenames:
-                        fn = os.path.join(keytab_path, f)  # joining the filenames with their path
-                        kt_file.append(fn)
-                    ktfiles = ",".join(kt_file)  # joining all the filenames in a string
-
-                    config.set('arguments', i, ktfiles)  # saving the new updated list of files
-                else:
-                    py_list_file = []
-                    py_filenames = request.form.getlist('py_check')
-                    for f in py_filenames:
-                        fn = os.path.join(setup_path, f)  # joining the filenames with their path
-                        py_list_file.append(fn)
-                    pythonfiles = ",".join(py_list_file)  # joining all the filenames in a string
-
-                    config.set('arguments', i, pythonfiles)  # saving the new updated list of files
-
-            for j in configs:
-                # print("printing j", j, request.form[j])
-                config.set('configurations', j, request.form[j])  # saving the new updated fields
-
-            # filtering out new keys:
-            for key in request.form:
-                if key.startswith('new-arg-key') and request.form[key]:
-                    # adding new fields in config['arguments']
-                    key_no = key.split('-')[-1]
-                    config.set('arguments', request.form[key], request.form['new-arg-value-' + key_no])
-                elif key.startswith('new-config-key') and request.form[key]:
-                    # adding new fields in config['configurations']
-                    key_no = key.split('-')[-1]
-                    config.set('configurations', request.form[key],
-                               request.form['new-config-value-' + key_no])
-
-            try:
-                # if there is option in the file, then delete
-                if config.has_option('arguments', request.form['option_title_args_delete']):
-                    # deleting from the config file
-                    config.remove_option('arguments', request.form['option_title_args_delete'])
-            except Exception:
-                print("Sorry ! No field found in delete in args")
-
-            try:
-                # if there is option in the file, then delete
-                if config.has_option('configurations', request.form['option_title_config_delete']):
-                    # deleting from the config file
-                    config.remove_option('configurations', request.form['option_title_config_delete'])
-            except Exception:
-                print("Sorry ! No field found in delete in config")
-
-            # writing all the changes to the file
+            # writing all the changes to the config file
             with open(conf_path, 'w') as configfile:
                 config.write(configfile)
 
-            new_args = collections.OrderedDict(config.items('arguments'))
-            new_config = collections.OrderedDict(config.items('configurations'))
-            len_jar = len(files)
-            len_py = len(py_files)
-            kt_len = len(kt_files)
-            return self.render_template(
-                'airflow/couture_config.html',
-                title=title,
-                Arguments=new_args,
-                Configurations=new_config,
-                Files=files,
-                Py_Files=py_files,
-                len_jar=len_jar,
-                len_py=len_py,
-                kt_len=kt_len,
-                kt_Files=kt_files,
-                group=group
-            )
-        else:
-            len_jar = len(files)
-            len_py = len(py_files)
-            kt_len = len(kt_files)
-            return self.render_template(
-                'airflow/couture_config.html',
-                title=title,
-                len=len(args),
-                Arguments=args,
-                Configurations=configs,
-                Files=files, Py_Files=py_files,
-                len_jar=len_jar, len_py=len_py,
-                kt_len=kt_len,
-                group=group,
-                kt_Files=kt_files)
+            args = collections.OrderedDict(config.items('arguments'))
+            configs = collections.OrderedDict(config.items('configurations'))
+
+        len_jar = len(files)
+        len_py = len(py_files)
+        kt_len = len(kt_files)
+        return self.render_template(
+            'airflow/couture_config.html',
+            title=title,
+            arguments=args,
+            configurations=configs,
+            files=files,
+            py_files=py_files,
+            len_jar=len_jar,
+            len_py=len_py,
+            kt_len=kt_len,
+            group=group,
+            kt_files=kt_files)
 
 
 class LdapConfView(AirflowBaseView):
