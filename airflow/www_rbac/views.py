@@ -3560,11 +3560,12 @@ class EDAView(AirflowBaseView, BaseApi):
 class SparkConfView(AirflowBaseView):
 
     default_view = 'update_spark_conf'
-    def get_files(self, ext, path):
+    def get_files(self, path, ext=[]):
         files = []
         for r, d, f in os.walk(path):
             for file in f:
-                if os.path.splitext(file)[1] in ext or ext[0]=="kt":
+                print(Path(file).stem, ext)
+                if not ext or Path(file).suffix in ext:
                     files.append(file)
         return files
 
@@ -3654,19 +3655,20 @@ class SparkConfView(AirflowBaseView):
     # couture-spark config file
     def update_spark_conf(self, group):
         title = "Couture Spark Configuration"
-        
+
         config = CP.ConfigParser()
         config.optionxform = str
         conf_path = os.path.join(
             settings.HADOOP_CONFIGS_FOLDER, *[group, 'couture-spark.conf'])
-        setup_path = os.path.join(settings.AIRFLOW_HOME, *[os.pardir, 'jars'])
+        setup_path = settings.SPARK_DEPENDENCIES_FOLDER
         keytab_path = os.path.join(
             settings.HADOOP_CONFIGS_FOLDER, *[group, 'keytab'])
         args, configs = self.init_args_configs(conf_path, config)
 
-        files = self.get_files([".jar"], setup_path)
-        py_files = self.get_files([".py",".egg",".zip"], setup_path)
-        kt_files = self.get_files(["kt"],keytab_path)
+        files = self.get_files(setup_path, [".jar"])
+        print(files, setup_path)
+        py_files = self.get_files(setup_path, [".py",".egg",".zip"])
+        kt_files = self.get_files(keytab_path)
 
         if request.method == 'POST':
             config.read(filenames=conf_path)
@@ -3692,11 +3694,13 @@ class SparkConfView(AirflowBaseView):
             title=title,
             arguments=args,
             configurations=configs,
-            files=files, py_files=py_files,
-            len_jar=len_jar, len_py=len_py,
+            files=files,
+            py_files=py_files,
+            len_jar=len_jar,
+            len_py=len_py,
             kt_len=kt_len,
             group=group,
-            kt_files=kt_files) 
+            kt_files=kt_files)
 
 
 class LdapConfView(AirflowBaseView):
