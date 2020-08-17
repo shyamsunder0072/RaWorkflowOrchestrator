@@ -44,7 +44,7 @@ class K8GitRepo:
                 #     flash('Please open jupyterhub and start atleast one  server before executing git commands')
                 # else:
                 #     flash('Unknown error occured while executing git command !')
-                return ''
+                raise Exception('Cannot reach jupyter server.')
             try:
                 resp = stream(core_v1.connect_get_namespaced_pod_exec,
                     container,
@@ -192,7 +192,8 @@ class GitIntegrationMixin:
         branch = section['branch']
         try:
             self.repo.git.pull(origin, branch)
-        except git.exc.GitCommandError as err:
+        # except git.exc.GitCommandError as err:
+        except Exception as err:
             log.error(err)
             return False
         return True
@@ -207,7 +208,8 @@ class GitIntegrationMixin:
         branch = section['branch']
         try:
             self.repo.git.push(origin, branch)
-        except git.exc.GitCommandError as err:
+        # except git.exc.GitCommandError as err:
+        except Exception as err:
             log.error(err)
             return False
         return True
@@ -242,7 +244,8 @@ class GitIntegrationMixin:
         try:
             logs = list(map(lambda s: self.__convert_logs(
                 s), self.repo.git.log(*args).split('\n')))
-        except git.exc.GitCommandError:
+        # except git.exc.GitCommandError:
+        except Exception:
             logs = []
         return logs
 
@@ -275,9 +278,12 @@ class GitIntegrationMixin:
         }
 
     def git_status(self):
-        status = self.repo.git.status('--porcelain').split('\n')
-        return list(filter(lambda s: True if s['name'] else False,
-                           (map(lambda s: self.__convert_status(s), status))))
+        try:
+            status = self.repo.git.status('--porcelain').split('\n')
+            return list(filter(lambda s: True if s['name'] else False,
+                            (map(lambda s: self.__convert_status(s), status))))
+        except Exception:
+            return
 
     def git_set_origin(self, origin_url):
         self.repo.remote('set-url', self.ORIGIN, origin_url)
