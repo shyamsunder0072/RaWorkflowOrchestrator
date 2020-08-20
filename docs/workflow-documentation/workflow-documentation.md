@@ -24,6 +24,7 @@ The rich user interface makes it easy to visualize pipelines running in producti
 - Support for multiple `Spark & Hadoop Clusters`.
 - Support for `Jupyterhub` & submitting `Spark Jobs` from `Jupyterhub` using `Livy`.
 - Support for `Tensorflow Serving`.
+- Support for `Openscoring - Spark Model Serving`.
 
 # Installation
 
@@ -1196,7 +1197,9 @@ Upload a `.tar` or `.tar.gz` archive of your model. The archive will be extracte
 
 ### Spark Models
 
-Any file can be uploaded in this section. Models added in this section are currently not exposed by an API.
+`.pmml` files can be uploaded in this section. Models added in this section are exposed by an inference API on port 8000 in < 10 minutes. For information on how to use the REST API for inference checkout the [Openscoring model inference guide](https://github.com/openscoring/openscoring/blob/master/README.md#model-querying). 
+
+You can export your Apache Spark models in the Predictive Model Markup Language(PMML) using the [Spark documentation on PMML export.](https://spark.apache.org/docs/2.3.0/mllib-pmml-model-export.html)
 
 ### Pytorch Models
 

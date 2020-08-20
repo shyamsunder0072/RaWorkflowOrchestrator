@@ -2705,9 +2705,9 @@ class TrainedModelsView(FileUploadBaseView):
         },
         'spark_models': {
             'path': os.path.join(base_fs_path, 'spark-models'),
-            'extract_on_upload': False,
-            'update_config': False,
-            'accept_extensions': ('.tar', '.gz')
+            'extract_on_upload': True,
+            'update_config': True,
+            'accept_extensions': ('.pmml')
         },
         'pytorch_models': {
             'path': os.path.join(base_fs_path, 'pytorch-models'),
@@ -2770,7 +2770,6 @@ class TrainedModelsView(FileUploadBaseView):
     @csrf.exempt
     @has_access
     def upload_view(self, pathname=None):
-        # print(request.form)
         file = request.files['file']
         temp_save_path = os.path.join(self.temp_fs_path, request.form['dzuuid'])
         current_chunk = int(request.form['dzchunkindex'])
@@ -2899,6 +2898,24 @@ class TrainedModelsView(FileUploadBaseView):
             #     extra='pytorch-models',
             #     source_ip=remote_addr)
 
+        # code for spark-models
+        elif model_type=="spark_models":
+            # if it's a model deployument request
+            if not delete:
+                # get model name
+                model_name = str(Path(file).stem)
+                # read model file
+                data = open(pathname+'/'+file, 'rb').read()
+                # set model header
+                headers = {"Content-Type":"text/xml",}
+                # send deployment request to model server
+                requests.put(f'{settings.SPARK_SERVE_URL}/{model_name}',data=data,headers=headers)
+            else:
+                # TODO: Delete functinoality
+                pass
+            return
+
+
     def extra_work_after_file_save(self, temp_save_path, file, total_chunks, pathname, remote_addr=None):
         # TODO: MODIFY THIS HACK.
         fs_key = pathname
@@ -2920,7 +2937,12 @@ class TrainedModelsView(FileUploadBaseView):
         if not self.fs_mapping[fs_key]['extract_on_upload'] and not self.fs_mapping[fs_key]['update_config']:
             return
 
-        if str(pathname).endswith(('.mar', )) and self.fs_mapping[fs_key]['update_config']:
+        # for pytorchserve
+        if str(pathname).endswith(('.mar')) and self.fs_mapping[fs_key]['update_config']:
+                self.update_models_config(fs_path, fs_key, file, remote_addr=remote_addr)
+        
+        # addition for spark-models - uplaoded as PMML files        
+        if str(pathname).endswith(('.pmml' )) and self.fs_mapping[fs_key]['update_config']:
                 self.update_models_config(fs_path, fs_key, file, remote_addr=remote_addr)
 
         if str(pathname).endswith(('.tar', '.tar.gz')):

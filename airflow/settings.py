@@ -164,6 +164,7 @@ LANGUAGE_SERVER_URL = None
 RECONNECT_INTERVAL = None
 PYTORCH_MANAGEMENT_URL = None
 JUPYTERHUB_ACCESS_PORT = None
+SPARK_SERVE_URL = None
 
 MAX_CHUNK_SIZE = 512000 * 4  # bytes
 MAX_FILE_SIZE = 1025 * 1025 * 10  # megabytes
@@ -239,6 +240,7 @@ def configure_vars():
     global PYTORCH_MANAGEMENT_URL
     # global PYTORCH_SERVING_URL
     global JUPYTERHUB_ACCESS_PORT
+    global SPARK_SERVE_URL
 
     SQL_ALCHEMY_CONN = conf.get('core', 'SQL_ALCHEMY_CONN')
     DAGS_FOLDER = os.path.expanduser(conf.get('core', 'DAGS_FOLDER'))
@@ -265,7 +267,12 @@ def configure_vars():
     pytorch_model_server_host = conf.get('modelservers', 'pytorch_model_server_host')
     pytorch_model_server_management_port = conf.get('modelservers', 'pytorch_model_server_management_port')
     PYTORCH_MANAGEMENT_URL = f'http://{pytorch_model_server_host}:{pytorch_model_server_management_port}'
+
+    spark_serve_host = conf.get('modelservers','spark_serve_host')
+    spark_serve_port = conf.get('modelservers','spark_serve_port')
+    SPARK_SERVE_URL= f'http://{spark_serve_host}:{spark_serve_port}/model'
     LANGUAGE_SERVER_URL = conf.get('langserver', 'langserver_url')
+
 
     PLUGINS_FOLDER = conf.get(
         'core',
