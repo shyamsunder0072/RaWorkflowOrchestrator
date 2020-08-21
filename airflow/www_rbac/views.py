@@ -3678,11 +3678,12 @@ class SparkConfView(AirflowBaseView):
     def update_spark_conf(self, group):
         title = "Couture Spark Configuration"
 
+        
         config = CP.ConfigParser()
         config.optionxform = str
         conf_path = os.path.join(
             settings.HADOOP_CONFIGS_FOLDER, *[group, 'couture-spark.conf'])
-        setup_path = settings.SPARK_DEPENDENCIES_FOLDER
+        setup_path = settings.SPARK_DEPENDENCIES_FOLDER 
         keytab_path = os.path.join(
             settings.HADOOP_CONFIGS_FOLDER, *[group, 'keytab'])
         args, configs = self.init_args_configs(conf_path, config)
@@ -3716,13 +3717,13 @@ class SparkConfView(AirflowBaseView):
             title=title,
             arguments=args,
             configurations=configs,
-            files=files,
+            files=files, 
             py_files=py_files,
-            len_jar=len_jar,
+            len_jar=len_jar, 
             len_py=len_py,
             kt_len=kt_len,
             group=group,
-            kt_files=kt_files)
+            kt_files=kt_files) 
 
 
 class LdapConfView(AirflowBaseView):
@@ -3937,7 +3938,8 @@ class KeyTabView(AirflowBaseView):
     @has_access
     def download(self, group, filename):  # for downloading the file passed in the filename
         add_to_dir = os.path.join(settings.HADOOP_CONFIGS_FOLDER, *[group])
-        path_file = os.path.join(add_to_dir, filename)
+        keytab_path = os.path.join(add_to_dir, 'keytab')
+        path_file = os.path.join(keytab_path, filename)
         AirflowBaseView.audit_logging(
             'KeyTabView.download_keytab',
             f'{group}-{filename}',
