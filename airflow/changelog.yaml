@@ -1,4 +1,20 @@
 changelog:
+  - version: 2.1.0
+    authors: ['AnubhavUjjawal', 'VivekKaushal', 'SaiRathan', 'Adrian']
+    newFeatures:
+      - Updated TFServing Commons
+    bugFixes:
+      - Updated Spark Configuration Page
+    improvements:
+      - Bumped tensorflow and tensorflow-serving-api version to 2.3.0
+  - version: 2.0.3
+    authors: ['AnubhavUjjawal', 'VivekKaushal']
+    newFeatures:
+      - Basic Pytorch integration.
+    bugFixes:
+      - None
+    improvements:
+      - Updated help documentation
   - version: 2.0.4
     authors: ['AnubhavUjjawal', 'VivekKaushal', 'SaiRathan']
     newFeatures:
