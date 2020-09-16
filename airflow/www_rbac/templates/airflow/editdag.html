@@ -385,8 +385,7 @@
 
         ws.addEventListener('close', function (event) {
           if (tries == 0) {
-            window.jQuery = window.$ = jQuery;
-            $.notify("Code analysis and suggestions are currently unavailable. You can still code!", "warn")
+            jQuery.notify("Code analysis and suggestions are currently unavailable. You can still code!", "warn")
             console.log("Language server connection closed, trying to reconnect ...")
           }
           handleDisconnect();
@@ -395,8 +394,7 @@
         ws.addEventListener('open', function (event) {
           tries = 0
           console.log("Language server connected");
-          window.jQuery = window.$ = jQuery;
-          $.notify("Language server is connected! Code analysis and suggestions are available.", "success");
+          jQuery.notify("Language server is connected! Code analysis and suggestions are available.", "success");
         });
       }, {{ reconnect_interval }});
     }
@@ -405,15 +403,13 @@
   ws = new WebSocket("{{language_server_url}}");
   ws.addEventListener('close', function (event) {
     console.log("Language server connection closed, trying to reconnect ...")
-    window.jQuery = window.$ = jQuery;
-    $.notify("Code analysis and suggestions are currently unavailable. You can still code!", "warn")
+    jQuery.notify("Code analysis and suggestions are currently unavailable. You can still code!", "warn")
     handleDisconnect();
   });
   ws.addEventListener('open', function (event) {
     tries = 0;
     console.log("Language server connected");
-    window.jQuery = window.$ = jQuery;
-    $.notify("Language server is connected! Code analysis and suggestions are available.", "success")
+    jQuery.notify("Language server is connected! Code analysis and suggestions are available.", "success")
   });
 
   // connect to language server
