@@ -3320,9 +3320,12 @@ class ExportConfigsView(AirflowBaseView, BaseApi):
         # TODO: enable authentication.
         if request.method=='GET':
             model = request.args.get('runId')
-            with open(base_fs_path+'/tf-models/models.config') as f:
-                if model in f.read():
-                    return 'deployed'
+            try:
+                with open(base_fs_path+'/tf-models/models.config') as f:
+                    if model in f.read():
+                        return 'deployed'
+            except Exception as e:
+                print(e)
             return 'not_deployed'
 
         if request.method=='POST':
