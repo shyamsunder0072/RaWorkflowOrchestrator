@@ -308,9 +308,6 @@ mongo = [
     'dnspython>=1.13.0,<2.0.0',
     'pymongo>=3.6.0',
 ]
-mlflow = [
-    'mlflow>=1.9.1',
-]
 mssql = [
     'pymssql~=2.1.1',
 ]
@@ -644,6 +641,7 @@ def do_setup():
             'setuptools',
             'wheel',
         ],
+        dependency_links=['https://github.com/coutureai/mlflow/archive/master.zip'],
         extras_require=EXTRAS_REQUIREMENTS,
         classifiers=[
             'Development Status :: 5 - Production/Stable',
