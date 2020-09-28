@@ -3187,7 +3187,7 @@ class HadoopConfView(FileUploadBaseView):
             return redirect(url_for('HadoopConfView.edit_view', pathname=pathname))
 
 
-class ExportModelConfigsView(AirflowBaseView, BaseApi):
+class UpdateModelConfig(AirflowBaseView, BaseApi):
     def set_config(self,pathname):
         config = 'model_config_list: {'
         dirs = [name for name in os.listdir(pathname) if os.path.isdir(os.path.join(pathname, name))]

@@ -117,7 +117,7 @@ def create_app(config=None, session=None, testing=False, app_name="Workflow"):
             # reusing a session with a disconnected connection
             appbuilder.session.remove()
             appbuilder.add_view_no_menu(views.Airflow())
-            appbuilder.add_api(views.ExportModelConfigsView())
+            appbuilder.add_api(views.UpdateModelConfig())
             appbuilder.add_api(views.ExportConfigsView())
             appbuilder.add_view_no_menu(views.DagModelView())
             appbuilder.add_view_no_menu(views.SparkConfView())
