@@ -99,6 +99,8 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         # API auth is not enabled ?????
         'ExportConfigsView',
 
+        'ExportModelConfigsView',
+
         'Git Configuration',
         # 'GitConfigView',
 
