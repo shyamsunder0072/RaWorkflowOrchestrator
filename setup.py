@@ -641,6 +641,7 @@ def do_setup():
             'setuptools',
             'wheel',
         ],
+        dependency_links=['https://github.com/coutureai/mlflow/archive/master.zip'],
         extras_require=EXTRAS_REQUIREMENTS,
         classifiers=[
             'Development Status :: 5 - Production/Stable',

@@ -69,6 +69,8 @@ from sqlalchemy import and_, desc, func, or_, union_all # noqa
 from sqlalchemy.orm import joinedload
 from wtforms import SelectField, validators
 
+from mlflow.tracking.artifact_utils import _download_artifact_from_uri
+
 import airflow
 from airflow.configuration import conf
 from airflow import models, jobs
@@ -3183,6 +3185,69 @@ class HadoopConfView(FileUploadBaseView):
             tree.write(xml_file)  # writing all the updated changes to the fields
 
             return redirect(url_for('HadoopConfView.edit_view', pathname=pathname))
+
+
+class UpdateModelConfig(AirflowBaseView, BaseApi):
+    def set_config(self,pathname):
+        config = 'model_config_list: {'
+        dirs = [name for name in os.listdir(pathname) if os.path.isdir(os.path.join(pathname, name))]
+        for dname in dirs:
+            config += '''config: {
+                            name: "%s",
+                            base_path: "/usr/local/couture/trained-models/%s/%s",
+                            model_platform: "tensorflow"
+                        },''' % (dname, 'tf-models', dname)
+        config += '}'
+        try:
+            with open(os.path.join(pathname, 'models.config'), 'w') as f:
+                f.write(config)
+        except Exception as e:
+            print(e)
+
+    # mlflow tf model upload and deployment to tfserving
+    def download_and_deploy_model(self,model_uri,model_run_id,pathname):
+        # download model and move to mount location
+        try:
+            path = Path(_download_artifact_from_uri(model_uri))
+            os.rename(path/'tfmodel',path/'1')  
+            os.rename(path,pathname+model_run_id)
+        except Exception as e:
+            print(e)
+        # deploy model
+        self.set_config(pathname)
+
+    # mlflow tfmodel integration endpoint
+    @expose('/deploy/',methods=['GET','POST'])
+    @csrf.exempt
+    def deploy(self):
+        base_fs_path = settings.MODEL_SERVERS
+        if request.method=='GET':
+            model = request.args.get('runId')
+            try:
+                with open(base_fs_path+'/tf-models/models.config') as f:
+                    if model in f.read():
+                        return 'deployed'
+            except Exception as e:
+                print(e)
+            return 'not_deployed'
+
+        if request.method=='POST':
+            # get model uri
+            data = json.loads(request.stream.read().decode('utf-8'))
+            # deploy model
+            if data['action'] == 'deploy':
+                download_and_deploy_model_thread = threading.Thread(
+                target=self.download_and_deploy_model,
+                args=(data['source'], data['run_id'],base_fs_path+'/tf-models/'))
+                print("Request recived from MLflow to deploy tf-model "+data['run_id'])
+                download_and_deploy_model_thread.start()
+                return "tf-model "+data['run_id']+" deployed"
+            # remove model
+            if data['action'] == 'remove':
+                shutil.rmtree(base_fs_path+'/tf-models/'+data['run_id'])
+                self.set_config(base_fs_path+'/tf-models/')
+                print("Request recived from MLflow to remove tf-model "+data['run_id'])
+                return "tf-model "+data['run_id']+" removed" 
 
 
 class ExportConfigsView(AirflowBaseView, BaseApi):
