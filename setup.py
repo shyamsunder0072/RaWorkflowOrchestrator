@@ -539,7 +539,7 @@ EXTRAS_REQUIREMENTS = {
 # DEPENDENCIES_EPOCH_NUMBER in the Dockerfile.ci
 #####################################################################################################
 INSTALL_REQUIREMENTS = [
-    'alembic>=1.0, <2.0',
+    'alembic>=1.0, <=1.4.1',
     'argcomplete~=1.10',
     'attrs~=19.3',
     'cached_property~=1.5',
@@ -570,7 +570,9 @@ INSTALL_REQUIREMENTS = [
     'lxml>=4.0.0',
     'mccabe<0.7.0,>=0.6.0',
     'markdown>=2.5.2, <3.0',
+    'markdown2==2.3.9',
     'marshmallow-sqlalchemy>=0.16.1, <0.19.0;python_version<"3.6"',
+    'mlflow @ https://github.com/coutureai/mlflow/archive/master.zip',
     'pandas>=0.17.1, <1.0.0',
     'papermill>=1.0.0',
     'pendulum==1.4.4',
@@ -583,11 +585,11 @@ INSTALL_REQUIREMENTS = [
     'Pyflakes>=2.2.0',
     'requests>=2.20.0, <3',
     'setproctitle>=1.1.8, <2',
-    'sqlalchemy~=1.3',
+    'sqlalchemy==1.3.13',
     'sqlalchemy_jsonfield==0.8.0;python_version<"3.5"',
     'sqlalchemy_jsonfield~=0.9;python_version>="3.5"',
     'tabulate>=0.7.5, <0.9',
-    'tenacity==4.12.0',
+    'tenacity==6.2.0',
     'termcolor==1.1.0',
     'text-unidecode==1.2',
     'thrift>=0.9.2',
@@ -641,7 +643,6 @@ def do_setup():
             'setuptools',
             'wheel',
         ],
-        dependency_links=['https://github.com/coutureai/mlflow/archive/master.zip'],
         extras_require=EXTRAS_REQUIREMENTS,
         classifiers=[
             'Development Status :: 5 - Production/Stable',

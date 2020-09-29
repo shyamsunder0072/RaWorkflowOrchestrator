@@ -25,6 +25,7 @@ import functools
 import itertools
 import json
 import logging
+import markdown2
 import math
 import os
 import re
@@ -4322,7 +4323,7 @@ class AddDagView(AirflowBaseView):
 
     # regex for validating filenames while adding new ones
     regex_valid_filenames = re.compile('^[A-Za-z0-9_@()-]+$')
-    regex_valid_snippetnames = re.compile('^[\sA-Za-z0-9_@()-]+$') # noqa
+    # regex_valid_snippetnames = re.compile('^[\sA-Za-z0-9_@()-]+$') # noqa
 
     template_dag_file_path = os.path.join(
         app.root_path, *['..', 'config_templates', 'default_dag_template.py'])
@@ -4345,38 +4346,58 @@ class AddDagView(AirflowBaseView):
         return os.path.join(settings.DAGS_FOLDER, filename)
 
     def get_snippet_metadata_path(self):
-        return os.path.join(AIRFLOW_HOME, *['repo', 'dag-snippets.json'])
+        return os.path.join(AIRFLOW_HOME, 'repo')
+        # return os.path.join(AIRFLOW_HOME, *['repo', 'dag-snippets.json'])
 
-    def get_snippet_file_path(self, title):
-        filename = self.snippet_title_to_file(title)
-        return os.path.join(AIRFLOW_HOME, *['repo', filename])
+    # def get_snippet_file_path(self, title):
+    #     filename = self.snippet_title_to_file(title)
+    #     return os.path.join(AIRFLOW_HOME, *['repo', filename])
 
     def get_snippets_metadata(self):
-        snippets_path = self.get_snippet_metadata_path()
-        with open(snippets_path) as f:
-            return json.load(f)
+        snippets_path = Path(self.get_snippet_metadata_path())
+        # open all top level folders.
+        snippet_folders = [f for f in snippets_path.iterdir() if f.is_dir()]
 
-    def get_snippets(self):
-        snippets_path = self.get_snippet_metadata_path()
-        if Path(snippets_path).exists():
-            metadata = self.get_snippets_metadata()
-            # print(metadata)
-            for title in metadata.keys():
-                try:
-                    with open(self.get_snippet_file_path(title)) as codefile:
-                        snippet = codefile.read()
-                except Exception:
-                    # print(e)
-                    snippet = ''
-                metadata[title] = {
-                    'description': metadata[title],
+        # Codebrick structure. Each directory inside the `self.get_snippet_metadata_path`
+        # will have a single codebrick. Inside it will be two files:
+        # - description.md : The codebrick description in markdown.
+        # - snippet.py : The codebrick python snippet.
+
+        # Remember, we want to remove the codebrick from the list if that codebrick
+        # folder doesn't contain any snippet.py file. If it doesn't contain description.md,
+        # make the description string empty.
+
+        snippets_metadata = {}
+        for snippet_folder in snippet_folders:
+            description = ''
+            snippet = ''
+
+            try:
+                with open(snippets_path.joinpath(*[snippet_folder, 'description.md'])) as f:
+                    description = f.read()
+            except Exception:
+                description = ''
+            
+            try:
+                with open(snippets_path.joinpath(*[snippet_folder, 'snippet.py'])) as f:
+                    snippet = f.read()
+            except Exception:
+                snippet = ''
+
+            if snippet:
+                snippets_metadata[snippet_folder.stem] = {
+                    'description': markdown2.markdown(description),
                     'snippet': snippet
                 }
-            return metadata
-        return dict()
+
+        return snippets_metadata
+
+    def get_snippets(self):
+        return self.get_snippets_metadata()
 
     def snippet_title_to_file(self, title):
-        return title.replace(' ', '_') + '.py'
+        return f'{title}.py'
+        # return title.replace(' ', '_') + '.py'
 
     def save_snippets(self, metadata, new_snippet):
         """Save a new snippet in the repo
@@ -4385,16 +4406,21 @@ class AddDagView(AirflowBaseView):
             metadata {dict} -- with keys `title` and `description` of new snippet
             new_snippet {str} -- code of new snippet.
         """
-        snippets = self.get_snippets_metadata()
+        snippet_folder = metadata['title']
+        snippets_path = Path(self.get_snippet_metadata_path())
+        Path(snippets_path).joinpath(snippet_folder).mkdir(parents=True, exist_ok=True)
 
-        snippets[metadata['title']] = metadata['description']
-
-        snippets_path = self.get_snippet_metadata_path()
-        with open(snippets_path, 'w') as f:
-            json.dump(snippets, f)
-
-        with open(self.get_snippet_file_path(metadata['title']), 'w') as f:
-            f.write(new_snippet)
+        try:
+            with open(snippets_path.joinpath(*[snippet_folder, 'description.md']), 'w') as f:
+                f.write(metadata['description'])
+        except Exception as e:
+            print(e)
+        
+        try:
+            with open(snippets_path.joinpath(*[snippet_folder, 'snippet.py']), 'w') as f:
+                f.write(new_snippet)
+        except Exception as e:
+            print(e)
 
     @expose('/add_dag', methods=['GET', 'POST'])
     @action_logging
@@ -4515,9 +4541,6 @@ class AddDagView(AirflowBaseView):
     def save_snippet(self, filename):
         snippet_file_path = self.get_snippet_metadata_path()
 
-        # creating a path to tasks_folder (works for python >= 3.5)
-        Path(snippet_file_path).parent.mkdir(parents=True, exist_ok=True)
-
         if request.method == 'POST':
             # snippets = self.get_snippets()
 
@@ -4529,8 +4552,11 @@ class AddDagView(AirflowBaseView):
             self.save_snippets(metadata, new_snippet)
             # with open(snippet_file_path, 'w') as f:
             #     json.dump(snippets, f)
-
+            fullpath = Path(self.get_dag_file_path(filename))
+            if not fullpath.exists():
+                return redirect(url_for('AddDagView.editdag', filename=filename, new=True))
             return redirect(url_for('AddDagView.editdag', filename=filename))
+
         return make_response(('METHOD_NOT_ALLOWED', 403))
 
     @expose("/dag_download/<string:filename>", methods=['GET', 'POST'])

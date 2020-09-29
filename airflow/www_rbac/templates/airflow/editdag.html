@@ -102,10 +102,7 @@
         <strong>{{ title }}</strong>
         <div id="codebrick-{{loop.index}}" class="collapse">
           <span>
-            <i>
-              <pre style="border: none;">{{snippets[title]['description']}}</pre>
-            </i>
-
+              {{snippets[title]['description'] | safe }}
             <button class="btn btn-success pull-right codebrick-insert-btn"
               onclick="insertSnip(this, '{{loop.index}}')">
               INSERT
@@ -226,7 +223,8 @@
     foldGutter: true,
     gutters: ["CodeMirror-linenumbers", "CodeMirror-foldgutter"],
     keyMap: keymap,
-    indentUnit: indentUnit
+    indentUnit: indentUnit,
+    indentWithTabs: false
   };
 
   function focusCodeEditor(timeout) {
@@ -400,17 +398,22 @@
     }
 
   // socket listener
-  ws = new WebSocket("{{language_server_url}}");
-  ws.addEventListener('close', function (event) {
-    console.log("Language server connection closed, trying to reconnect ...")
-    jQuery.notify("Code analysis and suggestions are currently unavailable. You can still code!", "warn")
-    handleDisconnect();
-  });
-  ws.addEventListener('open', function (event) {
-    tries = 0;
-    console.log("Language server connected");
-    jQuery.notify("Language server is connected! Code analysis and suggestions are available.", "success")
-  });
+  try {
+    ws = new WebSocket("{{language_server_url}}");
+    ws.addEventListener('close', function (event) {
+      console.log("Language server connection closed, trying to reconnect ...")
+      jQuery.notify("Code analysis and suggestions are currently unavailable. You can still code!", "warn")
+      handleDisconnect();
+    });
+    ws.addEventListener('open', function (event) {
+      tries = 0;
+      console.log("Language server connected");
+      jQuery.notify("Language server is connected! Code analysis and suggestions are available.", "success")
+    });
+  } catch (error) {
+    console.log(error)
+  }
+  
 
   // connect to language server
   langServer.connectToLangServer("{{language_server_url}}", "{{filename}}");
