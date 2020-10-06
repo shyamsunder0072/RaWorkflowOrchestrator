@@ -325,7 +325,7 @@ function update(source) {
         else if(nodeobj[d.task_id].operator=='SubDagOperator')
             // I'm pretty sure that true is not a valid subdag id, which is what call_modal wants
             call_modal(d.task_id, d.execution_date, nodeobj[d.task_id].extra_links, d.try_number, true);
-        else if(nodeobj[d.task_id].operator=='DagOperator' || nodeobj[d.task_id].operator=='SkippableDagOperator')
+        else if(nodeobj[d.task_id].operator=='DagOperator' || nodeobj[d.task_id].operator=='SkippableDagOperator' || nodeobj[d.task_id].operator=='CoutureLoopableBatchOperator')
             call_modal(d.task_id, d.execution_date, nodeobj[d.task_id].extra_links, d.try_number, false, nodeobj[d.task_id].run_dag_id,  true);
         else
             call_modal(d.task_id, d.execution_date, nodeobj[d.task_id].extra_links, d.try_number, undefined);

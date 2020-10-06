@@ -202,7 +202,7 @@
 
         if (task.task_type == "SubDagOperator")
             call_modal(d, execution_date, task.extra_links, try_number, true);
-        else if (task.task_type == "DagOperator" || task.task_type == "SkippableDagOperator") {
+        else if (task.task_type == "DagOperator" || task.task_type == "SkippableDagOperator" || task.task_type == "CoutureLoopableBatchOperator") {
             call_modal(d, execution_date, task.extra_links, try_number, false, task.run_dag_id,  true);
         }
         else
