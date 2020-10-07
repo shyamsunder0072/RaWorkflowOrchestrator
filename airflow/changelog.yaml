@@ -1,4 +1,16 @@
 changelog:
+  - version: 2.2.0
+    authors: ['AnubhavUjjawal', 'VivekKaushal', 'SaiRathan', 'LuckySrivastava']
+    newFeatures:
+      - Updated TFServing Commons
+      - TFServing multiple GPU support
+      - Couture Model Repository coming soon! (Then you can track your model version history)
+      - Added CoutureLoopableBatchOperator
+    bugFixes:
+      - Fixed bug where codebricks couldn't be inserted.
+    improvements:
+      - Added unzip functionality
+      - Improved Codebricks support
   - version: 2.1.0
     authors: ['AnubhavUjjawal', 'VivekKaushal', 'SaiRathan', 'Adrian']
     newFeatures:

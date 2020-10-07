@@ -870,8 +870,90 @@ fetch_videos = CoutureTensorflowOperator(
     input_filenames_dict={'tags_file': "video_tags.csv"},
     method_args_dict={'task_strategy': "parallel"},
     description='A TF task'
-    )
+)
 ```
+
+## CoutureLoopableBatchOperator
+
+`CoutureLoopableBatchOperator` allows you to run a target dag in a loop by passing input from a csv file in batches. You can also provide an `offset`, `filter_by` a column to send rows which match a specific value.
+
+Parameters:
+
+- `batch_offset`: Default 0
+- `batch_size`:  Size of the batch. Defaults to 10.
+- `filter_by`: Column name to filter_by. Defaults to `None`, which means all rows will be passed.
+- `filter_values`: Values in a list with which the `filter_by`  column must match against for a row to be passed to target dag.
+- `run_dag_id`: Dag id of the target dag.
+- `metadata_file`: File which contains the csv rows which should be passed. Any valid string path is acceptable. The string could be a URL. Valid URL schemes include http, ftp, s3, gs, and file. For file URLs, a host is expected. A local file could be: [file://localhost/path/to/table.csv](file://localhost/path/to/table.csv).
+
+Ex:
+
+```python
+import os
+from datetime import datetime
+
+from airflow.operators.dag_operator import DagOperator
+from airflow.operators.dagrun_operator import TriggerDagRunOperator
+
+from airflow import DAG
+from airflow.operators import CoutureTensorflowOperator,  CoutureLoopableBatchOperator
+
+default_args = {
+    'owner': 'couture',
+    'depends_on_past': False,
+    'start_date': datetime(2019, 4, 15),
+    'retries': 0,
+}
+
+schedule = None
+dag = DAG('batch_audio_operator', default_args=default_args, catchup=False, schedule_interval=schedule)
+
+metadata_file = 'https://link/to/file/link.csv'
+
+video_embedding_batch_task = CoutureLoopableBatchOperator(
+    dag=dag,
+    run_dag_id='operator_audio',
+    task_id='audio_batch_processing',
+    batch_size=2,
+    batch_offset=0,
+    metadata_file=metadata_file
+)
+```
+
+
+
+The dag with `dag_id` `operator_audio` can have tasks like:
+
+```python
+# Task : Video Scene Detection
+convert_video_to_audio = CoutureTensorflowOperator(
+    dag=dag,
+    task_id='convert_video_to_audio',
+    method_id='convert_video_to_audio_brick',
+    code_artifact=code_artifact,
+  	input_base_dir_path=processed_dir,
+  	output_base_dir_path=processed_dir,
+    input_filenames_dict={
+      'input_file_pattern': 'video_id/video/video_name'
+    },
+  	output_filenames_dict={
+      'output_file_pattern': 'video_id/audio/basename.wav'
+    },
+  
+    method_args_dict={
+      'processing_method': 'parallel',
+      'num_cpu_cores': 6,
+      'argument_filter': {
+      	'metadata_df': '{{dag_run.conf["metadata_df"]}}'
+      },
+      'input_file_extensions': ['.mp4'],
+      'audio_sample_rate': 16000
+    },
+  	description = "Sample"
+)
+```
+
+
 
 ## CoutureJupyterOperator
 
