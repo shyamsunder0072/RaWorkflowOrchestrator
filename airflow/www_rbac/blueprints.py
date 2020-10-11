@@ -24,4 +24,4 @@ routes = Blueprint('routes', __name__)
 
 @routes.route('/')
 def index():
-    return redirect(url_for('Airflow.index'))
+    return redirect(url_for('Airflow.ambari_home'))

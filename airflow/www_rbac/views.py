@@ -309,8 +309,17 @@ class Airflow(AirflowBaseView):
                                 'latest_scheduler_heartbeat': latest_scheduler_heartbeat}
 
         return wwwutils.json_response(payload)
+    
 
     @expose('/home')
+    @has_access
+    def ambari_home(self):
+        return self.render_template(
+            'ambari/home.html',
+            ambari_url=settings.AMBARI_URL
+        )
+
+    @expose('/index')
     @has_access
     @provide_session
     def index(self, session=None):

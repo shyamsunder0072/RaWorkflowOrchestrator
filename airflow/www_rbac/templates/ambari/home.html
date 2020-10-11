@@ -1,0 +1,21 @@
+{% extends "airflow/master.html" %}
+
+{% block title %}Ambari{% endblock %}
+{% block head_css %}
+{{ super() }}
+<style>
+    body {
+    margin: 0;            /* Reset default margin */
+}
+iframe {
+    display: block;       /* iframes are inline by default */
+    background: #000;
+    border: none;         /* Reset default border */
+    height: 95vh;        /* Viewport-relative units */
+    width: 98vw;
+}
+</style>
+{% endblock %}
+{% block content %}
+<iframe src="{{ambari_url}}" frameborder="0"></iframe>
+{% endblock %}
