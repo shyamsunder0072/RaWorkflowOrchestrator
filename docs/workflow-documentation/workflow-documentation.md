@@ -23,7 +23,7 @@ The rich user interface makes it easy to visualize pipelines running in producti
 - Support for `Configuration Groups` .
 - Support for multiple `Spark & Hadoop Clusters`.
 - Support for `Jupyterhub` & submitting `Spark Jobs` from `Jupyterhub` using `Livy`.
-- Support for `Tensorflow Serving`.
+- Support for `Tensorflow Serving` and `Pytorch Serving`.
 - Support for `Openscoring - Spark Model Serving`.
 
 # Installation
@@ -63,29 +63,49 @@ The rich user interface makes it easy to visualize pipelines running in producti
 
   Run the following commands to pull the images from private registry:
 
+  `docker pull CR1:5005/redis:3.2`
+
+  `docker pull CR1:5005/couture/visualization-dashboard:latest`
+
+  `docker pull CR1:5005/nginx:latest`
+
+  `docker pull CR1:5005/couture/jupyterhub:latest`
+
+  `docker pull CR1:5005/pytorch/torchserve`
+
+  `docker pull CR1:5005/couture/tfserving:latest`
+
+  `docker pull CR1:5005/couture/tfserving:latest-gpu`
+
   `docker pull CR1:5005/rabbitmq:3.7-management`
 
-  `docker pull CR1:5005/mysql:5.7`
+  `docker pull CR1:5005/couture/mysql:5.7`
 
-  `docker pull CR1:5005/couture-workflow:1.0`
+  `docker pull CR1:5005/couture/couture-workflow-orchestrator:latest`. Instead of latest, use the image tag which is compatible with your hadoop cluster version.
 
-- Tag the images
+- Tag all the images with `CR1:5005` removed. Ex:
 
   `docker tag CR1:5005/rabbitmq:3.7-management rabbitmq:3.7-management`
 
-  `docker tag CR1:5005/mysql:5.7 mysql:5.7`
-
-  `docker tag CR1:5005/couture-workflow:1.0 couture-workflow`
+  `docker tag CR1:5005/couture/mysql:5.7 couture/mysql:5.7`
 
 - **Fetching the dependencies**:
 
-  - Get the `docker-compose.yml` file from shared artifacts.
+  - Get the set of `docker-compose` files required for running WFO from shared artifacts.
 
 - **Running orchestrator**:
 
-  - Go to the directory where `docker-compose.yml` file is located.
-  - Run the following command:
-    - `sudo COUTURE_WORKFLOW_USER=<your name> docker-compose up -d worker`
+  - Go to the directory where all the set of `docker-compose.yml` file are located.
+
+    1. Open `.env` file and change `ACCESS_HOST` to the public ip of your server.
+
+    2. Change `WORKFLOW_IMAGE` in your `.env` to refer to the `image:tag` of workflow you want to use.
+
+    3. If tfserving is needed to run on:
+       1.  CPU, then run `docker-compose -f docker-compose.yml -f docker-compose.override.cpu.yml up -d`
+       2. GPU then run:
+          1. `python3 gpu-custom.py`
+          2. `docker-compose -f docker-compose.yml -f docker-compose.override.gpu.yml up -d`
 
   - Note that `COUTURE_WORKFLOW_USER` is optional and can be used to have personalized `dags` view.
 
@@ -103,6 +123,19 @@ One can change the password by going to top right corner of Navigation bar, then
 
 
 
+# Server Configuration QuickStart
+
+For using your already configured hadoop and spark cluster with workflow, follow these steps.
+
+- Create a new [spark hadoop config group](#spark-hadoop-config-groups). Set it as the default config group.
+- Click on [hadoop configuration](#hadoop-configurations) for your group. You will be redirected to a page where you can upload your hadoop configuration files. Atleast 3 of them are required for your spark jobs to run be yarn:  `hdfs-site.xml, core-site.xml, yarn-site.xml`
+  - NOTE: Incase you want to use other Hadoop services such as HBase, Hive, Impala, you need to add their respective configs such as [HBase Config](https://hbase.apache.org/2.2/book.html#_configuration_files ), [Hive Config](https://cwiki.apache.org/confluence/display/Hive/AdminManual+Configuration) etc. here as well. 
+- Come back and click on [spark configuration](#spark-configuration) of your group. This is the place where you the arguments and the configurations you would pass with your `spark-submit` command. Update it accordingly. At the very least, make sure `master` in Arguments is set to `yarn`.
+  - You can set any argument or configuration meant to be passed with [`spark-submit` ](https://spark.apache.org/docs/2.2.2/submitting-applications.html ) command here. Arguments to be passed with ` --conf` flag will go in `Configurations`. Others will go in `Arguments`.
+  - A non exhaustive list of spark configurations: https://spark.apache.org/docs/2.2.2/configuration.html
+- Go back and click on [kerberos configuration](#kerberos-configurations). Upload your kerberos's `krb5.conf` and `keytab` files here. Select your keytab files in the list of  `keytabs` and update your principal.
+- Run one of our sample DAGs. For example, run `ExampleSchemaGeneration`. If everything runs successfully, then congrats :tada: , you have succesfully configured our workflow to run with your Spark Hadoop Cluster.
+
 # Getting Started
 
 
@@ -111,17 +144,21 @@ One can change the password by going to top right corner of Navigation bar, then
 
 ## Spark Hadoop Config Groups
 
+<a name="spark-hadoop-config-groups"></a>
+
 Spark Hadoop Config Groups is used to configure multiple Hadoop/ Ambari Clusters with the same workflow. After configuring them properly, you can easily switch b/w which one to use while running your CoutureSparkOperator and other Spark Hadoop cluster related operator tasks.
 
 1. In the top navigation bar, go to `Admin -> Spark Hadoop Config Groups`
 
-When you are running `Workflow` for the first time, there will not be any `config groups`. However, you can create a config group by clicking on `Add a group` button.
+When you are running `Workflow` for the first time, there will be a single default `config group`. However, you can create a config group by clicking on `Add a group` button.
 
 ![spark_hadoop_config_groups](./images/spark_hadoop_config_group.png)
 
 
 
 ## Spark Configuration
+
+<a name="spark-configuration"></a>
 
 Easily configure spark jobs by providing options through orchestrator using below steps:
 
@@ -138,6 +175,8 @@ Easily configure spark jobs by providing options through orchestrator using belo
 
 ## Hadoop Configurations
 
+<a name="hadoop-configurations"></a>
+
 Configurations files required for runtime environment settings of a hadoop cluster can be easily configured  with the help of `Hadoop Configuration Groups` through orchestrator using below steps:
 
 In the Spark Hadoop Config Group page, select the  Hadoop Configuration link of the respective group. You will be redirected to a page containing configuration files for that group.
@@ -152,13 +191,16 @@ In the Spark Hadoop Config Group page, select the  Hadoop Configuration link of 
 
 ## Kerberos Configurations
 
+<a name="kerberos-configurations"></a>
+
 Configurations for kerberos enabled hadoop clusters can be done by following the below steps:
 
 In the Spark Hadoop Config Group page, select the Kerberos Configuration link of the respective group.
 
-2. Upload the `keytab` file from `Upload Keytab File` option. These configurations, if added, are automatically applied to the spark jobs which use that configuration group.
+1. For configuring kerberos, you will have to specify the kerberos principal, and upload the `krb5.conf` and the keytab files.
+2. After uploading the keytab file, you have to select the keytab file. These configurations, if added, are automatically applied to the spark and HDFS jobs which use that configuration group.
 
-   ![keytab](./images/keytab.png)
+![keytab](./images/keytab-select.png)
 
 ## Livy Configuration
 
@@ -169,6 +211,9 @@ In the Spark Hadoop Config Group page, select the Kerberos Configuration link of
 In the Spark Hadoop Config Group page, select the Livy Configuration link of the respective group.
 
 **NOTE: The livy configuration of the default spark hadoop config group will be used with sparkmagic kernels in jupyterhub**
+
+- The username/password only needs to be filled when auth is Basic_Access.
+- Kerberos Authentication is also supported, you just basically have to set `auth` to Kerberos, and the kerberos configuration (`keytab` and `krb5.conf`) of your default config group will automtically be picked up.
 
 ![livy_config](./images/livy_config.png)
 
