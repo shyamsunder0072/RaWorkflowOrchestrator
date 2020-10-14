@@ -35,9 +35,19 @@ The rich user interface makes it easy to visualize pipelines running in producti
 -   **Fetching the dependencies**:
     -   Get the `docker-compose.yml` file from shared artifacts.
 -   **Running orchestrator**:
-    -   Go to the directory where `docker-compose.yml` file is located.
-    -   Run the following command:
-        - `sudo COUTURE_WORKFLOW_USER=<your name> docker-compose up -d worker`
+    - Go to the directory where all the set of `docker-compose.yml` file are located.
+
+      1. Open `.env` file and change `ACCESS_HOST` to the public ip of your server.
+
+      2. Change `WORKFLOW_IMAGE` in your `.env` to refer to the `image:tag` of workflow you want to use.
+
+      3. If tfserving is needed to run on:
+         1.  CPU, then run `docker-compose -f docker-compose.yml -f docker-compose.override.cpu.yml up -d`
+         2.  GPU then run:
+             1. `python3 gpu-custom.py`
+             2. `docker-compose -f docker-compose.yml -f docker-compose.override.gpu.yml up -d`
+
+    - Note that `COUTURE_WORKFLOW_USER` is optional and can be used to have personalized `dags` view.
 
 ## Installing workflow orchestrator (without Internet)
 
