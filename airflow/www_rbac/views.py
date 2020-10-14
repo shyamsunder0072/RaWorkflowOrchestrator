@@ -4362,6 +4362,7 @@ class AddDagView(AirflowBaseView):
         # will have a single codebrick. Inside it will be two files:
         # - description.md : The codebrick description in markdown.
         # - snippet.py : The codebrick python snippet.
+        # - section.txt : (Optional) In which section should the codebrick go to.
 
         # Remember, we want to remove the codebrick from the list if that codebrick
         # folder doesn't contain any snippet.py file. If it doesn't contain description.md,
@@ -4371,6 +4372,7 @@ class AddDagView(AirflowBaseView):
         for snippet_folder in snippet_folders:
             description = ''
             snippet = ''
+            sections = ''
 
             try:
                 with open(snippets_path.joinpath(*[snippet_folder, 'description.md'])) as f:
@@ -4384,15 +4386,33 @@ class AddDagView(AirflowBaseView):
             except Exception:
                 snippet = ''
 
-            if snippet:
-                snippets_metadata[snippet_folder.stem] = {
-                    'description': markdown2.markdown(description),
-                    'snippet': snippet
-                }
+            try:
+                with open(snippets_path.joinpath(*[snippet_folder, 'section.txt'])) as f:
+                    sections = f.read()
+            except Exception:
+                sections = 'custom'
 
+            if snippet:
+                for section in sections.split(','):
+                    if section not in snippets_metadata.keys():
+                        snippets_metadata[section] = {}
+                    snippets_metadata[section][snippet_folder.stem] = {
+                        'description': markdown2.markdown(description),
+                        'snippet': snippet,
+                    }
+        # print(snippets_metadata)
+        # for snippet_section in snippets_metadata:
+        #     print(snippet_section)
+        #     for snippet in snippets_metadata[snippet_section]:
+        #         print(snippet)
         return snippets_metadata
 
     def get_snippets(self):
+        # time_start = datetime.now()
+        # self.get_snippets_metadata()
+        # time_end = datetime.now()
+        # delta = time_end - time_start
+        # print(delta.total_seconds())
         return self.get_snippets_metadata()
 
     def snippet_title_to_file(self, title):
@@ -4419,6 +4439,12 @@ class AddDagView(AirflowBaseView):
         try:
             with open(snippets_path.joinpath(*[snippet_folder, 'snippet.py']), 'w') as f:
                 f.write(new_snippet)
+        except Exception as e:
+            print(e)
+
+        try:
+            with open(snippets_path.joinpath(*[snippet_folder, 'section.txt']), 'w') as f:
+                f.write(','.join(metadata['section']))
         except Exception as e:
             print(e)
 
@@ -4544,9 +4570,13 @@ class AddDagView(AirflowBaseView):
         if request.method == 'POST':
             # snippets = self.get_snippets()
 
+            sections = str(request.form['section']).strip().split(',')
+            if not sections:
+                sections = 'custom'
             metadata = {
                 'title': request.form['title'],
-                'description': request.form['description']
+                'description': request.form['description'],
+                'section': sections
             }
             new_snippet = request.form['snippet']
             self.save_snippets(metadata, new_snippet)
