@@ -4233,25 +4233,33 @@ class LivyConfigView(AirflowBaseView):
         super().__init__(*args, **kwargs)
         # Path(self.fs_path).parent.mkdir(exist_ok=True)
 
-    sections = [
-        'kernel_python_credentials',
-        'kernel_scala_credentials',
-        'kernel_r_credentials',
-    ]
     keys = {
-        'username': {
-            'type': 'text',
+        'credentials': {
+            'type': 'nested',
+            'username': {
+                'type': 'text',
+            },
+            'password': {
+                'type': 'password'
+            },
+            'url': {
+                'text': 'url',
+            },
+            'auth': {
+                'type': 'select',
+                'options': ['None', 'Kerberos', 'Basic_Access']
+            }
         },
-        'password': {
-            'type': 'text'
-        },
-        'url': {
-            'text': 'url',
-        },
-        'auth': {
-            'type': 'select',
-            'options': ['None', 'Kerberos', 'Basic_Access']
-        },
+        'custom_json': {
+            'type': 'textarea'
+        }
+    }
+    sections = {
+        'kernel_python_credentials': keys['credentials'],
+        'kernel_scala_credentials': keys['credentials'],
+        'kernel_r_credentials': keys['credentials'],
+        'custom_headers': keys['custom_json'],
+        'session_configs': keys['custom_json'],
     }
 
     def get_sections(self):
@@ -4266,8 +4274,10 @@ class LivyConfigView(AirflowBaseView):
                 return json.load(f)
         except (FileNotFoundError, json.decoder.JSONDecodeError,):
             default = {}
-            for section in self.get_sections():
-                default[section] = {}
+            sections = self.get_sections()
+            for section in sections:
+                if sections[section] != self.get_keys()['custom_json']:
+                    default[section] = {}
             return default
 
     def write_config(self, config, fs_path):
@@ -4286,7 +4296,7 @@ class LivyConfigView(AirflowBaseView):
             return self.render_template('livyconfig/livy_config_view.html',
                                         title='Livy Configuration View',
                                         config=self.read_config(fs_path),
-                                        keys=self.get_keys(),
+                                        # keys=self.get_keys(),
                                         sections=self.get_sections())
         form = request.form
         section = form.get('section')
@@ -4296,7 +4306,15 @@ class LivyConfigView(AirflowBaseView):
         for key in form.keys():
             if key.startswith('config-'):
                 cleaned_key = key.split('-')[-1]
-                config[section][cleaned_key] = form[key]
+                if self.get_sections()[section] == self.get_keys()['custom_json']:
+                    try:
+                        config[section] = json.loads(form[key])
+                    except Exception:
+                        flash('Invalid json string provided for {}'.format(section), 'error')
+                        return redirect(url_for('LivyConfigView.livy_config_view', group=group))
+                        # config.pop(section, None)
+                else:
+                    config[section][cleaned_key] = form[key]
         self.write_config(config, fs_path)
         AirflowBaseView.audit_logging(
             'LivyConfView.livy_config_view',
@@ -4408,11 +4426,11 @@ class AddDagView(AirflowBaseView):
         return snippets_metadata
 
     def get_snippets(self):
-        # time_start = datetime.now()
-        # self.get_snippets_metadata()
-        # time_end = datetime.now()
-        # delta = time_end - time_start
-        # print(delta.total_seconds())
+        time_start = datetime.now()
+        self.get_snippets_metadata()
+        time_end = datetime.now()
+        delta = time_end - time_start
+        print(delta.total_seconds())
         return self.get_snippets_metadata()
 
     def snippet_title_to_file(self, title):
