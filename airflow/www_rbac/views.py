@@ -3225,6 +3225,7 @@ class UpdateModelConfig(AirflowBaseView, BaseApi):
         if request.method=='GET':
             model = request.args.get('runId')
             print("RUN ID :",model)
+            print(base_fs_path)
             try:
                 with open(base_fs_path+'/tf-models/models.config') as f:
                     print(f.read())
