@@ -3210,8 +3210,8 @@ class UpdateModelConfig(AirflowBaseView, BaseApi):
         # download model and move to mount location
         try:
             path = Path(_download_artifact_from_uri(model_uri))
-            os.rename(path/'tfmodel',path/'1')  
-            os.rename(path,pathname+model_run_id)
+            shutil.move(path/'tfmodel',path/'1')  
+            shutil.move(path,pathname+model_run_id)
         except Exception as e:
             print(e)
         # deploy model
