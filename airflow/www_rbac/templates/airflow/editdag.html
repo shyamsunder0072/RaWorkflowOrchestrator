@@ -96,24 +96,28 @@
     </div>
     <br>
     <ul class="list-group" id="codebrickList">
-      {% for title in snippets %}
-      <a class="list-group-item" ondragstart="setContentOfEvent(event, '{{loop.index}}')" data-toggle="collapse"
-        data-parent="#codebrickList" href="#codebrick-{{loop.index}}">
+    {% for snippet_section in snippets %}
+      {% set outer_loop = loop %}
+      <h3> Section: {{snippet_section}}</h2>
+      {% for title in snippets[snippet_section] %}
+      <a class="list-group-item" ondragstart="setContentOfEvent(event, '{{outer_loop.index}}-{{loop.index}}')" data-toggle="collapse"
+        data-parent="#codebrickList" href="#codebrick-{{outer_loop.index}}-{{loop.index}}">
         <strong>{{ title }}</strong>
-        <div id="codebrick-{{loop.index}}" class="collapse">
+        <div id="codebrick-{{outer_loop.index}}-{{loop.index}}" class="collapse">
           <span>
-              {{snippets[title]['description'] | safe }}
+              {{snippets[snippet_section][title]['description'] | safe }}
             <button class="btn btn-success pull-right codebrick-insert-btn"
-              onclick="insertSnip(this, '{{loop.index}}')">
+              onclick="insertSnip(this, '{{outer_loop.index}}-{{loop.index}}')">
               INSERT
             </button>
             <br>
-            <pre class="margin-top-lg" id="codebrick-code-{{loop.index}}"
-              style="background-color: #ffffff;">{{snippets[title]['snippet']}}</pre>
+            <pre class="margin-top-lg" id="codebrick-code-{{outer_loop.index}}-{{loop.index}}"
+              style="background-color: #ffffff;">{{snippets[snippet_section][title]['snippet']}}</pre>
           </span>
         </div>
       </a>
       {% endfor %}
+    {% endfor %}
     </ul>
     <a class="btn btn-warning" style="width: 100%; margin-top: 1em;" data-toggle="modal" data-target="#addSnippet">
       Add a new code brick
@@ -134,6 +138,11 @@
               <label for="snippetTitle">Title</label>
               <input type="text" class="form-control" name="title" oninput="checkTitle(this)" required>
               <p class="help-block">Title can contain characters <code>A-Z, a-z, 0-9, _, -, space</code>.
+            </div>
+            <div class="form-group">
+              <label for="snippetSection">Section(s)</label>
+              <input type="text" class="form-control" name="section">
+              <p class="help-block">Sections comma-separated</code>.
             </div>
             <div class="form-group">
               <label for="snippetDescription">Description</label>
@@ -542,12 +551,14 @@
 
   function snippetExists(title) {
     const snippets = [
-      {% for snippet in snippets %}
-  "{{snippet}}",
+    {% for snippet_section in snippets %}
+      {% for title in snippets[snippet_section] %}
+        "{{title}}",
+      {% endfor %}
     {% endfor %}
     ];
-  if (snippets.includes(title)) return true;
-  return false;
+    if (snippets.includes(title)) return true;
+    return false;
   }
 
   function checkTitle(input) {
