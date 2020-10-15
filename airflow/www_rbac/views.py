@@ -3224,8 +3224,10 @@ class UpdateModelConfig(AirflowBaseView, BaseApi):
         base_fs_path = settings.MODEL_SERVERS
         if request.method=='GET':
             model = request.args.get('runId')
+            print("RUN ID :",model)
             try:
                 with open(base_fs_path+'/tf-models/models.config') as f:
+                    print(f.read())
                     if model in f.read():
                         return 'deployed'
             except Exception as e:
