@@ -3224,20 +3224,17 @@ class UpdateModelConfig(AirflowBaseView, BaseApi):
         base_fs_path = settings.MODEL_SERVERS
         if request.method=='GET':
             target_model = request.args.get('runId')
-            print("RUNID : ",target_model)
             try:
                 with open(base_fs_path+'/tf-models/models.config') as f:
                     words = f.read().split()
                     words = [i.strip('"').strip('",') for i in words]
-                    print(words)
                     if target_model in words:
-                    # if model in f.read():
-                        print("found the model in model_config, returned deployed")
+                        print("found the model in model_config, returned deployed status")
                         return 'deployed'
             except Exception as e:
-                print("found an exception")
+                print("found an exception in deploying model")
                 print(e)
-            print("Returned not deployed")
+            print("Returned not deployed status")
             return 'not_deployed'
 
         if request.method=='POST':
