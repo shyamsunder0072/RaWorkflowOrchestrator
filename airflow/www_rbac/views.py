@@ -2365,8 +2365,9 @@ class VersionView(AirflowBaseView):
     def version(self):
         return self.render_template(
             'airflow/version.html',
-            found_file = self.found_file,
-            changelogs = self.changelogs)
+            found_file=self.found_file,
+            demo_url=settings.COUTURE_DEMO_URL,
+            changelogs=self.changelogs)
 
 class ConfigurationView(AirflowBaseView):
     default_view = 'conf'
