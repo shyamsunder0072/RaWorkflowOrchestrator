@@ -4333,7 +4333,7 @@ class LivyConfigView(AirflowBaseView):
 
 class AddDagView(AirflowBaseView):
     default_view = 'add_dag'
-    class_permission_name = "Manage DAG"
+    class_permission_name = "Manage and Create DAG"
     method_permission_name = {
         "add_dag": "access",
         "editdag": "access",
