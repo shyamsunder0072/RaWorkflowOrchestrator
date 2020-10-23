@@ -572,7 +572,7 @@ INSTALL_REQUIREMENTS = [
     'markdown>=2.5.2, <3.0',
     'markdown2==2.3.9',
     'marshmallow-sqlalchemy==0.16.1',
-    # 'mlflow @ https://github.com/coutureai/mlflow/archive/master.zip',
+    'mlflow @ https://github.com/coutureai/mlflow/archive/master.zip',
     'pandas>=0.17.1, <1.0.0',
     'papermill>=1.0.0',
     'pendulum==1.4.4',
