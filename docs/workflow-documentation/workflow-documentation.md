@@ -128,8 +128,11 @@ One can change the password by going to top right corner of Navigation bar, then
 For using your already configured hadoop and spark cluster with workflow, follow these steps.
 
 - Create a new [spark hadoop config group](#spark-hadoop-config-groups). Set it as the default config group.
-- Click on [hadoop configuration](#hadoop-configurations) for your group. You will be redirected to a page where you can upload your hadoop configuration files. Atleast 3 of them are required for your spark jobs to run be yarn successfully:  `hdfs-site.xml, core-site.xml, yarn-site.xml`
+- Click on [hadoop configuration](#hadoop-configurations) for your group. You will be redirected to a page where you can upload your hadoop configuration files. Atleast 3 of them are required for your spark jobs to run be yarn:  `hdfs-site.xml, core-site.xml, yarn-site.xml`
+  - NOTE: Incase you want to use other Hadoop services such as HBase, Hive, Impala, you need to add their respective configs such as [HBase Config](https://hbase.apache.org/2.2/book.html#_configuration_files ), [Hive Config](https://cwiki.apache.org/confluence/display/Hive/AdminManual+Configuration) etc. here as well. 
 - Come back and click on [spark configuration](#spark-configuration) of your group. This is the place where you the arguments and the configurations you would pass with your `spark-submit` command. Update it accordingly. At the very least, make sure `master` in Arguments is set to `yarn`.
+  - You can set any argument or configuration meant to be passed with [`spark-submit` ](https://spark.apache.org/docs/2.2.2/submitting-applications.html ) command here. Arguments to be passed with ` --conf` flag will go in `Configurations`. Others will go in `Arguments`.
+  - A non exhaustive list of spark configurations: https://spark.apache.org/docs/2.2.2/configuration.html
 - Go back and click on [kerberos configuration](#kerberos-configurations). Upload your kerberos's `krb5.conf` and `keytab` files here. Select your keytab files in the list of  `keytabs` and update your principal.
 - Run one of our sample DAGs. For example, run `ExampleSchemaGeneration`. If everything runs successfully, then congrats :tada: , you have succesfully configured our workflow to run with your Spark Hadoop Cluster.
 
