@@ -117,6 +117,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
     VIEWER_PERMS = {
         'menu_access',
         'can_index',
+        'can_ambari_home',
         'can_list',
         'can_show',
         'can_chart',
