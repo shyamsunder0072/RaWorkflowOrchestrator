@@ -2374,8 +2374,9 @@ class VersionView(AirflowBaseView):
     def version(self):
         return self.render_template(
             'airflow/version.html',
-            found_file = self.found_file,
-            changelogs = self.changelogs)
+            found_file=self.found_file,
+            demo_url=settings.COUTURE_DEMO_URL,
+            changelogs=self.changelogs)
 
 class ConfigurationView(AirflowBaseView):
     default_view = 'conf'
@@ -4242,25 +4243,33 @@ class LivyConfigView(AirflowBaseView):
         super().__init__(*args, **kwargs)
         # Path(self.fs_path).parent.mkdir(exist_ok=True)
 
-    sections = [
-        'kernel_python_credentials',
-        'kernel_scala_credentials',
-        'kernel_r_credentials',
-    ]
     keys = {
-        'username': {
-            'type': 'text',
+        'credentials': {
+            'type': 'nested',
+            'username': {
+                'type': 'text',
+            },
+            'password': {
+                'type': 'password'
+            },
+            'url': {
+                'text': 'url',
+            },
+            'auth': {
+                'type': 'select',
+                'options': ['None', 'Kerberos', 'Basic_Access']
+            }
         },
-        'password': {
-            'type': 'text'
-        },
-        'url': {
-            'text': 'url',
-        },
-        'auth': {
-            'type': 'select',
-            'options': ['None', 'Kerberos', 'Basic_Access']
-        },
+        'custom_json': {
+            'type': 'textarea'
+        }
+    }
+    sections = {
+        'kernel_python_credentials': keys['credentials'],
+        'kernel_scala_credentials': keys['credentials'],
+        'kernel_r_credentials': keys['credentials'],
+        'custom_headers': keys['custom_json'],
+        'session_configs': keys['custom_json'],
     }
 
     def get_sections(self):
@@ -4275,8 +4284,10 @@ class LivyConfigView(AirflowBaseView):
                 return json.load(f)
         except (FileNotFoundError, json.decoder.JSONDecodeError,):
             default = {}
-            for section in self.get_sections():
-                default[section] = {}
+            sections = self.get_sections()
+            for section in sections:
+                if sections[section] != self.get_keys()['custom_json']:
+                    default[section] = {}
             return default
 
     def write_config(self, config, fs_path):
@@ -4295,7 +4306,7 @@ class LivyConfigView(AirflowBaseView):
             return self.render_template('livyconfig/livy_config_view.html',
                                         title='Livy Configuration View',
                                         config=self.read_config(fs_path),
-                                        keys=self.get_keys(),
+                                        # keys=self.get_keys(),
                                         sections=self.get_sections())
         form = request.form
         section = form.get('section')
@@ -4305,7 +4316,15 @@ class LivyConfigView(AirflowBaseView):
         for key in form.keys():
             if key.startswith('config-'):
                 cleaned_key = key.split('-')[-1]
-                config[section][cleaned_key] = form[key]
+                if self.get_sections()[section] == self.get_keys()['custom_json']:
+                    try:
+                        config[section] = json.loads(form[key])
+                    except Exception:
+                        flash('Invalid json string provided for {}'.format(section), 'error')
+                        return redirect(url_for('LivyConfigView.livy_config_view', group=group))
+                        # config.pop(section, None)
+                else:
+                    config[section][cleaned_key] = form[key]
         self.write_config(config, fs_path)
         AirflowBaseView.audit_logging(
             'LivyConfView.livy_config_view',
@@ -4371,6 +4390,7 @@ class AddDagView(AirflowBaseView):
         # will have a single codebrick. Inside it will be two files:
         # - description.md : The codebrick description in markdown.
         # - snippet.py : The codebrick python snippet.
+        # - section.txt : (Optional) In which section should the codebrick go to.
 
         # Remember, we want to remove the codebrick from the list if that codebrick
         # folder doesn't contain any snippet.py file. If it doesn't contain description.md,
@@ -4380,6 +4400,7 @@ class AddDagView(AirflowBaseView):
         for snippet_folder in snippet_folders:
             description = ''
             snippet = ''
+            sections = ''
 
             try:
                 with open(snippets_path.joinpath(*[snippet_folder, 'description.md'])) as f:
@@ -4393,15 +4414,33 @@ class AddDagView(AirflowBaseView):
             except Exception:
                 snippet = ''
 
-            if snippet:
-                snippets_metadata[snippet_folder.stem] = {
-                    'description': markdown2.markdown(description),
-                    'snippet': snippet
-                }
+            try:
+                with open(snippets_path.joinpath(*[snippet_folder, 'section.txt'])) as f:
+                    sections = f.read()
+            except Exception:
+                sections = 'custom'
 
+            if snippet:
+                for section in sections.split(','):
+                    if section not in snippets_metadata.keys():
+                        snippets_metadata[section] = {}
+                    snippets_metadata[section][snippet_folder.stem] = {
+                        'description': markdown2.markdown(description),
+                        'snippet': snippet,
+                    }
+        # print(snippets_metadata)
+        # for snippet_section in snippets_metadata:
+        #     print(snippet_section)
+        #     for snippet in snippets_metadata[snippet_section]:
+        #         print(snippet)
         return snippets_metadata
 
     def get_snippets(self):
+        time_start = datetime.now()
+        self.get_snippets_metadata()
+        time_end = datetime.now()
+        delta = time_end - time_start
+        print(delta.total_seconds())
         return self.get_snippets_metadata()
 
     def snippet_title_to_file(self, title):
@@ -4428,6 +4467,12 @@ class AddDagView(AirflowBaseView):
         try:
             with open(snippets_path.joinpath(*[snippet_folder, 'snippet.py']), 'w') as f:
                 f.write(new_snippet)
+        except Exception as e:
+            print(e)
+
+        try:
+            with open(snippets_path.joinpath(*[snippet_folder, 'section.txt']), 'w') as f:
+                f.write(','.join(metadata['section']))
         except Exception as e:
             print(e)
 
@@ -4553,9 +4598,13 @@ class AddDagView(AirflowBaseView):
         if request.method == 'POST':
             # snippets = self.get_snippets()
 
+            sections = str(request.form['section']).strip().split(',')
+            if not sections:
+                sections = 'custom'
             metadata = {
                 'title': request.form['title'],
-                'description': request.form['description']
+                'description': request.form['description'],
+                'section': sections
             }
             new_snippet = request.form['snippet']
             self.save_snippets(metadata, new_snippet)

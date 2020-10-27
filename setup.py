@@ -571,7 +571,7 @@ INSTALL_REQUIREMENTS = [
     'mccabe<0.7.0,>=0.6.0',
     'markdown>=2.5.2, <3.0',
     'markdown2==2.3.9',
-    'marshmallow-sqlalchemy>=0.16.1, <0.19.0;python_version<"3.6"',
+    'marshmallow-sqlalchemy==0.16.1',
     'mlflow @ https://github.com/coutureai/mlflow/archive/master.zip',
     'pandas>=0.17.1, <1.0.0',
     'papermill>=1.0.0',

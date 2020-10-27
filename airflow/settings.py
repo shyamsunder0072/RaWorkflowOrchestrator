@@ -166,6 +166,7 @@ PYTORCH_MANAGEMENT_URL = None
 JUPYTERHUB_ACCESS_PORT = None
 SPARK_SERVE_URL = None
 AMBARI_URL = None
+COUTURE_DEMO_URL = None
 
 MAX_CHUNK_SIZE = 512000 * 4  # bytes
 MAX_FILE_SIZE = 1025 * 1025 * 10  # megabytes
@@ -243,6 +244,7 @@ def configure_vars():
     global JUPYTERHUB_ACCESS_PORT
     global SPARK_SERVE_URL
     global AMBARI_URL
+    global COUTURE_DEMO_URL
 
     SQL_ALCHEMY_CONN = conf.get('core', 'SQL_ALCHEMY_CONN')
     DAGS_FOLDER = os.path.expanduser(conf.get('core', 'DAGS_FOLDER'))
@@ -275,7 +277,7 @@ def configure_vars():
     SPARK_SERVE_URL= f'http://{spark_serve_host}:{spark_serve_port}/model'
     LANGUAGE_SERVER_URL = conf.get('langserver', 'langserver_url')
     AMBARI_URL = conf.get('ambari', 'url')
-
+    COUTURE_DEMO_URL = conf.get('couture', 'demo_url')
 
     PLUGINS_FOLDER = conf.get(
         'core',
