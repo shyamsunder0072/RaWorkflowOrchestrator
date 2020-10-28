@@ -4333,11 +4333,12 @@ class LivyConfigView(AirflowBaseView):
 
 class AddDagView(AirflowBaseView):
     default_view = 'add_dag'
-    class_permission_name = "Manage DAG"
+    class_permission_name = "Manage and Create DAG"
     method_permission_name = {
         "add_dag": "access",
         "editdag": "access",
         "save_snippet": "access",
+        "edit_snippet": "access",
         "download": "access",
     }
 
@@ -4605,6 +4606,41 @@ class AddDagView(AirflowBaseView):
             self.save_snippets(metadata, new_snippet)
             # with open(snippet_file_path, 'w') as f:
             #     json.dump(snippets, f)
+            fullpath = Path(self.get_dag_file_path(filename))
+            if not fullpath.exists():
+                return redirect(url_for('AddDagView.editdag', filename=filename, new=True))
+            return redirect(url_for('AddDagView.editdag', filename=filename))
+
+        return make_response(('METHOD_NOT_ALLOWED', 403))
+    
+    @expose("/edit_snippet/<string:filename>", methods=['POST'])
+    @has_access
+    @action_logging
+    def edit_snippet(self, filename):
+        if request.method == 'POST':
+            metadata = {
+                'title': request.form['title'],
+                'description': request.form['description'],
+            }
+            new_snippet = request.form['snippet']
+            snippet_folder = metadata['title']
+            snippets_path = Path(self.get_snippet_metadata_path())
+            Path(snippets_path).joinpath(snippet_folder).mkdir(parents=True, exist_ok=True)
+
+            # edit description if a new description is provided
+            if metadata['description'] != "":
+                try:
+                    with open(snippets_path.joinpath(*[snippet_folder, 'description.md']), 'w') as f:
+                        f.write(metadata['description'])
+                except Exception as e:
+                    print(e)
+            # edit code
+            try:
+                with open(snippets_path.joinpath(*[snippet_folder, 'snippet.py']), 'w') as f:
+                    f.write(new_snippet)
+            except Exception as e:
+                print(e)
+
             fullpath = Path(self.get_dag_file_path(filename))
             if not fullpath.exists():
                 return redirect(url_for('AddDagView.editdag', filename=filename, new=True))

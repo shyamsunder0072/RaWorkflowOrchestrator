@@ -96,33 +96,76 @@
     </div>
     <br>
     <ul class="list-group" id="codebrickList">
-    {% for snippet_section in snippets %}
+      {% for snippet_section in snippets %}
       {% set outer_loop = loop %}
       <h3> Section: {{snippet_section}}</h2>
-      {% for title in snippets[snippet_section] %}
-      <a class="list-group-item" ondragstart="setContentOfEvent(event, '{{outer_loop.index}}-{{loop.index}}')" data-toggle="collapse"
-        data-parent="#codebrickList" href="#codebrick-{{outer_loop.index}}-{{loop.index}}">
-        <strong>{{ title }}</strong>
-        <div id="codebrick-{{outer_loop.index}}-{{loop.index}}" class="collapse">
-          <span>
-              {{snippets[snippet_section][title]['description'] | safe }}
-            <button class="btn btn-success pull-right codebrick-insert-btn"
-              onclick="insertSnip(this, '{{outer_loop.index}}-{{loop.index}}')">
-              INSERT
-            </button>
-            <br>
-            <pre class="margin-top-lg" id="codebrick-code-{{outer_loop.index}}-{{loop.index}}"
-              style="background-color: #ffffff;">{{snippets[snippet_section][title]['snippet']}}</pre>
-          </span>
-        </div>
-      </a>
-      {% endfor %}
-    {% endfor %}
+        {% for title in snippets[snippet_section] %}
+        <a class="list-group-item" ondragstart="setContentOfEvent(event, '{{outer_loop.index}}-{{loop.index}}')"
+          data-toggle="collapse" data-parent="#codebrickList" href="#codebrick-{{outer_loop.index}}-{{loop.index}}">
+          <strong id="codebrick-title-{{outer_loop.index}}-{{loop.index}}">{{ title }}</strong>
+          <div id="codebrick-{{outer_loop.index}}-{{loop.index}}" class="collapse">
+            <span>
+              <div id="codebrick-desc-{{outer_loop.index}}-{{loop.index}}">
+                {{snippets[snippet_section][title]['description'] | safe }}
+              </div>
+              <button class="btn btn-success pull-right codebrick-insert-btn"
+                onclick="insertSnip(this, '{{outer_loop.index}}-{{loop.index}}')">
+                INSERT
+              </button>
+              <button class="btn btn-default pull-right" style="margin-right:5px"
+                onclick="editCodeBrick(this,'{{ title }}', '{{outer_loop.index}}-{{loop.index}}' )">
+                EDIT CODEBRICK
+              </button>
+              <br>
+              <pre class="margin-top-lg" id="codebrick-code-{{outer_loop.index}}-{{loop.index}}"
+                style="background-color: #ffffff;">{{snippets[snippet_section][title]['snippet']}}</pre>
+            </span>
+          </div>
+        </a>
+        {% endfor %}
+        {% endfor %}
     </ul>
     <a class="btn btn-warning" style="width: 100%; margin-top: 1em;" data-toggle="modal" data-target="#addSnippet">
       Add a new code brick
     </a>
   </div>
+
+  <div class="modal fade" id="editSnippet" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+          <h4 class="edit-snippet-modal-title"></h4>
+        </div>
+        <form role="form" id="snippetForm" method="POST"
+          action="{{ url_for('AddDagView.edit_snippet', filename=filename) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+          <div class="modal-body">
+            <div class="form-group">
+              <label for="snippetTitle">Title</label>
+              <input id="edit-snippet-title" type="text" class="form-control" name="title" required>
+              <p class="help-block">Title can contain characters <code>A-Z, a-z, 0-9, _, -, space</code>.
+            </div>
+            <div class="form-group">
+              <label for="snippetDescription">Description</label>
+              <textarea class="form-control" placeholder="Enter new description here" name="description" rows="5"
+                id="edit-snippet-desc"></textarea>
+            </div>
+            <div class="form-group">
+              <label for="snippet">Codebrick</label>
+              <textarea class="form-control" name="snippet" id="snippetEdit">
+              </textarea>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+            <button type="submit" class="btn btn-primary">Submit</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
   <div class="modal fade" id="addSnippet" tabindex="-1" role="dialog" aria-hidden="true">
     <div class="modal-dialog">
       <div class="modal-content">
@@ -161,6 +204,7 @@
       </div>
     </div>
   </div>
+
   <div class="modal fade" id="insertSnippet" tabindex="-1" role="dialog" aria-hidden="true">
     <div class="modal-dialog">
       <div class="modal-content">
@@ -169,12 +213,16 @@
           <h4 class="modal-title">Replace placeholder values in codebrick.</h4>
         </div>
         <form id="insertSnippetForm" onsubmit="return false;">
-          <div class="modal-body" id="insertSnippetBody">
+          <div class="modal-body" id="insertSnippetBody" style="max-height: 550px; overflow-y: scroll;">
+          </div>
+          <div class="modal-body" id="showSnippetDoc" style="max-height: 550px; overflow-y: scroll;">
           </div>
           <div class="modal-footer">
             <span class="pull-left" style="color: red;">* = mandatory field</span>
             <!-- <button type="button" class="btn btn-danger pull-left" onclick="insertSnippetWithoutTemplateParam(true);">Skip Optional</button> -->
-            <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+            <button type="button" class="btn btn-danger" data-dismiss="modal">Cancel</button>
+            <button type="button" id="modalDocBtn" class="btn btn-default" onclick="showDocInModal(this)">Show
+              Documentation</button>
             <button type="button" class="btn btn-primary"
               onclick="insertSnippetWithoutTemplateParam(true)">Insert</button>
           </div>
@@ -220,7 +268,7 @@
 <script src="{{ url_for('static', filename='js/notify.js') }}"></script>
 <script type="text/javascript">
 
-  var diffEditor, snippetEditor, currSnippet;
+  var diffEditor, snippetEditor, addSnippetEditor, currSnippet;
   const theme = 'idea', keymap = 'sublime', indentUnit = 4;
   var editorConfigs = {
     lineNumbers: true,
@@ -345,8 +393,30 @@
     replaceTextInEditor(currSnippetCopy)
   }
 
+  function showDocInModal(btn) {
+    if ($(btn).text() === "Show Documentation") {
+      $(btn).text("Back");
+      $('#insertSnippetBody').hide();
+      $('#showSnippetDoc').show();
+    }
+    else {
+      $(btn).text("Show Documentation");
+      $('#insertSnippetBody').show();
+      $('#showSnippetDoc').hide();
+    }
+  }
+
+  function editCodeBrick(btn, title, index) {
+    var code = $('#codebrick-code-' + index).html();
+    $("#editSnippet").modal("toggle");
+    $(".edit-snippet-modal-title").text("Edit code for snippet : " + title);
+    $("#edit-snippet-title").val(title);
+    $("#snippetEdit").text(code);
+  }
+
   function insertSnip(btn, index) {
     var text = $('#codebrick-code-' + index).text();
+    var desc = $('#codebrick-desc-' + index).html();
     var placeholders = findPlaceholders(text);
     if (placeholders.size) {
       // if have placeholders, need to fill their values before inserting.
@@ -359,24 +429,30 @@
             '<label for="' + param + '">' + param + '</label>' +
             '<input type="text" class="form-control" name="' + param + '">' +
             '</div>'
-        } else {
+        }
+        else {
           param = param.replace('{{"{%"}}', '').replace('{{"%}"}}', '')
           temp = '<div class="form-group">' +
             '<label for="' + param + '">' + param + '<span style="color:red;">* </span> </label>' +
             '<input type="text" class="form-control" name="' + param + '" required>' +
             '</div>'
         }
-        $('#insertSnippetBody').append(temp)
+        $('#insertSnippetBody').append(temp);
       })
-      $('#insertSnippet').modal('show')
-    } else {
+      $('#showSnippetDoc').html(desc);
+      $("#modalDocBtn").text("Show Documentation");
+      $('#insertSnippetBody').show();
+      $('#showSnippetDoc').hide();
+      $('#insertSnippet').modal('show');
+    }
+
+    else {
       // adding a new line at the end of snippet.
       replaceTextInEditor(text)
     }
-
     // disable the button when snippet is inserted. The button will be enabled
     // after the codebrick div is toggled again.
-    $(btn).addClass('disabled');
+    // $(btn).addClass('disabled');
   }
 
   $(document).ready(function () {
@@ -422,7 +498,6 @@
   } catch (error) {
     console.log(error)
   }
-  
 
   // connect to language server
   langServer.connectToLangServer("{{language_server_url}}", "{{filename}}");
@@ -436,7 +511,7 @@
       }, 'window');
       cm.getDoc().setCursor(coords);
       event.preventDefault();
-      insertSnip(null, event.dataTransfer.getData("codebrick-index"))
+      insertSnip(null, event.dataTransfer.getData("codebrick-index"));
     }
   })
 
@@ -446,13 +521,6 @@
   });
 
   $('[data-toggle="tooltip"]').tooltip();
-
-  $('#addSnippet').on('shown.bs.modal', function (e) {
-    if (!snippetEditor) {
-      var snipArea = document.getElementById('snippetInput');
-      snippetEditor = CodeMirror.fromTextArea(snipArea, editorConfigs);
-    }
-  })
 
   var $codeBrickList = $('#codebrickList');
   $codeBrickList.on('show.bs.collapse', '.collapse', function () {
@@ -468,14 +536,24 @@
     }
   });
 
-
   $('#addSnippet').on('shown.bs.modal', function (e) {
-    if (!snippetEditor) {
+    if (!addSnippetEditor) {
       var snipArea = document.getElementById('snippetInput');
+      addSnippetEditor = CodeMirror.fromTextArea(snipArea, editorConfigs);
+    }
+  })
+
+  $('#editSnippet').on('shown.bs.modal', function (e) {
+    if (!snippetEditor) {
+      var snipArea = document.getElementById('snippetEdit');
       snippetEditor = CodeMirror.fromTextArea(snipArea, editorConfigs);
     }
   })
 
+  $('#editSnippet').on('hide.bs.modal', function (e) {
+    $('.CodeMirror').remove();
+    snippetEditor = null;
+  })
 
   // WARNING: DO NOT TOUCH.
   // this method adds and removes classes based on which tab is active.
@@ -508,9 +586,10 @@
     }
   });
 
-   $("#codebrickSearch").on("keyup", function () {
+  $("#codebrickSearch").on("keyup", function () {
     var value = $(this).val().toLowerCase();
     $("#codebrickList a").filter(function () {
+      S
       $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1);
     });
   });
@@ -551,14 +630,14 @@
 
   function snippetExists(title) {
     const snippets = [
-    {% for snippet_section in snippets %}
-      {% for title in snippets[snippet_section] %}
-        "{{title}}",
-      {% endfor %}
+      {% for snippet_section in snippets %}
+  {% for title in snippets[snippet_section] %}
+  "{{title}}",
     {% endfor %}
+  {% endfor %}
     ];
-    if (snippets.includes(title)) return true;
-    return false;
+  if (snippets.includes(title)) return true;
+  return false;
   }
 
   function checkTitle(input) {
