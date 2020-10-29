@@ -137,10 +137,10 @@
           <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
           <h4 class="edit-snippet-modal-title"></h4>
         </div>
-        <form role="form" id="snippetForm" method="POST"
+        <form role="form" id="editSnippetForm" method="POST"
           action="{{ url_for('AddDagView.edit_snippet', filename=filename) }}">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-          <div class="modal-body">
+          <div class="modal-body" style="max-height: 550px; overflow-y: scroll;">
             <div class="form-group">
               <label for="snippetTitle">Title</label>
               <input id="edit-snippet-title" type="text" class="form-control" name="title" required>
@@ -167,16 +167,16 @@
   </div>
 
   <div class="modal fade" id="addSnippet" tabindex="-1" role="dialog" aria-hidden="true">
-    <div class="modal-dialog" >
+    <div class="modal-dialog">
       <div class="modal-content">
         <div class="modal-header">
           <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
           <h4 class="modal-title">Add a codebrick to codebrick repo.</h4>
         </div>
-        <form role="form" id="snippetForm" method="POST"
+        <form role="form" id="addSnippetForm" method="POST"
           action="{{ url_for('AddDagView.save_snippet', filename=filename) }}">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-          <div class="modal-body">
+          <div class="modal-body" id="dataInput" style="max-height: 550px; overflow-y: scroll;">
             <div class="form-group">
               <label for="snippetTitle">Title</label>
               <input type="text" class="form-control" name="title" oninput="checkTitle(this)" required>
@@ -196,16 +196,19 @@
               <textarea class="form-control" name="snippet" id="snippetInput"></textarea>
             </div>
           </div>
+          <div class="modal-body" id="metadataInput" style="max-height: 550px; overflow-y: scroll;">
+          </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
-            <button type="submit" class="btn btn-primary">Submit</button>
+            <button type="button" class="btn btn-primary" onclick="inputMetadata(this)">Next</button>
+            <button type="submit" id="addSnippetSubmit" class="btn btn-primary">Submit</button>
           </div>
         </form>
       </div>
     </div>
   </div>
 
-  <div class="modal fade" id="insertSnippet" tabindex="-1" role="dialog" aria-hidden="true" >
+  <div class="modal fade" id="insertSnippet" tabindex="-1" role="dialog" aria-hidden="true">
     <div class="modal-dialog" style="width: 80%; margin: auto;">
       <div class="modal-content">
         <div class="modal-header">
@@ -405,6 +408,51 @@
     $("#snippetEdit").text(code);
   }
 
+  {% raw %}
+
+  function inputMetadata(btn) {
+
+    // get added codebrick from form input
+    var text = addSnippetEditor.getValue();
+    var mandatory = text.match(/{{.+?}}/g);
+    var optional = text.match(/{%.+?%}/g);
+    console.log(mandatory);
+    console.log(optional);
+    var metadataInputBody = "";
+    mandatory.forEach(function (param) {
+      temp =
+        '<h4>' + param + '</h4>' +
+        '<div class="form-group">' +
+        '<label for="description"> Description </label>' +
+        '<input type="text" class="form-control" name="description">' +
+        '</div>'+
+        '<div class="form-group">' +
+        '<label for="parameter-type"> Parameter Type </label>' +
+        '<input type="text" class="form-control" name="parameter-type">' +
+        '</div>'+
+        '<div class="form-group">' +
+        '<label for="default-value"> Default Value </label>' +
+        '<input type="text" class="form-control" name="default-value">' +
+        '</div>'+
+        '<div class="form-group">' +
+        '<label for="example-value"> Example Value </label>' +
+        '<input type="text" class="form-control" name="example-value">' +
+        '</div>'+
+        '<div class="form-group">' +
+        '<label class="checkbox-inline"><input type="checkbox" value="mandatory">Mandatory</label>' +
+        '</div>'+
+        '<hr/>';
+      metadataInputBody +=temp;
+    });
+    $("#metadataInput").html(metadataInputBody);
+    $("#dataInput").hide();
+    $("#metadataInput").show();
+    $(btn).hide();
+    $("#addSnippetSubmit").show();
+  }
+
+  {% endraw %}
+
   function insertSnip(btn, index) {
     var text = $('#codebrick-code-' + index).text();
     var desc = $('#codebrick-desc-' + index).html();
@@ -528,6 +576,7 @@
   });
 
   $('#addSnippet').on('shown.bs.modal', function (e) {
+    $("#metadataInput").hide();
     if (!addSnippetEditor) {
       var snipArea = document.getElementById('snippetInput');
       addSnippetEditor = CodeMirror.fromTextArea(snipArea, editorConfigs);
