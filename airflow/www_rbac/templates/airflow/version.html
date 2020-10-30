@@ -22,46 +22,49 @@
 {% extends base_template %}
 {% block content %}
     {{ super() }}
-	
+    
 <style>
 #versionData{
-	overflow-y:scroll; 
-	height:420px; 
-	padding-left:15px; 
-	padding-right:15px
+    overflow-y:scroll; 
+    height:500px; 
+    padding-left:15px; 
+    padding-right:15px
 }
 </style>
 
+
+<h1>Find more on what we do at Couture.ai <a style="cursor: pointer;" href="{{demo_url}}" target="_blank">here</a>.</h1>
+
 {% if found_file==True %}
-	<h2> Version: {{changelogs['changelog'][0]['version']}} <h2>
-    <h2>Changelog</h2> 
-	<div id="versionData">
-	{% for changelog_data in changelogs['changelog'] %}
-		<div class="panel panel-primary well" style="border-style: groove">
-		<ul class="list-group">
-		{% for key, values in changelog_data.items() %}
-			{% if key=="version" %}		
-				<div class="panel-heading"><h3 class="panel-title">Version: {{values}}</h3></div>
-			{% else %}
-				 <li class="list-group-item"><b>{{key}}</b>
-				{% if key=="authors"%}
-					<br>
-					{% for value in values %}
-						{{value}}{{ ", " if not loop.last }}
-					{% endfor %}
-				{% else %}
-					<ul>
-					{% for value in values %}
-						<li>{{value}}</li>
-					{% endfor %}
-					</ul>
-				{% endif %}
-				</li>		
-			{% endif %}
-		{% endfor %}
-		</ul>
-		</div>
-	{% endfor %}
-	</div>
+    <h3>Workflow Version: {{changelogs['changelog'][0]['version']}} </h3>
+    <h3>Changelog</h3> 
+    <div id="versionData">
+    {% for changelog_data in changelogs['changelog'] %}
+        <div class="panel panel-primary well" style="border-style: groove">
+        <ul class="list-group">
+        {% for key, values in changelog_data.items() %}
+            {% if key=="version" %}        
+                <div class="panel-heading"><h3 class="panel-title">Version: {{values}}</h3></div>
+            {% else %}
+                 <li class="list-group-item"><b>{{key}}</b>
+                {% if key=="authors"%}
+                    <br>
+                    {% for value in values %}
+                        {{value}}{{ ", " if not loop.last }}
+                    {% endfor %}
+                {% else %}
+                    <ul>
+                    {% for value in values %}
+                        <li>{{value}}</li>
+                    {% endfor %}
+                    </ul>
+                {% endif %}
+                </li>        
+            {% endif %}
+        {% endfor %}
+        </ul>
+        </div>
+    {% endfor %}
+    </div>
 {% endif %}
 {% endblock %}

@@ -2365,8 +2365,9 @@ class VersionView(AirflowBaseView):
     def version(self):
         return self.render_template(
             'airflow/version.html',
-            found_file = self.found_file,
-            changelogs = self.changelogs)
+            found_file=self.found_file,
+            demo_url=settings.COUTURE_DEMO_URL,
+            changelogs=self.changelogs)
 
 class ConfigurationView(AirflowBaseView):
     default_view = 'conf'
@@ -3210,8 +3211,8 @@ class UpdateModelConfig(AirflowBaseView, BaseApi):
         # download model and move to mount location
         try:
             path = Path(_download_artifact_from_uri(model_uri))
-            os.rename(path/'tfmodel',path/'1')  
-            os.rename(path,pathname+model_run_id)
+            shutil.move(path/'tfmodel',path/'1')  
+            shutil.move(path,pathname+model_run_id)
         except Exception as e:
             print(e)
         # deploy model
@@ -3223,13 +3224,18 @@ class UpdateModelConfig(AirflowBaseView, BaseApi):
     def deploy(self):
         base_fs_path = settings.MODEL_SERVERS
         if request.method=='GET':
-            model = request.args.get('runId')
+            target_model = request.args.get('runId')
             try:
                 with open(base_fs_path+'/tf-models/models.config') as f:
-                    if model in f.read():
+                    words = f.read().split()
+                    words = [i.strip('"').strip('",') for i in words]
+                    if target_model in words:
+                        print("found the model in model_config, returned deployed status")
                         return 'deployed'
             except Exception as e:
+                print("found an exception in deploying model")
                 print(e)
+            print("Returned not deployed status")
             return 'not_deployed'
 
         if request.method=='POST':
@@ -4328,11 +4334,12 @@ class LivyConfigView(AirflowBaseView):
 
 class AddDagView(AirflowBaseView):
     default_view = 'add_dag'
-    class_permission_name = "Manage DAG"
+    class_permission_name = "Manage and Create DAG"
     method_permission_name = {
         "add_dag": "access",
         "editdag": "access",
         "save_snippet": "access",
+        "edit_snippet": "access",
         "download": "access",
     }
 
@@ -4600,6 +4607,41 @@ class AddDagView(AirflowBaseView):
             self.save_snippets(metadata, new_snippet)
             # with open(snippet_file_path, 'w') as f:
             #     json.dump(snippets, f)
+            fullpath = Path(self.get_dag_file_path(filename))
+            if not fullpath.exists():
+                return redirect(url_for('AddDagView.editdag', filename=filename, new=True))
+            return redirect(url_for('AddDagView.editdag', filename=filename))
+
+        return make_response(('METHOD_NOT_ALLOWED', 403))
+    
+    @expose("/edit_snippet/<string:filename>", methods=['POST'])
+    @has_access
+    @action_logging
+    def edit_snippet(self, filename):
+        if request.method == 'POST':
+            metadata = {
+                'title': request.form['title'],
+                'description': request.form['description'],
+            }
+            new_snippet = request.form['snippet']
+            snippet_folder = metadata['title']
+            snippets_path = Path(self.get_snippet_metadata_path())
+            Path(snippets_path).joinpath(snippet_folder).mkdir(parents=True, exist_ok=True)
+
+            # edit description if a new description is provided
+            if metadata['description'] != "":
+                try:
+                    with open(snippets_path.joinpath(*[snippet_folder, 'description.md']), 'w') as f:
+                        f.write(metadata['description'])
+                except Exception as e:
+                    print(e)
+            # edit code
+            try:
+                with open(snippets_path.joinpath(*[snippet_folder, 'snippet.py']), 'w') as f:
+                    f.write(new_snippet)
+            except Exception as e:
+                print(e)
+
             fullpath = Path(self.get_dag_file_path(filename))
             if not fullpath.exists():
                 return redirect(url_for('AddDagView.editdag', filename=filename, new=True))
