@@ -4473,6 +4473,20 @@ class AddDagView(AirflowBaseView):
         except Exception as e:
             print(e)
 
+    def process_description(self,codebrick_description, parameters):
+        variables = []
+        variable_metadata = ""
+        for key in parameters:
+            variables.append(key.split('-')[1])
+        variables = set(variables)
+        for var in variables:
+            variable_metadata+="  \n" + "#### "+'```'+var+'```'+ "  \n"
+            for key, value in parameters.items():
+                if (key.split('-')[1] == var):
+                    variable_metadata+="- "+"**"+key.split('-')[2]+"** : "+value+ "  \n"
+        description = codebrick_description + "\n" +"### Parameters\n" + variable_metadata
+        return description
+
     @expose('/add_dag', methods=['GET', 'POST'])
     @action_logging
     @has_access
@@ -4594,13 +4608,19 @@ class AddDagView(AirflowBaseView):
 
         if request.method == 'POST':
             # snippets = self.get_snippets()
+            parameters = {}
+            for key, value in request.form.items():
+                if key.startswith('param'):
+                    parameters[key]=value
+            
+            description = self.process_description(request.form['description'], parameters)
 
             sections = str(request.form['section']).strip().split(',')
             if not sections:
                 sections = 'custom'
             metadata = {
                 'title': request.form['title'],
-                'description': request.form['description'],
+                'description': description,
                 'section': sections
             }
             new_snippet = request.form['snippet']

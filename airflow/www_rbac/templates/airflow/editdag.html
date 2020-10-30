@@ -199,8 +199,9 @@
           <div class="modal-body" id="metadataInput" style="max-height: 550px; overflow-y: scroll;">
           </div>
           <div class="modal-footer">
-            <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
-            <button type="button" class="btn btn-primary" onclick="inputMetadata(this)">Next</button>
+            <button type="button" class="btn btn-danger" data-dismiss="modal">Close</button>
+            <button type="button" class="btn btn-default" id="addSnippetBack" onclick="addSnippetBackHandler(this)">Back</button>
+            <button type="button" class="btn btn-default" id="addSnippetNext" onclick="addSnippetNextHandler(this)">Next</button>
             <button type="submit" id="addSnippetSubmit" class="btn btn-primary">Submit</button>
           </div>
         </form>
@@ -410,44 +411,57 @@
 
   {% raw %}
 
-  function inputMetadata(btn) {
-
-    // get added codebrick from form input
+  function addSnippetNextHandler(btn) {
     var text = addSnippetEditor.getValue();
-    var mandatory = text.match(/{{.+?}}/g);
-    var optional = text.match(/{%.+?%}/g);
-    console.log(mandatory);
-    console.log(optional);
+    var mandatoryRaw = text.match(/{%.+?%}/g), mandatory;
+    var optionalRaw = text.match(/{{.+?}}/g), optional;
+    // if mandatory variables exist
+    if (mandatoryRaw != null) {
+      mandatory = mandatoryRaw.map(function (e) {
+        return (e.substring(2, e.length - 2)).trim();
+      });
+    }
+    // if optional variables exist
+    if (optionalRaw != null) {
+      optional = optionalRaw.map(function (e) {
+        return (e.substring(2, e.length - 2)).trim();
+      });
+    }
     var metadataInputBody = "";
-    mandatory.forEach(function (param) {
-      temp =
-        '<h4>' + param + '</h4>' +
-        '<div class="form-group">' +
-        '<label for="description"> Description </label>' +
-        '<input type="text" class="form-control" name="description">' +
-        '</div>'+
-        '<div class="form-group">' +
-        '<label for="parameter-type"> Parameter Type </label>' +
-        '<input type="text" class="form-control" name="parameter-type">' +
-        '</div>'+
-        '<div class="form-group">' +
-        '<label for="default-value"> Default Value </label>' +
-        '<input type="text" class="form-control" name="default-value">' +
-        '</div>'+
-        '<div class="form-group">' +
-        '<label for="example-value"> Example Value </label>' +
-        '<input type="text" class="form-control" name="example-value">' +
-        '</div>'+
-        '<div class="form-group">' +
-        '<label class="checkbox-inline"><input type="checkbox" value="mandatory">Mandatory</label>' +
-        '</div>'+
-        '<hr/>';
-      metadataInputBody +=temp;
-    });
+    if (mandatoryRaw == null && optionalRaw == null) {
+      $("#addSnippetForm").submit();
+    }
+    else {
+      const concat = (...arrays) => [].concat(...arrays.filter(Array.isArray));
+      var fields = concat(mandatory, optional);
+      fields.forEach(function (param) {
+        temp =
+          '<h4>' + param + '</h4>' +
+          '<div class="form-group">' +
+          '<label for="param-'+param+'-description"> Description </label>' +
+          '<input type="text" class="form-control" name="param-'+param+'-description">' +
+          '</div>' +
+          '<div class="form-group">' +
+          '<label for="param-'+param+'-parameter-type"> Parameter Type </label>' +
+          '<input type="text" class="form-control" name="param-'+param+'-parameterType">' +
+          '</div>' +
+          '<div class="form-group">' +
+          '<label for="param-'+param+'-default-value"> Default Value </label>' +
+          '<input type="text" class="form-control" name="param-'+param+'-defaultValue">' +
+          '</div>' +
+          '<div class="form-group">' +
+          '<label for="param-'+param+'-example-value"> Example Value </label>' +
+          '<input type="text" class="form-control" name="param-'+param+'-exampleValue">' +
+          '</div>' +
+          '<br/><hr/><br/>';
+        metadataInputBody += temp;
+      });
+    }
     $("#metadataInput").html(metadataInputBody);
     $("#dataInput").hide();
     $("#metadataInput").show();
-    $(btn).hide();
+    $("#addSnippetNext").hide();
+    $("#addSnippetBack").show();
     $("#addSnippetSubmit").show();
   }
 
@@ -577,6 +591,9 @@
 
   $('#addSnippet').on('shown.bs.modal', function (e) {
     $("#metadataInput").hide();
+    $("#addSnippetNext").show();
+    $("#addSnippetBack").hide();
+    $("#addSnippetSubmit").hide();
     if (!addSnippetEditor) {
       var snipArea = document.getElementById('snippetInput');
       addSnippetEditor = CodeMirror.fromTextArea(snipArea, editorConfigs);
