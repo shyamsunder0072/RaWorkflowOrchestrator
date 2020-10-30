@@ -31,7 +31,7 @@ class SkippableDagOperator(BaseOperator):
         should look like ``def foo(context, dag_run_obj):``
     :type python_callable: python callable
     """
-    template_fields = ('run_dag_id', 'skip_dag')
+    template_fields = ('run_dag_id', 'skip_dag', 'dag_run_conf')
     ui_color = '#e5c7f2'
 
     @apply_defaults
@@ -75,11 +75,12 @@ class SkippableDagOperator(BaseOperator):
 
             run_conf = dict(dro.payload or {})
             run_conf.update(context['dag_run'].conf or {})
-            run_conf.update(self.dag_run_conf or {})
+            if isinstance(self.dag_run_conf, dict):
+                run_conf.update(self.dag_run_conf or {})
             if dro:
                 t = run_dag(dag_id=self.run_dag_id,
                             run_id=dro.run_id,
-                            conf=json.dumps(run_conf),
+                            conf=run_conf,
                             replace_microseconds=False,
                             execution_date=execution_date)
             else:
