@@ -4444,16 +4444,32 @@ class AddDagView(AirflowBaseView):
         return f'{title}.py'
         # return title.replace(' ', '_') + '.py'
 
+    def get_parameters_json(self, parameters):
+        variables = []
+        for key in parameters:
+            variables.append(key.split('-')[1])
+        variables = set(variables)
+        final_output = {}
+        for var in variables:
+            meta = {}
+            for key, value in parameters.items():
+                if (key.split('-')[1] == var):
+                    meta[key.split('-')[2]]=value
+            final_output[var]=meta
+        return json.dumps(final_output)
+
     def save_snippets(self, metadata, new_snippet):
         """Save a new snippet in the repo
 
         Arguments:
-            metadata {dict} -- with keys `title` and `description` of new snippet
+            metadata {dict} -- with keys `title` and `description`, `section` 
+                               and `parameters` of new snippet
             new_snippet {str} -- code of new snippet.
         """
         snippet_folder = metadata['title']
         snippets_path = Path(self.get_snippet_metadata_path())
         Path(snippets_path).joinpath(snippet_folder).mkdir(parents=True, exist_ok=True)
+        parameters_json = self.get_parameters_json(metadata['parameters'])
 
         try:
             with open(snippets_path.joinpath(*[snippet_folder, 'description.md']), 'w') as f:
@@ -4470,6 +4486,12 @@ class AddDagView(AirflowBaseView):
         try:
             with open(snippets_path.joinpath(*[snippet_folder, 'section.txt']), 'w') as f:
                 f.write(','.join(metadata['section']))
+        except Exception as e:
+            print(e)
+
+        try:
+            with open(snippets_path.joinpath(*[snippet_folder, 'parameters.json']), 'w') as f:
+                f.write(parameters_json)
         except Exception as e:
             print(e)
 
@@ -4613,6 +4635,7 @@ class AddDagView(AirflowBaseView):
                 if key.startswith('param'):
                     parameters[key]=value
             
+
             description = self.process_description(request.form['description'], parameters)
 
             sections = str(request.form['section']).strip().split(',')
@@ -4621,7 +4644,8 @@ class AddDagView(AirflowBaseView):
             metadata = {
                 'title': request.form['title'],
                 'description': description,
-                'section': sections
+                'section': sections,
+                'parameters': parameters
             }
             new_snippet = request.form['snippet']
             self.save_snippets(metadata, new_snippet)
