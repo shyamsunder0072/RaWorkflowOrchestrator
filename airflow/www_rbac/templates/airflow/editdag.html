@@ -119,6 +119,9 @@
               <br>
               <pre class="margin-top-lg" id="codebrick-code-{{outer_loop.index}}-{{loop.index}}"
                 style="background-color: #ffffff;">{{snippets[snippet_section][title]['snippet']}}</pre>
+              <br>
+              <pre class="margin-top-lg" id="codebrick-param-{{outer_loop.index}}-{{loop.index}}"
+                style="background-color: #ffffff;">{{snippets[snippet_section][title]['parameters']}}</pre>
             </span>
           </div>
         </a>
@@ -200,8 +203,10 @@
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-danger" data-dismiss="modal">Close</button>
-            <button type="button" class="btn btn-default" id="addSnippetBack" onclick="addSnippetBackHandler(this)">Back</button>
-            <button type="button" class="btn btn-default" id="addSnippetNext" onclick="addSnippetNextHandler(this)">Next</button>
+            <button type="button" class="btn btn-default" id="addSnippetBack"
+              onclick="addSnippetBackHandler(this)">Back</button>
+            <button type="button" class="btn btn-default" id="addSnippetNext"
+              onclick="addSnippetNextHandler(this)">Next</button>
             <button type="submit" id="addSnippetSubmit" class="btn btn-primary">Submit</button>
           </div>
         </form>
@@ -418,12 +423,14 @@
     // if mandatory variables exist
     if (mandatoryRaw != null) {
       mandatory = mandatoryRaw.map(function (e) {
+        // remove braces at the start and end
         return (e.substring(2, e.length - 2)).trim();
       });
     }
     // if optional variables exist
     if (optionalRaw != null) {
       optional = optionalRaw.map(function (e) {
+        // remove braces at the start and end
         return (e.substring(2, e.length - 2)).trim();
       });
     }
@@ -432,30 +439,50 @@
       $("#addSnippetForm").submit();
     }
     else {
-      const concat = (...arrays) => [].concat(...arrays.filter(Array.isArray));
-      var fields = concat(mandatory, optional);
-      fields.forEach(function (param) {
-        temp =
-          '<h4>' + param + '</h4>' +
-          '<div class="form-group">' +
-          '<label for="param-'+param+'-description"> Description </label>' +
-          '<input type="text" class="form-control" name="param-'+param+'-description">' +
-          '</div>' +
-          '<div class="form-group">' +
-          '<label for="param-'+param+'-parameter-type"> Parameter Type </label>' +
-          '<input type="text" class="form-control" name="param-'+param+'-parameterType">' +
-          '</div>' +
-          '<div class="form-group">' +
-          '<label for="param-'+param+'-default-value"> Default Value </label>' +
-          '<input type="text" class="form-control" name="param-'+param+'-defaultValue">' +
-          '</div>' +
-          '<div class="form-group">' +
-          '<label for="param-'+param+'-example-value"> Example Value </label>' +
-          '<input type="text" class="form-control" name="param-'+param+'-exampleValue">' +
-          '</div>' +
-          '<br/><hr/><br/>';
-        metadataInputBody += temp;
-      });
+      if (mandatory != null) {
+        mandatory.forEach(function (param) {
+          temp =
+            '<h4>' + param + '</h4>' +
+            '<div class="form-group">' +
+            '<label for="param-' + param + '-description"> Description </label>' +
+            '<input type="text" class="form-control" name="param-' + param + '-description" required>' +
+            '</div>' +
+            '<div class="form-group">' +
+            '<label for="param-' + param + '-parameter-type"> Parameter Type </label>' +
+            '<input type="text" class="form-control" name="param-' + param + '-parameterType" required>' +
+            '</div>' +
+            '<div class="form-group">' +
+            '<label for="param-' + param + '-example-value"> Example Value </label>' +
+            '<input type="text" class="form-control" name="param-' + param + '-exampleValue" required>' +
+            '</div>' +
+            '<br/><hr/><br/>';
+          metadataInputBody += temp;
+        });
+      }
+      if (optional != null) {
+        optional.forEach(function (param) {
+          temp =
+            '<h4>' + param + '</h4>' +
+            '<div class="form-group">' +
+            '<label for="param-' + param + '-description"> Description </label>' +
+            '<input type="text" class="form-control" name="param-' + param + '-description" required>' +
+            '</div>' +
+            '<div class="form-group">' +
+            '<label for="param-' + param + '-parameter-type"> Parameter Type </label>' +
+            '<input type="text" class="form-control" name="param-' + param + '-parameterType" required>' +
+            '</div>' +
+            '<div class="form-group">' +
+            '<label for="param-' + param + '-example-value"> Default Value </label>' +
+            '<input type="text" class="form-control" name="param-' + param + '-defaultValue" required>' +
+            '</div>' +
+            '<div class="form-group">' +
+            '<label for="param-' + param + '-example-value"> Example Value </label>' +
+            '<input type="text" class="form-control" name="param-' + param + '-exampleValue" required>' +
+            '</div>' +
+            '<br/><hr/><br/>';
+          metadataInputBody += temp;
+        });
+      }
     }
     $("#metadataInput").html(metadataInputBody);
     $("#dataInput").hide();
@@ -470,28 +497,57 @@
   function insertSnip(btn, index) {
     var text = $('#codebrick-code-' + index).text();
     var desc = $('#codebrick-desc-' + index).html();
+    var snippetParams = $('#codebrick-param-' + index).text();
     var placeholders = findPlaceholders(text);
     if (placeholders.size) {
       // if have placeholders, need to fill their values before inserting.
       currSnippet = text;
       $('#insertSnippetBody').html('')
-      placeholders.forEach(function (param) {
-        if (param.includes('{{"{{"}}') && param.includes('{{"}}"}}')) {
-          param = param.replace('{{"{{"}}', '').replace('{{"}}"}}', '')
-          temp = '<div class="form-group">' +
-            '<label for="' + param + '">' + param + '</label>' +
-            '<input type="text" class="form-control" name="' + param + '">' +
-            '</div>'
-        }
-        else {
-          param = param.replace('{{"{%"}}', '').replace('{{"%}"}}', '')
-          temp = '<div class="form-group">' +
-            '<label for="' + param + '">' + param + '<span style="color:red;">* </span> </label>' +
-            '<input type="text" class="form-control" name="' + param + '" required>' +
-            '</div>'
-        }
-        $('#insertSnippetBody').append(temp);
-      })
+      if (snippetParams == "not found") {
+        placeholders.forEach(function (param) {
+          if (param.includes('{{"{{"}}') && param.includes('{{"}}"}}')) {
+            param = param.replace('{{"{{"}}', '').replace('{{"}}"}}', '')
+            temp = '<div class="form-group">' +
+              '<label for="' + param + '">' + param + '</label>' +
+              '<input type="text" class="form-control" name="' + param + '">' +
+              '</div>'
+          }
+          else {
+            param = param.replace('{{"{%"}}', '').replace('{{"%}"}}', '')
+            temp = '<div class="form-group">' +
+              '<label for="' + param + '">' + param + '<span style="color:red;">* </span> </label>' +
+              '<input type="text" class="form-control" name="' + param + '" required>' +
+              '</div>'
+          }
+          $('#insertSnippetBody').append(temp);
+        })
+      }
+      else {
+        var parsedSnippetParams = JSON.parse(snippetParams);
+        placeholders.forEach(function (param) {
+          if (param.includes('{{"{{"}}') && param.includes('{{"}}"}}')) {
+            param = param.replace('{{"{{"}}', '').replace('{{"}}"}}', '')
+            temp = '<div class="form-group">' +
+              '<label for="' + param + '">' + param + '</label> ' +
+              '<span class="badge">' + parsedSnippetParams[param]['parameterType'] + '</span>' +
+              '<p>' + parsedSnippetParams[param]['description'] + '</br>' +
+              'Eg. : ' + parsedSnippetParams[param]['exampleValue'] + '</p>' +
+              '<input type="text" class="form-control" name="' + param + '" value="' + parsedSnippetParams[param]['defaultValue'] + '">' +
+              '</div>'
+          }
+          else {
+            param = param.replace('{{"{%"}}', '').replace('{{"%}"}}', '')
+            temp = '<div class="form-group">' +
+              '<label for="' + param + '">' + param + '<span style="color:red;">* </span> </label> ' +
+              '<span class="badge">' + parsedSnippetParams[param]['parameterType'] + '</span>' +
+              '<p>' + parsedSnippetParams[param]['description'] + '</p>' +
+              '<input type="text" class="form-control" name="' + param + '"placeholder= "Eg. ' + parsedSnippetParams[param]['exampleValue'] + '"required>' +
+              '</div>'
+          }
+          $('#insertSnippetBody').append(temp);
+        })
+      }
+
       $('#showSnippetDoc').html(desc);
       $("#modalDocBtn").text("Show Documentation");
       $('#insertSnippetBody').show();
@@ -646,7 +702,6 @@
   $("#codebrickSearch").on("keyup", function () {
     var value = $(this).val().toLowerCase();
     $("#codebrickList a").filter(function () {
-      S
       $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1);
     });
   });

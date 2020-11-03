@@ -4398,6 +4398,7 @@ class AddDagView(AirflowBaseView):
             description = ''
             snippet = ''
             sections = ''
+            parameters = ''
 
             try:
                 with open(snippets_path.joinpath(*[snippet_folder, 'description.md'])) as f:
@@ -4416,6 +4417,12 @@ class AddDagView(AirflowBaseView):
                     sections = f.read()
             except Exception:
                 sections = 'custom'
+            
+            try:
+                with open(snippets_path.joinpath(*[snippet_folder, 'parameters.json'])) as f:
+                    parameters = f.read()
+            except Exception:
+                parameters = "not found"
 
             if snippet:
                 for section in sections.split(','):
@@ -4424,6 +4431,7 @@ class AddDagView(AirflowBaseView):
                     snippets_metadata[section][snippet_folder.stem] = {
                         'description': markdown2.markdown(description),
                         'snippet': snippet,
+                        'parameters':parameters
                     }
         # print(snippets_metadata)
         # for snippet_section in snippets_metadata:
@@ -4469,7 +4477,6 @@ class AddDagView(AirflowBaseView):
         snippet_folder = metadata['title']
         snippets_path = Path(self.get_snippet_metadata_path())
         Path(snippets_path).joinpath(snippet_folder).mkdir(parents=True, exist_ok=True)
-        parameters_json = self.get_parameters_json(metadata['parameters'])
 
         try:
             with open(snippets_path.joinpath(*[snippet_folder, 'description.md']), 'w') as f:
@@ -4491,7 +4498,7 @@ class AddDagView(AirflowBaseView):
 
         try:
             with open(snippets_path.joinpath(*[snippet_folder, 'parameters.json']), 'w') as f:
-                f.write(parameters_json)
+                f.write(self.get_parameters_json(metadata['parameters']))
         except Exception as e:
             print(e)
 
@@ -4504,7 +4511,7 @@ class AddDagView(AirflowBaseView):
         for var in variables:
             variable_metadata+="  \n" + "#### "+'```'+var+'```'+ "  \n"
             for key, value in parameters.items():
-                if (key.split('-')[1] == var):
+                if (key.split('-')[1] == var and key.split('-')[2]=="description"):
                     variable_metadata+="- "+"**"+key.split('-')[2]+"** : "+value+ "  \n"
         description = codebrick_description + "\n" +"### Parameters\n" + variable_metadata
         return description
