@@ -4425,7 +4425,6 @@ class AddDagView(AirflowBaseView):
 
             if snippet:
                 for section in sections.split(','):
-                    print(description)
                     if section not in snippets_metadata.keys():
                         snippets_metadata[section] = {}
                     snippets_metadata[section][snippet_folder.stem] = {
@@ -4512,7 +4511,10 @@ class AddDagView(AirflowBaseView):
             variable_metadata+="  \n" + "#### "+'```'+var+'```'+ "  \n"
             for key, value in parameters.items():
                 if (key.split('-')[1] == var and key.split('-')[2]=="description"):
-                    variable_metadata+="- "+"**"+key.split('-')[2]+"** : "+value+ "  \n"
+                    # to inject all metadata, use the code below and remove description
+                    # condition from the if statement above
+                    # variable_metadata+="- "+"**"+key.split('-')[2]+"** : "+value+ "  \n"
+                    variable_metadata+=value+ "  \n"
         description = codebrick_description + "\n" +"### Parameters\n" + variable_metadata
         return description
 
@@ -4642,7 +4644,6 @@ class AddDagView(AirflowBaseView):
                 if key.startswith('param'):
                     parameters[key]=value
             
-
             description = self.process_description(request.form['description'], parameters)
 
             sections = str(request.form['section']).strip().split(',')
@@ -4668,28 +4669,41 @@ class AddDagView(AirflowBaseView):
     @expose("/edit_snippet/<string:filename>", methods=['POST'])
     @has_access
     @action_logging
-    def edit_snippet(self, filename):
+    def edit_snippet(self, filename):        
+        parameters = {}
+        for key, value in request.form.items():
+            if key.startswith('param'):
+                parameters[key]=value
+
+        description = self.process_description(request.form['description'], parameters)
+
         if request.method == 'POST':
             metadata = {
                 'title': request.form['title'],
-                'description': request.form['description'],
+                'description': description,
+                'parameters': parameters
             }
             new_snippet = request.form['snippet']
             snippet_folder = metadata['title']
             snippets_path = Path(self.get_snippet_metadata_path())
             Path(snippets_path).joinpath(snippet_folder).mkdir(parents=True, exist_ok=True)
 
-            # edit description if a new description is provided
-            if metadata['description'] != "":
-                try:
-                    with open(snippets_path.joinpath(*[snippet_folder, 'description.md']), 'w') as f:
-                        f.write(metadata['description'])
-                except Exception as e:
-                    print(e)
-            # edit code
+            # save edited description
+            try:
+                with open(snippets_path.joinpath(*[snippet_folder, 'description.md']), 'w') as f:
+                    f.write(metadata['description'])
+            except Exception as e:
+                print(e)
+            # save edited code
             try:
                 with open(snippets_path.joinpath(*[snippet_folder, 'snippet.py']), 'w') as f:
                     f.write(new_snippet)
+            except Exception as e:
+                print(e)
+            # save edited snippet parameters
+            try:
+                with open(snippets_path.joinpath(*[snippet_folder, 'parameters.json']), 'w') as f:
+                    f.write(self.get_parameters_json(metadata['parameters']))
             except Exception as e:
                 print(e)
 
