@@ -25,7 +25,6 @@ import functools
 import itertools
 import json
 import logging
-import markdown2
 import math
 import os
 import re
@@ -4426,10 +4425,11 @@ class AddDagView(AirflowBaseView):
 
             if snippet:
                 for section in sections.split(','):
+                    print(description)
                     if section not in snippets_metadata.keys():
                         snippets_metadata[section] = {}
                     snippets_metadata[section][snippet_folder.stem] = {
-                        'description': markdown2.markdown(description),
+                        'description': description,
                         'snippet': snippet,
                         'parameters':parameters
                     }

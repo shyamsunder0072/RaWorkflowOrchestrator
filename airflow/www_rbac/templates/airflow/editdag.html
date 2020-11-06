@@ -105,8 +105,8 @@
           <strong id="codebrick-title-{{outer_loop.index}}-{{loop.index}}">{{ title }}</strong>
           <div id="codebrick-{{outer_loop.index}}-{{loop.index}}" class="collapse">
             <span>
-              <div id="codebrick-desc-{{outer_loop.index}}-{{loop.index}}">
-                {{snippets[snippet_section][title]['description'] | safe }}
+              <div class="desc" id="codebrick-desc-{{outer_loop.index}}-{{loop.index}}">
+                show{{snippets[snippet_section][title]['description'] | safe }}
               </div>
               <button class="btn btn-success pull-right codebrick-insert-btn"
                 onclick="insertSnip(this, '{{outer_loop.index}}-{{loop.index}}')">
@@ -128,7 +128,8 @@
         {% endfor %}
         {% endfor %}
     </ul>
-    <a class="btn btn-warning" style="width: 100%; margin-top: 1em;" data-toggle="modal" data-target="#addSnippet">
+    <a class="btn btn-warning" style="width: 100%; margin-top: 1em;" onclick="addSnippetBackHandler(this)"
+      data-toggle="modal" data-target="#addSnippet">
       Add a new code brick
     </a>
   </div>
@@ -279,9 +280,11 @@
 <script src="{{ url_for_asset('codemirror/keymap/sublime.js') }}"></script>
 <script src="{{ url_for('static', filename='js/language_server.js') }}"></script>
 <script src="{{ url_for('static', filename='js/notify.js') }}"></script>
+<script src="{{ url_for('static', filename='js/showdown.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/jquery.validate.min.js') }}"></script>
 <script type="text/javascript">
 
-  var diffEditor, snippetEditor, addSnippetEditor, currSnippet;
+  var diffEditor, snippetEditor, addSnippetEditor, currSnippet, storeDesc = [];
   const theme = 'idea', keymap = 'sublime', indentUnit = 4;
   var editorConfigs = {
     lineNumbers: true,
@@ -411,12 +414,23 @@
     $("#editSnippet").modal("toggle");
     $(".edit-snippet-modal-title").text("Edit code for snippet : " + title);
     $("#edit-snippet-title").val(title);
+    //  set description to stored Markdown text
+    $("#edit-snippet-desc").text(storeDesc.filter((e) => e.key === "codebrick-desc-" + index)[0].value);
     $("#snippetEdit").text(code);
   }
 
   {% raw %}
 
+  function addSnippetBackHandler(btn) {
+    $("#dataInput").show();
+    $("#metadataInput").hide();
+    $("#addSnippetNext").show();
+    $("#addSnippetBack").hide();
+    $("#addSnippetSubmit").hide();
+  }
+
   function addSnippetNextHandler(btn) {
+    $("#addSnippetForm").validate();
     var text = addSnippetEditor.getValue();
     var mandatoryRaw = text.match(/{%.+?%}/g), mandatory;
     var optionalRaw = text.match(/{{.+?}}/g), optional;
@@ -436,7 +450,7 @@
     }
     var metadataInputBody = "";
     if (mandatoryRaw == null && optionalRaw == null) {
-      $("#addSnippetForm").submit();
+      metadataInputBody = "There are no snippet variables to configure, you can submit the codebrick.";
     }
     else {
       if (mandatory != null) {
@@ -566,6 +580,23 @@
 
   $(document).ready(function () {
 
+    // create an instance of showdown -- markdown engine
+    var converter = new showdown.Converter();
+    // convert description from markdown to HTML
+    var rawDesc = $(".desc").toArray();
+    rawDesc.map((div) => {
+      var key = $(div).attr('id');
+      var value = $(div).text().replace("                show", '');
+      storeDesc.push({
+        key: key,
+        value: value
+      });
+    });
+    rawDesc.map((e) => {
+      var raw = $(e).text().replace("                show", '');
+      $(e).html(converter.makeHtml(raw));
+    })
+    // handle connection with language server
     var tries = 0;
     handleDisconnect = function () {
       // try for every 30 seconds
