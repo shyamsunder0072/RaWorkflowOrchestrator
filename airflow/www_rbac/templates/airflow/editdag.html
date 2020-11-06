@@ -448,7 +448,11 @@
   }
 
   function addSnippetNextHandler(btn) {
-    // $("#addSnippetForm").validate();
+    // validate form on clicking next
+    if (!jQuery("#addSnippetForm").valid()) {
+      jQuery("#addSnippetForm").validate();
+      return;
+    }
     var text = addSnippetEditor.getValue();
     var mandatoryRaw = text.match(/{%.+?%}/g), mandatory;
     var optionalRaw = text.match(/{{.+?}}/g), optional;
@@ -525,7 +529,11 @@
   }
 
   function editSnippetNextHandler(btn) {
-    // $("#editSnippetForm").validate();
+    // validate form on clicking next
+    if (!jQuery("#editSnippetForm").valid()) {
+      jQuery("#editSnippetForm").validate();
+      return;
+    }
     var text = editSnippetEditor.getValue();
     var mandatoryRaw = text.match(/{%.+?%}/g), mandatory;
     var optionalRaw = text.match(/{{.+?}}/g), optional;
