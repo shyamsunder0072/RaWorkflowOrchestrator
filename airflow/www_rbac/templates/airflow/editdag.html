@@ -105,8 +105,8 @@
           <strong id="codebrick-title-{{outer_loop.index}}-{{loop.index}}">{{ title }}</strong>
           <div id="codebrick-{{outer_loop.index}}-{{loop.index}}" class="collapse">
             <span>
-              <div class="desc" id="codebrick-desc-{{outer_loop.index}}-{{loop.index}}">
-                show{{snippets[snippet_section][title]['description'] | safe }}
+              <div id="codebrick-desc-{{outer_loop.index}}-{{loop.index}}" class="desc">
+                {{snippets[snippet_section][title]['description'] | safe }}
               </div>
               <button class="btn btn-success pull-right codebrick-insert-btn"
                 onclick="insertSnip(this, '{{outer_loop.index}}-{{loop.index}}')">
@@ -681,14 +681,14 @@
     var rawDesc = $(".desc").toArray();
     rawDesc.map((div) => {
       var key = $(div).attr('id');
-      var value = $(div).text().replace("                show", '').split("### Parameters")[0];
+      var value = $(div).text().trim().split("### Parameters")[0];
       storeDesc.push({
         key: key,
         value: value
       });
     });
     rawDesc.map((e) => {
-      var raw = $(e).text().replace("                show", '');
+      var raw = $(e).text().trim();
       $(e).html(converter.makeHtml(raw));
     })
     // handle connection with language server
