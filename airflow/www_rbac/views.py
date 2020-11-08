@@ -4339,6 +4339,7 @@ class AddDagView(AirflowBaseView):
         "editdag": "access",
         "save_snippet": "access",
         "edit_snippet": "access",
+        "fetch_snippet": "access",
         "download": "access",
     }
 
@@ -4383,10 +4384,14 @@ class AddDagView(AirflowBaseView):
         snippet_folders = [f for f in snippets_path.iterdir() if f.is_dir()]
 
         # Codebrick structure. Each directory inside the `self.get_snippet_metadata_path`
-        # will have a single codebrick. Inside it will be two files:
+        # will have a single codebrick. Inside it will be four files:
         # - description.md : The codebrick description in markdown.
         # - snippet.py : The codebrick python snippet.
         # - section.txt : (Optional) In which section should the codebrick go to.
+        # - parameter.json : (Optional) Metadata about parameters for snippets.
+
+        # parameter.json, description.md and snippt.py would be fetched by 
+        # fetch calls when required.
 
         # Remember, we want to remove the codebrick from the list if that codebrick
         # folder doesn't contain any snippet.py file. If it doesn't contain description.md,
@@ -4394,44 +4399,26 @@ class AddDagView(AirflowBaseView):
 
         snippets_metadata = {}
         for snippet_folder in snippet_folders:
-            description = ''
-            snippet = ''
-            sections = ''
-            parameters = ''
-
-            try:
-                with open(snippets_path.joinpath(*[snippet_folder, 'description.md'])) as f:
-                    description = f.read()
-            except Exception:
-                description = ''
             
+            # check if snippet exists
             try:
                 with open(snippets_path.joinpath(*[snippet_folder, 'snippet.py'])) as f:
                     snippet = f.read()
             except Exception:
                 snippet = ''
 
+            # check sections
             try:
                 with open(snippets_path.joinpath(*[snippet_folder, 'section.txt'])) as f:
                     sections = f.read()
             except Exception:
                 sections = 'custom'
-            
-            try:
-                with open(snippets_path.joinpath(*[snippet_folder, 'parameters.json'])) as f:
-                    parameters = f.read()
-            except Exception:
-                parameters = "not found"
 
             if snippet:
                 for section in sections.split(','):
                     if section not in snippets_metadata.keys():
                         snippets_metadata[section] = {}
-                    snippets_metadata[section][snippet_folder.stem] = {
-                        'description': description,
-                        'snippet': snippet,
-                        'parameters':parameters
-                    }
+                    snippets_metadata[section][snippet_folder.stem] = {}
         # print(snippets_metadata)
         # for snippet_section in snippets_metadata:
         #     print(snippet_section)
@@ -4501,22 +4488,24 @@ class AddDagView(AirflowBaseView):
         except Exception as e:
             print(e)
 
-    def process_description(self,codebrick_description, parameters):
-        variables = []
-        variable_metadata = ""
-        for key in parameters:
-            variables.append(key.split('-')[1])
-        variables = set(variables)
-        for var in variables:
-            variable_metadata+="  \n" + "#### "+'```'+var+'```'+ "  \n"
-            for key, value in parameters.items():
-                if (key.split('-')[1] == var and key.split('-')[2]=="description"):
-                    # to inject all metadata, use the code below and remove description
-                    # condition from the if statement above
-                    # variable_metadata+="- "+"**"+key.split('-')[2]+"** : "+value+ "  \n"
-                    variable_metadata+=value+ "  \n"
-        description = codebrick_description + "\n" +"### Parameters\n" + variable_metadata
-        return description
+    # code to inject metadata into description
+
+    # def process_description(self,codebrick_description, parameters):
+    #     variables = []
+    #     variable_metadata = ""
+    #     for key in parameters:
+    #         variables.append(key.split('-')[1])
+    #     variables = set(variables)
+    #     for var in variables:
+    #         variable_metadata+="  \n" + "#### "+'```'+var+'```'+ "  \n"
+    #         for key, value in parameters.items():
+    #             if (key.split('-')[1] == var and key.split('-')[2]=="description"):
+    #                 # to inject all metadata, use the code below and remove description
+    #                 # condition from the if statement above
+    #                 # variable_metadata+="- "+"**"+key.split('-')[2]+"** : "+value+ "  \n"
+    #                 variable_metadata+=value+ "  \n"
+    #     description = codebrick_description + "\n" +"### Parameters\n" + variable_metadata
+    #     return description
 
     @expose('/add_dag', methods=['GET', 'POST'])
     @action_logging
@@ -4588,6 +4577,43 @@ class AddDagView(AirflowBaseView):
         file_data = self.get_details(dags_dir, ".py")
         return self.render_template('airflow/add_dag.html', title=title, file_data=file_data)
 
+    @expose("/fetch_snippet/<string:name>", methods=['GET'])
+    @has_access
+    @action_logging
+    def fetch_snippet(self, name):     
+        # use the snippet name to return:
+        # - description
+        # - parameters
+        # - snippet   
+        snippets_path = Path(self.get_snippet_metadata_path())
+        target_path = Path(os.path.join(snippets_path,name))
+
+        try:
+            with open(snippets_path.joinpath(*[target_path, 'description.md'])) as f:
+                description = f.read()
+        except Exception:
+            description = ''
+        
+        try:
+            with open(snippets_path.joinpath(*[target_path, 'snippet.py'])) as f:
+                snippet = f.read()
+        except Exception:
+            snippet = ''
+        
+        try:
+            with open(snippets_path.joinpath(*[target_path, 'parameters.json'])) as f:
+                parameters = f.read()
+        except Exception:
+            parameters = "not found"
+
+        snippets_metadata = {
+            'description': description,
+            'snippet': snippet,
+            'parameters':parameters
+        }
+        
+        return json.dumps(snippets_metadata)
+
     @expose("/editdag/<string:filename>/", methods=['GET', 'POST'])
     @action_logging
     @has_access
@@ -4643,15 +4669,13 @@ class AddDagView(AirflowBaseView):
             for key, value in request.form.items():
                 if key.startswith('param'):
                     parameters[key]=value
-            
-            description = self.process_description(request.form['description'], parameters)
 
             sections = str(request.form['section']).strip().split(',')
             if not sections:
                 sections = 'custom'
             metadata = {
                 'title': request.form['title'],
-                'description': description,
+                'description': request.form['description'],
                 'section': sections,
                 'parameters': parameters
             }
@@ -4675,12 +4699,10 @@ class AddDagView(AirflowBaseView):
             if key.startswith('param'):
                 parameters[key]=value
 
-        description = self.process_description(request.form['description'], parameters)
-
         if request.method == 'POST':
             metadata = {
                 'title': request.form['title'],
-                'description': description,
+                'description': request.form['description'],
                 'parameters': parameters
             }
             new_snippet = request.form['snippet']

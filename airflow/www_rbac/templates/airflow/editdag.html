@@ -97,36 +97,32 @@
     <br>
     <ul class="list-group" id="codebrickList">
       {% for snippet_section in snippets %}
-      {% set outer_loop = loop %}
-      <h3> Section: {{snippet_section}}</h2>
-        {% for title in snippets[snippet_section] %}
-        <a class="list-group-item" ondragstart="setContentOfEvent(event, '{{outer_loop.index}}-{{loop.index}}')"
-          data-toggle="collapse" data-parent="#codebrickList" href="#codebrick-{{outer_loop.index}}-{{loop.index}}">
-          <strong id="codebrick-title-{{outer_loop.index}}-{{loop.index}}">{{ title }}</strong>
-          <div id="codebrick-{{outer_loop.index}}-{{loop.index}}" class="collapse">
-            <span>
-              <div id="codebrick-desc-{{outer_loop.index}}-{{loop.index}}" class="desc">
-                {{snippets[snippet_section][title]['description'] | safe }}
-              </div>
-              <button class="btn btn-success pull-right codebrick-insert-btn"
-                onclick="insertSnip(this, '{{outer_loop.index}}-{{loop.index}}')">
-                INSERT
-              </button>
-              <button class="btn btn-default pull-right" style="margin-right:5px"
-                onclick="editCodeBrick(this,'{{ title }}', '{{outer_loop.index}}-{{loop.index}}' )">
-                EDIT CODEBRICK
-              </button>
-              <br>
-              <pre class="margin-top-lg" id="codebrick-code-{{outer_loop.index}}-{{loop.index}}"
-                style="background-color: #ffffff;">{{snippets[snippet_section][title]['snippet']}}</pre>
-              <br>
-              <pre class="margin-top-lg" id="codebrick-param-{{outer_loop.index}}-{{loop.index}}"
-                style="background-color: #ffffff; display: none;">{{snippets[snippet_section][title]['parameters']}}</pre>
-            </span>
-          </div>
-        </a>
-        {% endfor %}
-        {% endfor %}
+      <h3> Section: {{snippet_section}}</h3>
+      {% for title in snippets[snippet_section] %}
+      <a class="list-group-item" ondragstart="setContentOfEvent(event, '{{title}}')" data-toggle="collapse"
+        data-parent="#codebrickList" href="#codebrick-{{title}}" onclick="fetchSnippet('{{ title }}')">
+        <strong id="codebrick-title-{{title}}">{{ title }}</strong>
+        <div id="codebrick-{{title}}" class="collapse">
+          <span>
+            <div id="codebrick-desc-{{title}}" class="desc">
+            </div>
+            <button class="btn btn-success pull-right codebrick-insert-btn" onclick="insertSnip(this, '{{title}}')">
+              INSERT
+            </button>
+            <button class="btn btn-default pull-right" style="margin-right:5px"
+              onclick="editCodeBrick(this,'{{ title }}')">
+              EDIT CODEBRICK
+            </button>
+            <br>
+            <pre class="margin-top-lg" id="codebrick-code-{{title}}" style="background-color: #ffffff;"></pre>
+            <br>
+            <pre class="margin-top-lg" id="codebrick-param-{{title}}"
+              style="background-color: #ffffff; display: none;"></pre>
+          </span>
+        </div>
+      </a>
+      {% endfor %}
+      {% endfor %}
     </ul>
     <a class="btn btn-warning" style="width: 100%; margin-top: 1em;" onclick="addSnippetBackHandler(this)"
       data-toggle="modal" data-target="#addSnippet">
@@ -295,6 +291,7 @@
 <script type="text/javascript">
 
   var diffEditor, editSnippetEditor, addSnippetEditor, currSnippet, storeDesc = [];
+  var converter = new showdown.Converter();
   const theme = 'idea', keymap = 'sublime', indentUnit = 4;
   var editorConfigs = {
     lineNumbers: true,
@@ -347,8 +344,8 @@
   return new Set(placeholders);
   }
 
-  function setContentOfEvent(event, index) {
-    event.dataTransfer.setData("codebrick-index", index);
+  function setContentOfEvent(event, title) {
+    event.dataTransfer.setData("codebrick-title", title);
   }
 
   // function importUnimportedOperators(cursor) {
@@ -419,13 +416,47 @@
     replaceTextInEditor(currSnippetCopy)
   }
 
-  function editCodeBrick(btn, title, index) {
-    var code = $('#codebrick-code-' + index).html();
+  function fetchSnippet(title, dragged) {
+    // check if the codebrick has already been fetched
+    if ($("#codebrick-code-" + title).text() == '') {
+      var path = "{{ url_for('AddDagView.fetch_snippet', name=name) }}";
+      // if it hasn't been fetched, fetch it
+      fetch(path + title, {method: "GET"})
+        .then(response => response.json()
+        )
+        .then(
+          // inject response into webpage
+          metadata => {
+            var rawDesc = metadata.description.trim()
+            storeDesc.push({
+              key:'codebrick-desc-'+title,
+              value: rawDesc
+            });
+            $("#codebrick-desc-" + title).html(converter.makeHtml(rawDesc));
+            $("#codebrick-code-" + title).text(metadata.snippet);
+            $("#codebrick-param-" + title).text(metadata.parameters);
+            // if this fetch call is due to a drag and drop,
+            // call insertSnip after fetching
+            if (dragged) {
+              insertSnip(null, title);
+            }
+          }
+        )
+    }
+    // if the codebrick is already fetched but the fetch call is due to a 
+    // drag and drop, call insertSnip
+    else if (dragged) {
+      insertSnip(null, title);
+    }
+  };
+
+  function editCodeBrick(btn, title) {
+    var code = $('#codebrick-code-' + title).html();
     $("#editSnippet").modal("toggle");
     $(".edit-snippet-modal-title").text("Edit code for snippet : " + title);
     $("#edit-snippet-title").val(title);
     //  set description to stored Markdown text
-    $("#edit-snippet-desc").text(storeDesc.filter((e) => e.key === "codebrick-desc-" + index)[0].value);
+    $("#edit-snippet-desc").text(storeDesc.filter((e) => e.key === "codebrick-desc-" + title)[0].value);
     $("#snippetEdit").text(code);
   }
 
@@ -611,10 +642,10 @@
 
   {% endraw %}
 
-  function insertSnip(btn, index) {
-    var text = $('#codebrick-code-' + index).text();
-    var desc = $('#codebrick-desc-' + index).html();
-    var snippetParams = $('#codebrick-param-' + index).text();
+  function insertSnip(btn, title) {
+    var text = $('#codebrick-code-' + title).text();
+    var desc = $('#codebrick-desc-' + title).html();
+    var snippetParams = $('#codebrick-param-' + title).text();
     var placeholders = findPlaceholders(text);
     if (placeholders.size) {
       // if have placeholders, need to fill their values before inserting.
@@ -683,22 +714,6 @@
 
   $(document).ready(function () {
 
-    // create an instance of showdown -- markdown engine
-    var converter = new showdown.Converter();
-    // convert description from markdown to HTML
-    var rawDesc = $(".desc").toArray();
-    rawDesc.map((div) => {
-      var key = $(div).attr('id');
-      var value = $(div).text().trim().split("### Parameters")[0];
-      storeDesc.push({
-        key: key,
-        value: value
-      });
-    });
-    rawDesc.map((e) => {
-      var raw = $(e).text().trim();
-      $(e).html(converter.makeHtml(raw));
-    })
     // handle connection with language server
     var tries = 0;
     handleDisconnect = function () {
@@ -747,14 +762,14 @@
 
   langServer.codeEditor.execCommand('goDocEnd');
   langServer.codeEditor.on('drop', function (cm, event) {
-    if (event.dataTransfer.getData("codebrick-index")) {
+    if (event.dataTransfer.getData("codebrick-title")) {
       var coords = cm.coordsChar({
         left: event.x,
         top: event.y
       }, 'window');
       cm.getDoc().setCursor(coords);
       event.preventDefault();
-      insertSnip(null, event.dataTransfer.getData("codebrick-index"));
+      fetchSnippet(event.dataTransfer.getData("codebrick-title"), true);
     }
   })
 
