@@ -115,9 +115,6 @@
             </button>
             <br>
             <pre class="margin-top-lg" id="codebrick-code-{{title}}" style="background-color: #ffffff;"></pre>
-            <br>
-            <pre class="margin-top-lg" id="codebrick-param-{{title}}"
-              style="background-color: #ffffff; display: none;"></pre>
           </span>
         </div>
       </a>
@@ -290,7 +287,8 @@
 <script src="{{ url_for('static', filename='js/jquery.validate.min.js') }}"></script>
 <script type="text/javascript">
 
-  var diffEditor, editSnippetEditor, addSnippetEditor, currSnippet, storeDesc = [];
+  var diffEditor, editSnippetEditor, addSnippetEditor, currSnippet,
+    descStore = [], paramStore = [];
   var converter = new showdown.Converter();
   const theme = 'idea', keymap = 'sublime', indentUnit = 4;
   var editorConfigs = {
@@ -421,20 +419,25 @@
     if ($("#codebrick-code-" + title).text() == '') {
       var path = "{{ url_for('AddDagView.fetch_snippet', name=name) }}";
       // if it hasn't been fetched, fetch it
-      fetch(path + title, {method: "GET"})
+      fetch(path + title, { method: "GET" })
         .then(response => response.json()
         )
         .then(
           // inject response into webpage
           metadata => {
             var rawDesc = metadata.description.trim()
-            storeDesc.push({
-              key:'codebrick-desc-'+title,
+            // store raw markdown description for later editing -- if required
+            descStore.push({
+              key: 'codebrick-desc-' + title,
               value: rawDesc
             });
             $("#codebrick-desc-" + title).html(converter.makeHtml(rawDesc));
+            // store parameters for inserting later
+            paramStore.push({
+              key: title,
+              value: metadata.parameters
+            });
             $("#codebrick-code-" + title).text(metadata.snippet);
-            $("#codebrick-param-" + title).text(metadata.parameters);
             // if this fetch call is due to a drag and drop,
             // call insertSnip after fetching
             if (dragged) {
@@ -456,7 +459,7 @@
     $(".edit-snippet-modal-title").text("Edit code for snippet : " + title);
     $("#edit-snippet-title").val(title);
     //  set description to stored Markdown text
-    $("#edit-snippet-desc").text(storeDesc.filter((e) => e.key === "codebrick-desc-" + title)[0].value);
+    $("#edit-snippet-desc").text(descStore.filter((e) => e.key === "codebrick-desc-" + title)[0].value);
     $("#snippetEdit").text(code);
   }
 
@@ -645,7 +648,7 @@
   function insertSnip(btn, title) {
     var text = $('#codebrick-code-' + title).text();
     var desc = $('#codebrick-desc-' + title).html();
-    var snippetParams = $('#codebrick-param-' + title).text();
+    var snippetParams = paramStore.filter((e) => e.key === title)[0].value;
     var placeholders = findPlaceholders(text);
     if (placeholders.size) {
       // if have placeholders, need to fill their values before inserting.
