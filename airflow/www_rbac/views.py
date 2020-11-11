@@ -4407,18 +4407,30 @@ class AddDagView(AirflowBaseView):
             except Exception:
                 snippet = ''
 
+            # read description
+            try:
+                with open(snippets_path.joinpath(*[snippet_folder, 'description.md'])) as f:
+                    description = f.read()
+            except Exception as e:
+                print(e)
+                description = 'Description not available'
+        
             # check sections
             try:
                 with open(snippets_path.joinpath(*[snippet_folder, 'section.txt'])) as f:
                     sections = f.read()
+                    sections = sections.strip().split(',')
             except Exception:
-                sections = 'custom'
-
-            if snippet:
-                for section in sections.split(','):
-                    if section not in snippets_metadata.keys():
-                        snippets_metadata[section] = {}
-                    snippets_metadata[section][snippet_folder.stem] = {}
+                sections = ['custom']
+            # if snippet:
+            #     for section in sections.split(','):
+            #         if section not in snippets_metadata.keys():
+            #             snippets_metadata[section] = {}
+            #         snippets_metadata[section][snippet_folder.stem] = {}
+            snippets_metadata[snippet_folder.stem] = {
+                'description': description,
+                'sections': sections
+            }
         # print(snippets_metadata)
         # for snippet_section in snippets_metadata:
         #     print(snippet_section)
@@ -4460,7 +4472,7 @@ class AddDagView(AirflowBaseView):
                                and `parameters` of new snippet
             new_snippet {str} -- code of new snippet.
         """
-        snippet_folder = metadata['title']
+        snippet_folder = metadata['title'].replace(' ','+')
         snippets_path = Path(self.get_snippet_metadata_path())
         Path(snippets_path).joinpath(snippet_folder).mkdir(parents=True, exist_ok=True)
 
@@ -4586,14 +4598,8 @@ class AddDagView(AirflowBaseView):
         # - parameters
         # - snippet   
         snippets_path = Path(self.get_snippet_metadata_path())
-        target_path = Path(os.path.join(snippets_path,name))
+        target_path = Path(os.path.join(snippets_path, name))
 
-        try:
-            with open(snippets_path.joinpath(*[target_path, 'description.md'])) as f:
-                description = f.read()
-        except Exception:
-            description = ''
-        
         try:
             with open(snippets_path.joinpath(*[target_path, 'snippet.py'])) as f:
                 snippet = f.read()
@@ -4607,11 +4613,12 @@ class AddDagView(AirflowBaseView):
             parameters = "not found"
 
         snippets_metadata = {
-            'description': description,
             'snippet': snippet,
             'parameters':parameters
         }
         
+        print(snippets_metadata)
+
         return json.dumps(snippets_metadata)
 
     @expose("/editdag/<string:filename>/", methods=['GET', 'POST'])

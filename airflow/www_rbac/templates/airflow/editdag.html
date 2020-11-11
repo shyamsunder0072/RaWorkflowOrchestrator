@@ -95,16 +95,24 @@
       <input type="text" class="form-control" id="codebrickSearch" placeholder="Search codebricks here..">
     </div>
     <br>
+    <div id="tag-group">
+    </div>
+    <br>
     <ul class="list-group" id="codebrickList">
-      {% for snippet_section in snippets %}
-      <h3> Section: {{snippet_section}}</h3>
-      {% for title in snippets[snippet_section] %}
-      <a class="list-group-item" ondragstart="setContentOfEvent(event, '{{title}}')" data-toggle="collapse"
+      {% for title in snippets %}
+      <a class="list-group-item" ondragstart="setContentOfEvent(event,'{{title}}')" data-toggle="collapse"
         data-parent="#codebrickList" href="#codebrick-{{title}}" onclick="fetchSnippet('{{ title }}')">
         <strong id="codebrick-title-{{title}}">{{ title }}</strong>
         <div id="codebrick-{{title}}" class="collapse">
           <span>
+            <div id="codebrick-tags-{{title}}">
+              {% for tag in snippets[title]['sections'] %}
+              <span class="tag label label-primary" style="margin-right:5px">{{ tag }} </span>
+              {% endfor %}
+            </div>
+            <br />
             <div id="codebrick-desc-{{title}}" class="desc">
+              {{ snippets[title]['description'] }}
             </div>
             <button class="btn btn-success pull-right codebrick-insert-btn" onclick="insertSnip(this, '{{title}}')">
               INSERT
@@ -118,7 +126,6 @@
           </span>
         </div>
       </a>
-      {% endfor %}
       {% endfor %}
     </ul>
     <a class="btn btn-warning" style="width: 100%; margin-top: 1em;" onclick="addSnippetBackHandler(this)"
@@ -425,13 +432,6 @@
         .then(
           // inject response into webpage
           metadata => {
-            var rawDesc = metadata.description.trim()
-            // store raw markdown description for later editing -- if required
-            descStore.push({
-              key: 'codebrick-desc-' + title,
-              value: rawDesc
-            });
-            $("#codebrick-desc-" + title).html(converter.makeHtml(rawDesc));
             // store parameters for inserting later
             paramStore.push({
               key: title,
@@ -716,6 +716,37 @@
   }
 
   $(document).ready(function () {
+
+    // tag filter and buttons
+    var tags = [];
+    var tagSpans = $(".tag").toArray();
+    tagSpans.map((tag) => {
+      tags.push($(tag).text());
+    });
+    let uniqueTags = [...new Set(tags)];
+    var tagGroupHTML = '<button type="button" style="border-radius:23px; margin-right:5px" class="btn btn-default">' +
+        'All' + '</button>'
+    uniqueTags.map(tag => {
+      tagGroupHTML += '<button type="button" style="border-radius:23px; margin-right:5px" class="btn btn-default">' +
+        tag + '</button>'
+    })
+    $("#tag-group").html(tagGroupHTML);
+
+    // store raw descriptions and 
+    // replace raw descriptions with markdown formatted descriptions
+    var rawDesc = $(".desc").toArray();
+    rawDesc.map((div) => {
+      var key = $(div).attr('id');
+      var value = $(div).text().trim();
+      descStore.push({
+        key: key,
+        value: value
+      });
+    });
+    rawDesc.map((e) => {
+      var raw = $(e).text().trim();
+      $(e).html(converter.makeHtml(raw));
+    })
 
     // handle connection with language server
     var tries = 0;
