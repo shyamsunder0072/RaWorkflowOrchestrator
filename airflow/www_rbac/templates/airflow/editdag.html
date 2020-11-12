@@ -40,7 +40,7 @@
     cursor: pointer;
   }
 
-  .tag-button:focus,
+  .section-button:focus,
   .clear-button:focus {
     outline: none;
     box-shadow: none;
@@ -101,20 +101,20 @@
       <input type="text" class="form-control" id="codebrickSearch" placeholder="Search codebricks here..">
     </div>
     <br>
-    <div id="tag-group">
+    <div id="section-group">
     </div>
     <br>
     <ul class="list-group" id="codebrickList">
       {% for title in snippets %}
       <a class="list-group-item" ondragstart="setContentOfEvent(event,'{{title}}')" data-toggle="collapse"
         data-parent="#codebrickList" href="#codebrick-{{title}}" onclick="fetchSnippet('{{ title }}')"
-        data-tags="{% for tag in snippets[title]['sections'] %}{{ tag }},{% endfor %}">
+        data-sections="{% for section in snippets[title]['sections'] %}{{ section }},{% endfor %}">
         <strong id="codebrick-title-{{title}}">{{ title }}</strong>
         <div id="codebrick-{{title}}" class="collapse">
           <span>
-            <div id="codebrick-tags-{{title}}">
-              {% for tag in snippets[title]['sections'] %}
-              <span class="tag label label-primary" style="margin-right:5px">{{ tag }} </span>
+            <div id="codebrick-sections-{{title}}">
+              {% for section in snippets[title]['sections'] %}
+              <span class="section label label-primary" style="margin-right:5px">{{ section }} </span>
               {% endfor %}
             </div>
             <br />
@@ -652,18 +652,18 @@
 
   {% endraw %}
 
-  function handleTagToggle(btn) {
-    // clear all other tag buttons
-    handleTagClear();
-    var tag = $(btn).text().trim();
+  function handleSectionToggle(btn) {
+    // clear all other section buttons
+    handleSectionClear();
+    var section = $(btn).text().trim();
     // change color of clicked button
     $(btn).removeClass('btn-default');
     $(btn).addClass('btn-primary');
-    // filter and display codebricks with tag
+    // filter and display codebricks with section
     var codebricks = $("#codebrickList").children().toArray();
     codebricks.map((codebrick) => {
-      var tags = $(codebrick).attr("data-tags").split(',');
-      if (tags.includes(tag)) {
+      var sections = $(codebrick).attr("data-sections").split(',');
+      if (sections.includes(section)) {
         $(codebrick).show();
       }
       else {
@@ -672,9 +672,9 @@
     })
   }
 
-  function handleTagClear() {
-    var tagButtons = $(".tag-button").toArray();
-    tagButtons.map((button) => {
+  function handleSectionClear() {
+    var sectionButtons = $(".section-button").toArray();
+    sectionButtons.map((button) => {
       $(button).removeClass('btn-primary');
       $(button).addClass('btn-default');
     })
@@ -756,23 +756,23 @@
 
   $(document).ready(function () {
 
-        // tag filter and buttons
-        var tags = [];
-        var tagSpans = $(".tag").toArray();
-        tagSpans.map((tag) => {
-          tags.push($(tag).text());
+        // section filter and buttons
+        var sections = [];
+        var sectionSpans = $(".section").toArray();
+        sectionSpans.map((section) => {
+          sections.push($(section).text());
         });
-        let uniqueTags = [...new Set(tags)];
-        var tagGroupHTML = '<h4> Filter by tags:</h4>'
-        uniqueTags.map(tag => {
-          tagGroupHTML += '<button type="button" class="tag-button btn btn-default"' +
+        let uniqueSections = [...new Set(sections)];
+        var sectionGroupHTML = '<h4> Filter by Tags:</h4>'
+        uniqueSections.map(section => {
+          sectionGroupHTML += '<button type="button" class="section-button btn btn-default"' +
             'style="border-radius:23px; margin-right:5px"' +
-            'onclick=handleTagToggle(this)>' +
-            tag + '</button>'
+            'onclick=handleSectionToggle(this)>' +
+            section + '</button>'
         })
-        tagGroupHTML += '<button class="clear-button btn btn-link" onclick="handleTagClear()"' +
+        sectionGroupHTML += '<button class="clear-button btn btn-link" onclick="handleSectionClear()"' +
           'style="border: none;;"><span class="glyphicon glyphicon-remove"></span> CLEAR</button>'
-        $("#tag-group").html(tagGroupHTML);
+        $("#section-group").html(sectionGroupHTML);
 
         // store raw descriptions and 
         // replace raw descriptions with markdown formatted descriptions
