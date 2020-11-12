@@ -114,7 +114,7 @@
           <span>
             <div id="codebrick-sections-{{title}}">
               {% for section in snippets[title]['sections'] %}
-              <span class="section label label-primary" style="margin-right:5px">{{ section }} </span>
+              <span class="section label label-primary" style="margin-right:5px" onclick="handleSectionToggle(this)">{{ section }} </span>
               {% endfor %}
             </div>
             <br />
@@ -204,7 +204,7 @@
               <p class="help-block">Title can contain characters <code>A-Z, a-z, 0-9, _, -, space</code>.
             </div>
             <div class="form-group">
-              <label for="snippetSection">Section(s)</label>
+              <label for="snippetSection">Tag(s)</label>
               <input type="text" class="form-control" name="section">
               <p class="help-block">Tags comma-separated</code>.
             </div>
