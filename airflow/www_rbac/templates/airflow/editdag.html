@@ -39,6 +39,12 @@
   .hover-cursor-pointer:hover {
     cursor: pointer;
   }
+
+  .tag-button:focus,
+  .clear-button:focus {
+    outline: none;
+    box-shadow: none;
+  }
 </style>
 <link rel="stylesheet" href="{{ url_for_asset('codemirror/codemirrorlib/codemirror.css') }}" />
 <link rel="stylesheet" href="{{ url_for_asset('codemirror/theme/idea.css') }}" />
@@ -101,7 +107,8 @@
     <ul class="list-group" id="codebrickList">
       {% for title in snippets %}
       <a class="list-group-item" ondragstart="setContentOfEvent(event,'{{title}}')" data-toggle="collapse"
-        data-parent="#codebrickList" href="#codebrick-{{title}}" onclick="fetchSnippet('{{ title }}')">
+        data-parent="#codebrickList" href="#codebrick-{{title}}" onclick="fetchSnippet('{{ title }}')"
+        data-tags="{% for tag in snippets[title]['sections'] %}{{ tag }},{% endfor %}">
         <strong id="codebrick-title-{{title}}">{{ title }}</strong>
         <div id="codebrick-{{title}}" class="collapse">
           <span>
@@ -645,134 +652,169 @@
 
   {% endraw %}
 
-  function insertSnip(btn, title) {
-    var text = $('#codebrick-code-' + title).text();
-    var desc = $('#codebrick-desc-' + title).html();
-    var snippetParams = paramStore.filter((e) => e.key === title)[0].value;
-    var placeholders = findPlaceholders(text);
-    if (placeholders.size) {
-      // if have placeholders, need to fill their values before inserting.
-      currSnippet = text;
-      $('#insertSnippetBody').html('')
-      if (snippetParams == "not found") {
-        placeholders.forEach(function (param) {
-          if (param.includes('{{"{{"}}') && param.includes('{{"}}"}}')) {
-            param = param.replace('{{"{{"}}', '').replace('{{"}}"}}', '')
-            temp = '<div class="form-group">' +
-              '<label for="' + param + '">' + param + '</label>' +
-              '<input type="text" class="form-control" name="' + param + '">' +
-              '</div>'
-          }
-          else {
-            param = param.replace('{{"{%"}}', '').replace('{{"%}"}}', '').trim()
-            temp = '<div class="form-group">' +
-              '<label for="' + param + '">' + param + '<span style="color:red;">* </span> </label>' +
-              '<input type="text" class="form-control" name="' + param + '" required>' +
-              '</div>'
-          }
-          $('#insertSnippetBody').append(temp);
-        })
+  function handleTagToggle(btn) {
+    // clear all other tag buttons
+    handleTagClear();
+    var tag = $(btn).text().trim();
+    // change color of clicked button
+    $(btn).removeClass('btn-default');
+    $(btn).addClass('btn-primary');
+    // filter and display codebricks with tag
+    var codebricks = $("#codebrickList").children().toArray();
+    codebricks.map((codebrick) => {
+      var tags = $(codebrick).attr("data-tags").split(',');
+      if (tags.includes(tag)) {
+        $(codebrick).show();
       }
       else {
-        var parsedSnippetParams = JSON.parse(snippetParams);
-        placeholders.forEach(function (param) {
-          if (param.includes('{{"{{"}}') && param.includes('{{"}}"}}')) {
-            param = param.replace('{{"{{"}}', '').replace('{{"}}"}}', '').trim()
-            temp = '<div class="form-group">' +
-              '<label for="' + param + '">' + param + '</label> ' +
-              '<span class="badge">' + parsedSnippetParams[param]['parameterType'] + '</span>' +
-              '<p>' + parsedSnippetParams[param]['description'] + '</br>' +
-              'Eg. : ' + parsedSnippetParams[param]['exampleValue'] + '</p>' +
-              '<input type="text" class="form-control" name="' + param + '" value="' + parsedSnippetParams[param]['defaultValue'] + '">' +
-              '</div>'
+        $(codebrick).hide();
+      }
+    })
+  }
+
+  function handleTagClear() {
+    var tagButtons = $(".tag-button").toArray();
+    tagButtons.map((button) => {
+      $(button).removeClass('btn-primary');
+      $(button).addClass('btn-default');
+    })
+    var codebricks = $("#codebrickList").children().toArray();
+    codebricks.map((codebrick) => {
+        $(codebrick).show();
+    });
+  }
+
+  function insertSnip(btn, title) {
+        var text = $('#codebrick-code-' + title).text();
+        var desc = $('#codebrick-desc-' + title).html();
+        var snippetParams = paramStore.filter((e) => e.key === title)[0].value;
+        var placeholders = findPlaceholders(text);
+        if (placeholders.size) {
+          // if have placeholders, need to fill their values before inserting.
+          currSnippet = text;
+          $('#insertSnippetBody').html('')
+          if (snippetParams == "not found") {
+            placeholders.forEach(function (param) {
+              if (param.includes('{{"{{"}}') && param.includes('{{"}}"}}')) {
+                param = param.replace('{{"{{"}}', '').replace('{{"}}"}}', '')
+                temp = '<div class="form-group">' +
+                  '<label for="' + param + '">' + param + '</label>' +
+                  '<input type="text" class="form-control" name="' + param + '">' +
+                  '</div>'
+              }
+              else {
+                param = param.replace('{{"{%"}}', '').replace('{{"%}"}}', '').trim()
+                temp = '<div class="form-group">' +
+                  '<label for="' + param + '">' + param + '<span style="color:red;">* </span> </label>' +
+                  '<input type="text" class="form-control" name="' + param + '" required>' +
+                  '</div>'
+              }
+              $('#insertSnippetBody').append(temp);
+            })
           }
           else {
-            param = param.replace('{{"{%"}}', '').replace('{{"%}"}}', '')
-            temp = '<div class="form-group">' +
-              '<label for="' + param + '">' + param + '<span style="color:red;">* </span> </label> ' +
-              '<span class="badge">' + parsedSnippetParams[param]['parameterType'] + '</span>' +
-              '<p>' + parsedSnippetParams[param]['description'] + '</p>' +
-              '<input type="text" class="form-control" name="' + param + '"placeholder= "Eg. ' + parsedSnippetParams[param]['exampleValue'] + '"required>' +
-              '</div>'
+            var parsedSnippetParams = JSON.parse(snippetParams);
+            placeholders.forEach(function (param) {
+              if (param.includes('{{"{{"}}') && param.includes('{{"}}"}}')) {
+                param = param.replace('{{"{{"}}', '').replace('{{"}}"}}', '').trim()
+                temp = '<div class="form-group">' +
+                  '<label for="' + param + '">' + param + '</label> ' +
+                  '<span class="badge">' + parsedSnippetParams[param]['parameterType'] + '</span>' +
+                  '<p>' + parsedSnippetParams[param]['description'] + '</br>' +
+                  'Eg. : ' + parsedSnippetParams[param]['exampleValue'] + '</p>' +
+                  '<input type="text" class="form-control" name="' + param + '" value="' + parsedSnippetParams[param]['defaultValue'] + '">' +
+                  '</div>'
+              }
+              else {
+                param = param.replace('{{"{%"}}', '').replace('{{"%}"}}', '')
+                temp = '<div class="form-group">' +
+                  '<label for="' + param + '">' + param + '<span style="color:red;">* </span> </label> ' +
+                  '<span class="badge">' + parsedSnippetParams[param]['parameterType'] + '</span>' +
+                  '<p>' + parsedSnippetParams[param]['description'] + '</p>' +
+                  '<input type="text" class="form-control" name="' + param + '"placeholder= "Eg. ' + parsedSnippetParams[param]['exampleValue'] + '"required>' +
+                  '</div>'
+              }
+              $('#insertSnippetBody').append(temp);
+            })
           }
-          $('#insertSnippetBody').append(temp);
-        })
+
+          $('#showSnippetDoc').html(desc);
+          $("#modalDocBtn").text("Show Documentation");
+          $('#insertSnippetBody').show();
+          $('#showSnippetDoc').show();
+          $('#insertSnippet').modal('show');
+        }
+
+        else {
+          // adding a new line at the end of snippet.
+          replaceTextInEditor(text)
+        }
+        // disable the button when snippet is inserted. The button will be enabled
+        // after the codebrick div is toggled again.
+        // $(btn).addClass('disabled');
       }
-
-      $('#showSnippetDoc').html(desc);
-      $("#modalDocBtn").text("Show Documentation");
-      $('#insertSnippetBody').show();
-      $('#showSnippetDoc').show();
-      $('#insertSnippet').modal('show');
-    }
-
-    else {
-      // adding a new line at the end of snippet.
-      replaceTextInEditor(text)
-    }
-    // disable the button when snippet is inserted. The button will be enabled
-    // after the codebrick div is toggled again.
-    // $(btn).addClass('disabled');
-  }
 
   $(document).ready(function () {
 
-    // tag filter and buttons
-    var tags = [];
-    var tagSpans = $(".tag").toArray();
-    tagSpans.map((tag) => {
-      tags.push($(tag).text());
-    });
-    let uniqueTags = [...new Set(tags)];
-    var tagGroupHTML = '<button type="button" style="border-radius:23px; margin-right:5px" class="btn btn-default">' +
-        'All' + '</button>'
-    uniqueTags.map(tag => {
-      tagGroupHTML += '<button type="button" style="border-radius:23px; margin-right:5px" class="btn btn-default">' +
-        tag + '</button>'
-    })
-    $("#tag-group").html(tagGroupHTML);
-
-    // store raw descriptions and 
-    // replace raw descriptions with markdown formatted descriptions
-    var rawDesc = $(".desc").toArray();
-    rawDesc.map((div) => {
-      var key = $(div).attr('id');
-      var value = $(div).text().trim();
-      descStore.push({
-        key: key,
-        value: value
-      });
-    });
-    rawDesc.map((e) => {
-      var raw = $(e).text().trim();
-      $(e).html(converter.makeHtml(raw));
-    })
-
-    // handle connection with language server
-    var tries = 0;
-    handleDisconnect = function () {
-      // try for every 30 seconds
-      every30Seconds = setTimeout(function () {
-
-        ws = new WebSocket("{{language_server_url}}");
-        langServer.connectToLangServer("{{language_server_url}}", "{{filename}}");
-        tries += 1;
-
-        ws.addEventListener('close', function (event) {
-          if (tries == 0) {
-            jQuery.notify("Code analysis and suggestions are currently unavailable. You can still code!", "warn")
-            console.log("Language server connection closed, trying to reconnect ...")
-          }
-          handleDisconnect();
+        // tag filter and buttons
+        var tags = [];
+        var tagSpans = $(".tag").toArray();
+        tagSpans.map((tag) => {
+          tags.push($(tag).text());
         });
+        let uniqueTags = [...new Set(tags)];
+        var tagGroupHTML = '<h4> Filter by tags:</h4>'
+        uniqueTags.map(tag => {
+          tagGroupHTML += '<button type="button" class="tag-button btn btn-default"' +
+            'style="border-radius:23px; margin-right:5px"' +
+            'onclick=handleTagToggle(this)>' +
+            tag + '</button>'
+        })
+        tagGroupHTML += '<button class="clear-button btn btn-link" onclick="handleTagClear()"' +
+          'style="border: none;;"><span class="glyphicon glyphicon-remove"></span> CLEAR</button>'
+        $("#tag-group").html(tagGroupHTML);
 
-        ws.addEventListener('open', function (event) {
-          tries = 0
-          console.log("Language server connected");
-          jQuery.notify("Language server is connected! Code analysis and suggestions are available.", "success");
+        // store raw descriptions and 
+        // replace raw descriptions with markdown formatted descriptions
+        var rawDesc = $(".desc").toArray();
+        rawDesc.map((div) => {
+          var key = $(div).attr('id');
+          var value = $(div).text().trim();
+          descStore.push({
+            key: key,
+            value: value
+          });
         });
-      }, {{ reconnect_interval }});
-    }
+        rawDesc.map((e) => {
+          var raw = $(e).text().trim();
+          $(e).html(converter.makeHtml(raw));
+        })
+
+        // handle connection with language server
+        var tries = 0;
+        handleDisconnect = function () {
+          // try for every 30 seconds
+          every30Seconds = setTimeout(function () {
+
+            ws = new WebSocket("{{language_server_url}}");
+            langServer.connectToLangServer("{{language_server_url}}", "{{filename}}");
+            tries += 1;
+
+            ws.addEventListener('close', function (event) {
+              if (tries == 0) {
+                jQuery.notify("Code analysis and suggestions are currently unavailable. You can still code!", "warn")
+                console.log("Language server connection closed, trying to reconnect ...")
+              }
+              handleDisconnect();
+            });
+
+            ws.addEventListener('open', function (event) {
+              tries = 0
+              console.log("Language server connected");
+              jQuery.notify("Language server is connected! Code analysis and suggestions are available.", "success");
+            });
+          }, {{ reconnect_interval }});
+  }
 
   // socket listener
   try {
