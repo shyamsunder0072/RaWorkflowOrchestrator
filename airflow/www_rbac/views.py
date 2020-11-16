@@ -4386,23 +4386,25 @@ class AddDagView(AirflowBaseView):
         # {'section':{...'sub-section':[snippets]}}
         output = {
             'custom':{
-                'custom2':[]
+                'custom':[]
             }
         }
         for key, value in raw_sections.items():
             # if there is no valid section->sub-section information
             # add snippet to custom->custom
             if "->" not in value:
-                output['custom']['custom2'].append(key)
+                output['custom']['custom'].append(key)
             else:
                 entries = value.split('\n')
                 # for each entry
                 for entry in entries:
-                    print(entry)
-                    section = entry.split("->")[0].strip()
-                    sub_section = entry.split("->")[1].strip()
-                    # create empty section/sub-section if it doesn't exsit
-                    output.setdefault(section,{}).setdefault(sub_section,[]).append(key)
+                    try:
+                        section = entry.split("->")[0].strip()
+                        sub_section = entry.split("->")[1].strip()
+                        #create empty section/sub-section if it doesn't exsit
+                        output.setdefault(section,{}).setdefault(sub_section,[]).append(key)
+                    except Exception:
+                        print("Error reading sections for", key)
         return output
 
     def get_snippets_metadata(self):
