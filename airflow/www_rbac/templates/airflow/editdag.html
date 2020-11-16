@@ -40,7 +40,7 @@
     cursor: pointer;
   }
 
-/* css for tag buttons -- enable if tags are enabled */
+  /* css for tag buttons -- enable if tags are enabled */
   /* .section-button:focus,
   .clear-button:focus {
     outline: none;
@@ -107,35 +107,107 @@
     </div>
     <br> -->
     <ul class="list-group" id="codebrickList">
-      {% for title in snippets %}
-      <a class="list-group-item" ondragstart="setContentOfEvent(event,'{{title}}')" data-toggle="collapse"
-        data-parent="#codebrickList" href="#codebrick-{{title}}" onclick="fetchSnippet('{{ title }}')"
-        data-sections="{% for section in snippets[title]['sections'] %}{{ section }},{% endfor %}">
-        <strong id="codebrick-title-{{title}}">{{ title }}</strong>
-        <div id="codebrick-{{title}}" class="collapse">
-          <span>
-            <div id="codebrick-sections-{{title}}">
-              {% for section in snippets[title]['sections'] %}
-              <span class="section label label-primary" style="margin-right:5px" onclick="handleSectionToggle(this)">{{ section }} </span>
-              {% endfor %}
+
+      <div class="panel-group" id="codebrickPanel">
+        {% for section in snippets['sections'] %}
+        {% set section_index = loop.index %}
+        <div class="panel panel-default">
+          <div class="panel-heading">
+            <h4 class="panel-title">
+              <a data-toggle="collapse" data-parent="#codebrickPanel" href="#collapse-{{section_index}}">
+                {{section}}
+              </a>
+            </h4>
+          </div>
+          <div id="collapse-{{section_index}}" class="panel-collapse collapse">
+            <div class="panel-body">
+
+              <div class="panel-group" id="section-{{section_index}}-panel">
+                {% for sub_section in snippets['sections'][section] %}
+                {% set sub_section_index = loop.index %}
+                <div class="panel panel-default">
+                  <div class="panel-heading">
+                    <h4 class="panel-title">
+                      <a data-toggle="collapse" data-parent="#section-{{section_index}}-panel"
+                        href="#sub-section-{{section_index}}-{{sub_section_index}}">{{sub_section}}
+                      </a>
+                    </h4>
+                  </div>
+                  <div id="sub-section-{{section_index}}-{{sub_section_index}}" class="panel-collapse collapse in">
+                    <div class="panel-body">
+                      <div class="panel-group" id="sub-section-{{section_index}}-{{sub_section_index}}-panel">
+                        {% for codebrick in snippets['sections'][section][sub_section] %}
+                        {% set codebrick_index = loop.index %}
+                        <div class="panel">
+                          <a data-toggle="collapse"
+                            data-parent="#sub-section-{{section_index}}-{{sub_section_index}}-panel"
+                            href="#codebrick-{{section_index}}-{{sub_section_index}}-{{codebrick_index}}"
+                            ondragstart="setContentOfEvent(event,'codebrick-{{section_index}}-{{sub_section_index}}-{{codebrick_index}}')"
+                            onclick="fetchSnippet('{{section_index}}-{{sub_section_index}}-{{codebrick_index}}')">
+                            <h5 id="codebrick-title-{{section_index}}-{{sub_section_index}}-{{codebrick_index}}">
+                              {{codebrick}}</h5>
+                          </a>
+                          <div id="codebrick-{{section_index}}-{{sub_section_index}}-{{codebrick_index}}"
+                            class="panel-collapse collapse">
+                            <div class="panel-body">
+                              <div id="codebrick-desc-{{section_index}}-{{sub_section_index}}-{{codebrick_index}}"
+                                class="desc">
+                                {{ snippets['descriptions'][codebrick]['description']}}
+                              </div>
+                              <button class="btn btn-success pull-right codebrick-insert-btn"
+                                onclick="insertSnip(this, '{{section_index}}-{{sub_section_index}}-{{codebrick_index}}')">
+                                INSERT
+                              </button>
+                              <button class="btn btn-default pull-right" style="margin-right:5px"
+                                onclick="editCodeBrick(this,'codebrick-{{section_index}}-{{sub_section_index}}-{{codebrick_index}}','{{codebrick}}')">
+                                EDIT CODEBRICK
+                              </button>
+                              <br>
+                              <pre class="margin-top-lg"
+                                id="codebrick-code-{{section_index}}-{{sub_section_index}}-{{codebrick_index}}"
+                                style="background-color: #ffffff;"></pre>
+                            </div>
+                          </div>
+                        </div>
+                        {% endfor %}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                {% endfor %}
+              </div>
             </div>
-            <br />
-            <div id="codebrick-desc-{{title}}" class="desc">
-              {{ snippets[title]['description'] }}
-            </div>
-            <button class="btn btn-success pull-right codebrick-insert-btn" onclick="insertSnip(this, '{{title}}')">
-              INSERT
-            </button>
-            <button class="btn btn-default pull-right" style="margin-right:5px"
-              onclick="editCodeBrick(this,'{{ title }}')">
-              EDIT CODEBRICK
-            </button>
-            <br>
-            <pre class="margin-top-lg" id="codebrick-code-{{title}}" style="background-color: #ffffff;"></pre>
-          </span>
+          </div>
         </div>
-      </a>
-      {% endfor %}
+        {% endfor %}
+
+      </div>
+      <!-- {% for section in snippets['sections'] %}
+      {% set section_index = loop.index %}
+
+      <div class="panel-group">
+        <div class="panel panel-default" id="collapse-{{section_index}}">
+          <div class="panel-heading">
+            <a  data-toggle="collapse" data-parent="#codebrickList"
+              href="#collapse-{{section_index}}">
+              <h4 class="panel-title">{{section}}</h4>
+            </a>
+          </div>
+          {% for sub_section in snippets['sections'][section] %}
+          {% set sub_section_index = loop.index %}
+          <div id="collapse-{{section_index}}-{{sub_section_index}}" class="panel-collapse collapse">
+            <div class="panel-body">
+              <a  data-toggle="collapse" data-parent="#collapse-{{section_index}}"
+                href="#collapse-{{section_index}}-{{sub_section_index}}">
+                {{sub_section}}
+              </a>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      {% endfor %} -->
     </ul>
     <a class="btn btn-warning" style="width: 100%; margin-top: 1em;" onclick="addSnippetBackHandler(this)"
       data-toggle="modal" data-target="#addSnippet">
@@ -358,8 +430,8 @@
   return new Set(placeholders);
   }
 
-  function setContentOfEvent(event, title) {
-    event.dataTransfer.setData("codebrick-title", title);
+  function setContentOfEvent(event, index) {
+    event.dataTransfer.setData("codebrick-index", index);
   }
 
   // function importUnimportedOperators(cursor) {
@@ -430,10 +502,11 @@
     replaceTextInEditor(currSnippetCopy)
   }
 
-  function fetchSnippet(title, dragged) {
+  function fetchSnippet(index, dragged) {
     // check if the codebrick has already been fetched
-    if ($("#codebrick-code-" + title).text() == '') {
+    if ($("#codebrick-code-" + index).text() == '') {
       var path = "{{ url_for('AddDagView.fetch_snippet', name=name) }}";
+      var title = $("#codebrick-title-" + index).text().trim();
       // if it hasn't been fetched, fetch it
       fetch(path + title, { method: "GET" })
         .then(response => response.json()
@@ -443,14 +516,14 @@
           metadata => {
             // store parameters for inserting later
             paramStore.push({
-              key: title,
+              key: index,
               value: metadata.parameters
             });
-            $("#codebrick-code-" + title).text(metadata.snippet);
+            $("#codebrick-code-" + index).text(metadata.snippet);
             // if this fetch call is due to a drag and drop,
             // call insertSnip after fetching
             if (dragged) {
-              insertSnip(null, title);
+              insertSnip(null, index);
             }
           }
         )
@@ -458,7 +531,7 @@
     // if the codebrick is already fetched but the fetch call is due to a 
     // drag and drop, call insertSnip
     else if (dragged) {
-      insertSnip(null, title);
+      insertSnip(null, index);
     }
   };
 
@@ -654,7 +727,7 @@
 
   {% endraw %}
 
-// this commented out function handled click on tags
+  // this commented out function handled click on tags
 
   // function handleSectionToggle(btn) {
   //   // clear all other section buttons
@@ -676,7 +749,7 @@
   //   })
   // }
 
-// this commented out section handled click on CLEAR button for tags
+  // this commented out section handled click on CLEAR button for tags
 
   // function handleSectionClear() {
   //   var sectionButtons = $(".section-button").toArray();
@@ -690,141 +763,141 @@
   //   });
   // }
 
-  function insertSnip(btn, title) {
-        var text = $('#codebrick-code-' + title).text();
-        var desc = $('#codebrick-desc-' + title).html();
-        var snippetParams = paramStore.filter((e) => e.key === title)[0].value;
-        var placeholders = findPlaceholders(text);
-        if (placeholders.size) {
-          // if have placeholders, need to fill their values before inserting.
-          currSnippet = text;
-          $('#insertSnippetBody').html('')
-          if (snippetParams == "not found") {
-            placeholders.forEach(function (param) {
-              if (param.includes('{{"{{"}}') && param.includes('{{"}}"}}')) {
-                param = param.replace('{{"{{"}}', '').replace('{{"}}"}}', '')
-                temp = '<div class="form-group">' +
-                  '<label for="' + param + '">' + param + '</label>' +
-                  '<input type="text" class="form-control" name="' + param + '">' +
-                  '</div>'
-              }
-              else {
-                param = param.replace('{{"{%"}}', '').replace('{{"%}"}}', '').trim()
-                temp = '<div class="form-group">' +
-                  '<label for="' + param + '">' + param + '<span style="color:red;">* </span> </label>' +
-                  '<input type="text" class="form-control" name="' + param + '" required>' +
-                  '</div>'
-              }
-              $('#insertSnippetBody').append(temp);
-            })
+  function insertSnip(btn, index) {
+    var text = $('#codebrick-code-' + index).text();
+    var desc = $('#codebrick-desc-' + index).html();
+    var snippetParams = paramStore.filter((e) => e.key === index)[0].value;
+    var placeholders = findPlaceholders(text);
+    if (placeholders.size) {
+      // if have placeholders, need to fill their values before inserting.
+      currSnippet = text;
+      $('#insertSnippetBody').html('')
+      if (snippetParams == "not found") {
+        placeholders.forEach(function (param) {
+          if (param.includes('{{"{{"}}') && param.includes('{{"}}"}}')) {
+            param = param.replace('{{"{{"}}', '').replace('{{"}}"}}', '')
+            temp = '<div class="form-group">' +
+              '<label for="' + param + '">' + param + '</label>' +
+              '<input type="text" class="form-control" name="' + param + '">' +
+              '</div>'
           }
           else {
-            var parsedSnippetParams = JSON.parse(snippetParams);
-            placeholders.forEach(function (param) {
-              if (param.includes('{{"{{"}}') && param.includes('{{"}}"}}')) {
-                param = param.replace('{{"{{"}}', '').replace('{{"}}"}}', '').trim()
-                temp = '<div class="form-group">' +
-                  '<label for="' + param + '">' + param + '</label> ' +
-                  '<span class="badge">' + parsedSnippetParams[param]['parameterType'] + '</span>' +
-                  '<p>' + parsedSnippetParams[param]['description'] + '</br>' +
-                  'Eg. : ' + parsedSnippetParams[param]['exampleValue'] + '</p>' +
-                  '<input type="text" class="form-control" name="' + param + '" value="' + parsedSnippetParams[param]['defaultValue'] + '">' +
-                  '</div>'
-              }
-              else {
-                param = param.replace('{{"{%"}}', '').replace('{{"%}"}}', '')
-                temp = '<div class="form-group">' +
-                  '<label for="' + param + '">' + param + '<span style="color:red;">* </span> </label> ' +
-                  '<span class="badge">' + parsedSnippetParams[param]['parameterType'] + '</span>' +
-                  '<p>' + parsedSnippetParams[param]['description'] + '</p>' +
-                  '<input type="text" class="form-control" name="' + param + '"placeholder= "Eg. ' + parsedSnippetParams[param]['exampleValue'] + '"required>' +
-                  '</div>'
-              }
-              $('#insertSnippetBody').append(temp);
-            })
+            param = param.replace('{{"{%"}}', '').replace('{{"%}"}}', '').trim()
+            temp = '<div class="form-group">' +
+              '<label for="' + param + '">' + param + '<span style="color:red;">* </span> </label>' +
+              '<input type="text" class="form-control" name="' + param + '" required>' +
+              '</div>'
           }
-
-          $('#showSnippetDoc').html(desc);
-          $("#modalDocBtn").text("Show Documentation");
-          $('#insertSnippetBody').show();
-          $('#showSnippetDoc').show();
-          $('#insertSnippet').modal('show');
-        }
-
-        else {
-          // adding a new line at the end of snippet.
-          replaceTextInEditor(text)
-        }
-        // disable the button when snippet is inserted. The button will be enabled
-        // after the codebrick div is toggled again.
-        // $(btn).addClass('disabled');
+          $('#insertSnippetBody').append(temp);
+        })
       }
+      else {
+        var parsedSnippetParams = JSON.parse(snippetParams);
+        placeholders.forEach(function (param) {
+          if (param.includes('{{"{{"}}') && param.includes('{{"}}"}}')) {
+            param = param.replace('{{"{{"}}', '').replace('{{"}}"}}', '').trim()
+            temp = '<div class="form-group">' +
+              '<label for="' + param + '">' + param + '</label> ' +
+              '<span class="badge">' + parsedSnippetParams[param]['parameterType'] + '</span>' +
+              '<p>' + parsedSnippetParams[param]['description'] + '</br>' +
+              'Eg. : ' + parsedSnippetParams[param]['exampleValue'] + '</p>' +
+              '<input type="text" class="form-control" name="' + param + '" value="' + parsedSnippetParams[param]['defaultValue'] + '">' +
+              '</div>'
+          }
+          else {
+            param = param.replace('{{"{%"}}', '').replace('{{"%}"}}', '')
+            temp = '<div class="form-group">' +
+              '<label for="' + param + '">' + param + '<span style="color:red;">* </span> </label> ' +
+              '<span class="badge">' + parsedSnippetParams[param]['parameterType'] + '</span>' +
+              '<p>' + parsedSnippetParams[param]['description'] + '</p>' +
+              '<input type="text" class="form-control" name="' + param + '"placeholder= "Eg. ' + parsedSnippetParams[param]['exampleValue'] + '"required>' +
+              '</div>'
+          }
+          $('#insertSnippetBody').append(temp);
+        })
+      }
+
+      $('#showSnippetDoc').html(desc);
+      $("#modalDocBtn").text("Show Documentation");
+      $('#insertSnippetBody').show();
+      $('#showSnippetDoc').show();
+      $('#insertSnippet').modal('show');
+    }
+
+    else {
+      // adding a new line at the end of snippet.
+      replaceTextInEditor(text)
+    }
+    // disable the button when snippet is inserted. The button will be enabled
+    // after the codebrick div is toggled again.
+    // $(btn).addClass('disabled');
+  }
 
   $(document).ready(function () {
 
-        // commented out code for TAGs Section
+    // commented out code for TAGs Section
 
-        // // tag filter and buttons
-        // var sections = [];
-        // // get all tags from elements
-        // var sectionSpans = $(".section").toArray();
-        // sectionSpans.map((section) => {
-        //   sections.push($(section).text());
-        // });
-        // // select unique tags from all tags
-        // let uniqueSections = [...new Set(sections)];
-        // //  add button for unique tags
-        // var sectionGroupHTML = '<h4> Filter by Tags:</h4>'
-        // uniqueSections.map(section => {
-        //   sectionGroupHTML += '<button type="button" class="section-button btn btn-default"' +
-        //     'style="border-radius:23px; margin-right:5px"' +
-        //     'onclick=handleSectionToggle(this)>' +
-        //     section + '</button>'
-        // })
-        // sectionGroupHTML += '<button class="clear-button btn btn-link" onclick="handleSectionClear()"' +
-        //   'style="border: none;;"><span class="glyphicon glyphicon-remove"></span> CLEAR</button>'
-        // $("#section-group").html(sectionGroupHTML);
+    // // tag filter and buttons
+    // var sections = [];
+    // // get all tags from elements
+    // var sectionSpans = $(".section").toArray();
+    // sectionSpans.map((section) => {
+    //   sections.push($(section).text());
+    // });
+    // // select unique tags from all tags
+    // let uniqueSections = [...new Set(sections)];
+    // //  add button for unique tags
+    // var sectionGroupHTML = '<h4> Filter by Tags:</h4>'
+    // uniqueSections.map(section => {
+    //   sectionGroupHTML += '<button type="button" class="section-button btn btn-default"' +
+    //     'style="border-radius:23px; margin-right:5px"' +
+    //     'onclick=handleSectionToggle(this)>' +
+    //     section + '</button>'
+    // })
+    // sectionGroupHTML += '<button class="clear-button btn btn-link" onclick="handleSectionClear()"' +
+    //   'style="border: none;;"><span class="glyphicon glyphicon-remove"></span> CLEAR</button>'
+    // $("#section-group").html(sectionGroupHTML);
 
-        // store raw descriptions and 
-        // replace raw descriptions with markdown formatted descriptions
-        var rawDesc = $(".desc").toArray();
-        rawDesc.map((div) => {
-          var key = $(div).attr('id');
-          var value = $(div).text().trim();
-          descStore.push({
-            key: key,
-            value: value
-          });
+    // store raw descriptions and 
+    // replace raw descriptions with markdown formatted descriptions
+    var rawDesc = $(".desc").toArray();
+    rawDesc.map((div) => {
+      var key = $(div).attr('id');
+      var value = $(div).text().trim();
+      descStore.push({
+        key: key,
+        value: value
+      });
+    });
+    rawDesc.map((e) => {
+      var raw = $(e).text().trim();
+      $(e).html(converter.makeHtml(raw));
+    })
+
+    // handle connection with language server
+    var tries = 0;
+    handleDisconnect = function () {
+      // try for every 30 seconds
+      every30Seconds = setTimeout(function () {
+
+        ws = new WebSocket("{{language_server_url}}");
+        langServer.connectToLangServer("{{language_server_url}}", "{{filename}}");
+        tries += 1;
+
+        ws.addEventListener('close', function (event) {
+          if (tries == 0) {
+            jQuery.notify("Code analysis and suggestions are currently unavailable. You can still code!", "warn")
+            console.log("Language server connection closed, trying to reconnect ...")
+          }
+          handleDisconnect();
         });
-        rawDesc.map((e) => {
-          var raw = $(e).text().trim();
-          $(e).html(converter.makeHtml(raw));
-        })
 
-        // handle connection with language server
-        var tries = 0;
-        handleDisconnect = function () {
-          // try for every 30 seconds
-          every30Seconds = setTimeout(function () {
-
-            ws = new WebSocket("{{language_server_url}}");
-            langServer.connectToLangServer("{{language_server_url}}", "{{filename}}");
-            tries += 1;
-
-            ws.addEventListener('close', function (event) {
-              if (tries == 0) {
-                jQuery.notify("Code analysis and suggestions are currently unavailable. You can still code!", "warn")
-                console.log("Language server connection closed, trying to reconnect ...")
-              }
-              handleDisconnect();
-            });
-
-            ws.addEventListener('open', function (event) {
-              tries = 0
-              console.log("Language server connected");
-              jQuery.notify("Language server is connected! Code analysis and suggestions are available.", "success");
-            });
-          }, {{ reconnect_interval }});
+        ws.addEventListener('open', function (event) {
+          tries = 0
+          console.log("Language server connected");
+          jQuery.notify("Language server is connected! Code analysis and suggestions are available.", "success");
+        });
+      }, {{ reconnect_interval }});
   }
 
   // socket listener
@@ -856,7 +929,7 @@
       }, 'window');
       cm.getDoc().setCursor(coords);
       event.preventDefault();
-      fetchSnippet(event.dataTransfer.getData("codebrick-title"), true);
+      fetchSnippet(event.dataTransfer.getData("codebrick-index"), true);
     }
   })
 
@@ -867,13 +940,13 @@
 
   $('[data-toggle="tooltip"]').tooltip();
 
-  var $codeBrickList = $('#codebrickList');
-  $codeBrickList.on('show.bs.collapse', '.collapse', function () {
-    $codeBrickList.find('.collapse.in').collapse('hide');
+  // var $codeBrickList = $('#codebrickList');
+  // $codeBrickList.on('show.bs.collapse', '.collapse', function () {
+  //   $codeBrickList.find('.collapse.in').collapse('hide');
 
-    // enable all insert codebrick btns when the div is toggled.
-    $('.codebrick-insert-btn').removeClass('disabled');
-  });
+  //   // enable all insert codebrick btns when the div is toggled.
+  //   $('.codebrick-insert-btn').removeClass('disabled');
+  // });
 
   $("[data-toggle='collapse']").click(function (event) {
     if (event.target.classList.contains('codebrick-insert-btn')) {

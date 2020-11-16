@@ -4386,25 +4386,23 @@ class AddDagView(AirflowBaseView):
         # {'section':{...'sub-section':[snippets]}}
         output = {
             'custom':{
-                'custom':[]
+                'custom2':[]
             }
         }
         for key, value in raw_sections.items():
             # if there is no valid section->sub-section information
             # add snippet to custom->custom
             if "->" not in value:
-                output['custom']['custom'].append(key)
+                output['custom']['custom2'].append(key)
             else:
                 entries = value.split('\n')
                 # for each entry
                 for entry in entries:
+                    print(entry)
                     section = entry.split("->")[0].strip()
                     sub_section = entry.split("->")[1].strip()
-                    try:
-                        output[section][sub_section].append(key)
-                    except:
-                        output[section][sub_section] = []
-                        output[section][sub_section].append(key)
+                    # create empty section/sub-section if it doesn't exsit
+                    output.setdefault(section,{}).setdefault(sub_section,[]).append(key)
         return output
 
     def get_snippets_metadata(self):
@@ -4619,7 +4617,6 @@ class AddDagView(AirflowBaseView):
     @action_logging
     def fetch_snippet(self, name):     
         # use the snippet name to return:
-        # - description
         # - parameters
         # - snippet   
         snippets_path = Path(self.get_snippet_metadata_path())
@@ -4641,9 +4638,6 @@ class AddDagView(AirflowBaseView):
             'snippet': snippet,
             'parameters':parameters
         }
-        
-        print(snippets_metadata)
-
         return json.dumps(snippets_metadata)
 
     @expose("/editdag/<string:filename>/", methods=['GET', 'POST'])
