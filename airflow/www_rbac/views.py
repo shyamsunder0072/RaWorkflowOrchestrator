@@ -4378,6 +4378,35 @@ class AddDagView(AirflowBaseView):
     #     filename = self.snippet_title_to_file(title)
     #     return os.path.join(AIRFLOW_HOME, *['repo', filename])
 
+    def process_sections(self, raw_sections):
+        # processes raw_sections
+        # from:
+        # `snippet -> sections.txt file` 
+        # to:
+        # {'section':{...'sub-section':[snippets]}}
+        output = {
+            'custom':{
+                'custom':[]
+            }
+        }
+        for key, value in raw_sections.items():
+            # if there is no valid section->sub-section information
+            # add snippet to custom->custom
+            if "->" not in value:
+                output['custom']['custom'].append(key)
+            else:
+                entries = value.split('\n')
+                # for each entry
+                for entry in entries:
+                    section = entry.split("->")[0].strip()
+                    sub_section = entry.split("->")[1].strip()
+                    try:
+                        output[section][sub_section].append(key)
+                    except:
+                        output[section][sub_section] = []
+                        output[section][sub_section].append(key)
+        return output
+
     def get_snippets_metadata(self):
         snippets_path = Path(self.get_snippet_metadata_path())
         # open all top level folders.
@@ -4387,7 +4416,7 @@ class AddDagView(AirflowBaseView):
         # will have a single codebrick. Inside it will be four files:
         # - description.md : The codebrick description in markdown.
         # - snippet.py : The codebrick python snippet.
-        # - section.txt : (Optional) In which section should the codebrick go to.
+        # - section.txt : (Optional) In which section and sub-section should the codebrick go to.
         # - parameter.json : (Optional) Metadata about parameters for snippets.
 
         # parameter.json, description.md and snippt.py would be fetched by 
@@ -4397,9 +4426,9 @@ class AddDagView(AirflowBaseView):
         # folder doesn't contain any snippet.py file. If it doesn't contain description.md,
         # make the description string empty.
 
-        snippets_metadata = {}
+        snippets_description = {}
+        raw_sections = {}
         for snippet_folder in snippet_folders:
-            
             # check if snippet exists
             try:
                 with open(snippets_path.joinpath(*[snippet_folder, 'snippet.py'])) as f:
@@ -4415,27 +4444,23 @@ class AddDagView(AirflowBaseView):
                 print(e)
                 description = 'Description not available'
         
-            # check sections
+            # add sections to raw_sections for processing
             try:
                 with open(snippets_path.joinpath(*[snippet_folder, 'section.txt'])) as f:
                     sections = f.read()
-                    sections = sections.strip().split(',')
+                    raw_sections[snippet_folder.stem] = sections
             except Exception:
-                sections = ['custom']
-            # if snippet:
-            #     for section in sections.split(','):
-            #         if section not in snippets_metadata.keys():
-            #             snippets_metadata[section] = {}
-            #         snippets_metadata[section][snippet_folder.stem] = {}
-            snippets_metadata[snippet_folder.stem] = {
-                'description': description,
-                'sections': sections
+                raw_sections[snippet_folder.stem] = 'custom'
+
+            snippets_description[snippet_folder.stem] = {
+                'description': description
             }
-        # print(snippets_metadata)
-        # for snippet_section in snippets_metadata:
-        #     print(snippet_section)
-        #     for snippet in snippets_metadata[snippet_section]:
-        #         print(snippet)
+        processed_sections = self.process_sections(raw_sections)
+        print(processed_sections)
+        snippets_metadata = {
+            'sections': processed_sections,
+            'descriptions': snippets_description
+        }
         return snippets_metadata
 
     def get_snippets(self):

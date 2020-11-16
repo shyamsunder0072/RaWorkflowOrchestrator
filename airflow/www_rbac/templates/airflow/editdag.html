@@ -40,10 +40,11 @@
     cursor: pointer;
   }
 
-  .section-button:focus,
+/* css for tag buttons -- enable if tags are enabled */
+  /* .section-button:focus,
   .clear-button:focus {
     outline: none;
-    box-shadow: none;
+    box-shadow: none; */
   }
 </style>
 <link rel="stylesheet" href="{{ url_for_asset('codemirror/codemirrorlib/codemirror.css') }}" />
@@ -101,9 +102,10 @@
       <input type="text" class="form-control" id="codebrickSearch" placeholder="Search codebricks here..">
     </div>
     <br>
-    <div id="section-group">
+    <!-- This is where tags are added dynamically -->
+    <!-- <div id="section-group">
     </div>
-    <br>
+    <br> -->
     <ul class="list-group" id="codebrickList">
       {% for title in snippets %}
       <a class="list-group-item" ondragstart="setContentOfEvent(event,'{{title}}')" data-toggle="collapse"
@@ -204,9 +206,9 @@
               <p class="help-block">Title can contain characters <code>A-Z, a-z, 0-9, _, -, space</code>.
             </div>
             <div class="form-group">
-              <label for="snippetSection">Tag(s)</label>
-              <input type="text" class="form-control" name="section">
-              <p class="help-block">Tags comma-separated</code>.
+              <label for="snippetSection">Section(s) and Sub-Section(s)</label>
+              <textarea class="form-control" name="section" id="snippetSection" rows="3"></textarea>
+              <p class="help-block">Each entry in a new line, like : <code>section -> sub-section</code>.
             </div>
             <div class="form-group">
               <label for="snippetDescription">Description</label>
@@ -652,37 +654,41 @@
 
   {% endraw %}
 
-  function handleSectionToggle(btn) {
-    // clear all other section buttons
-    handleSectionClear();
-    var section = $(btn).text().trim();
-    // change color of clicked button
-    $(btn).removeClass('btn-default');
-    $(btn).addClass('btn-primary');
-    // filter and display codebricks with section
-    var codebricks = $("#codebrickList").children().toArray();
-    codebricks.map((codebrick) => {
-      var sections = $(codebrick).attr("data-sections").split(',');
-      if (sections.includes(section)) {
-        $(codebrick).show();
-      }
-      else {
-        $(codebrick).hide();
-      }
-    })
-  }
+// this commented out function handled click on tags
 
-  function handleSectionClear() {
-    var sectionButtons = $(".section-button").toArray();
-    sectionButtons.map((button) => {
-      $(button).removeClass('btn-primary');
-      $(button).addClass('btn-default');
-    })
-    var codebricks = $("#codebrickList").children().toArray();
-    codebricks.map((codebrick) => {
-        $(codebrick).show();
-    });
-  }
+  // function handleSectionToggle(btn) {
+  //   // clear all other section buttons
+  //   handleSectionClear();
+  //   var section = $(btn).text().trim();
+  //   // change color of clicked button
+  //   $(btn).removeClass('btn-default');
+  //   $(btn).addClass('btn-primary');
+  //   // filter and display codebricks with section
+  //   var codebricks = $("#codebrickList").children().toArray();
+  //   codebricks.map((codebrick) => {
+  //     var sections = $(codebrick).attr("data-sections").split(',');
+  //     if (sections.includes(section)) {
+  //       $(codebrick).show();
+  //     }
+  //     else {
+  //       $(codebrick).hide();
+  //     }
+  //   })
+  // }
+
+// this commented out section handled click on CLEAR button for tags
+
+  // function handleSectionClear() {
+  //   var sectionButtons = $(".section-button").toArray();
+  //   sectionButtons.map((button) => {
+  //     $(button).removeClass('btn-primary');
+  //     $(button).addClass('btn-default');
+  //   })
+  //   var codebricks = $("#codebrickList").children().toArray();
+  //   codebricks.map((codebrick) => {
+  //       $(codebrick).show();
+  //   });
+  // }
 
   function insertSnip(btn, title) {
         var text = $('#codebrick-code-' + title).text();
@@ -756,23 +762,28 @@
 
   $(document).ready(function () {
 
-        // section filter and buttons
-        var sections = [];
-        var sectionSpans = $(".section").toArray();
-        sectionSpans.map((section) => {
-          sections.push($(section).text());
-        });
-        let uniqueSections = [...new Set(sections)];
-        var sectionGroupHTML = '<h4> Filter by Tags:</h4>'
-        uniqueSections.map(section => {
-          sectionGroupHTML += '<button type="button" class="section-button btn btn-default"' +
-            'style="border-radius:23px; margin-right:5px"' +
-            'onclick=handleSectionToggle(this)>' +
-            section + '</button>'
-        })
-        sectionGroupHTML += '<button class="clear-button btn btn-link" onclick="handleSectionClear()"' +
-          'style="border: none;;"><span class="glyphicon glyphicon-remove"></span> CLEAR</button>'
-        $("#section-group").html(sectionGroupHTML);
+        // commented out code for TAGs Section
+
+        // // tag filter and buttons
+        // var sections = [];
+        // // get all tags from elements
+        // var sectionSpans = $(".section").toArray();
+        // sectionSpans.map((section) => {
+        //   sections.push($(section).text());
+        // });
+        // // select unique tags from all tags
+        // let uniqueSections = [...new Set(sections)];
+        // //  add button for unique tags
+        // var sectionGroupHTML = '<h4> Filter by Tags:</h4>'
+        // uniqueSections.map(section => {
+        //   sectionGroupHTML += '<button type="button" class="section-button btn btn-default"' +
+        //     'style="border-radius:23px; margin-right:5px"' +
+        //     'onclick=handleSectionToggle(this)>' +
+        //     section + '</button>'
+        // })
+        // sectionGroupHTML += '<button class="clear-button btn btn-link" onclick="handleSectionClear()"' +
+        //   'style="border: none;;"><span class="glyphicon glyphicon-remove"></span> CLEAR</button>'
+        // $("#section-group").html(sectionGroupHTML);
 
         // store raw descriptions and 
         // replace raw descriptions with markdown formatted descriptions
