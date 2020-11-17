@@ -113,11 +113,12 @@
         {% set section_index = loop.index %}
         <div class="panel panel-default">
           <div class="panel-heading">
-            <h4 class="panel-title">
-              <a data-toggle="collapse" data-parent="#codebrickPanel" href="#collapse-{{section_index}}">
+            <a data-toggle="collapse" data-parent="#codebrickPanel" href="#collapse-{{section_index}}"
+              style="text-decoration:none;color:inherit;">
+              <h4 class="panel-title">
                 {{section}}
-              </a>
-            </h4>
+              </h4>
+            </a>
           </div>
           <div id="collapse-{{section_index}}" class="panel-collapse collapse">
             <div class="panel-body">
@@ -127,11 +128,13 @@
                 {% set sub_section_index = loop.index %}
                 <div class="panel panel-default">
                   <div class="panel-heading">
-                    <h4 class="panel-title">
-                      <a data-toggle="collapse" data-parent="#section-{{section_index}}-panel"
-                        href="#sub-section-{{section_index}}-{{sub_section_index}}">{{sub_section}}
-                      </a>
-                    </h4>
+                    <a data-toggle="collapse" data-parent="#section-{{section_index}}-panel"
+                      href="#sub-section-{{section_index}}-{{sub_section_index}}"
+                      style="text-decoration:none;color:inherit;">
+                      <h4 class="panel-title">
+                        {{sub_section}}
+                      </h4>
+                    </a>
                   </div>
                   <div id="sub-section-{{section_index}}-{{sub_section_index}}" class="panel-collapse collapse in">
                     <div class="panel-body">
@@ -813,8 +816,7 @@
               '<label for="' + param + '">' + param + '</label> ' +
               '<span class="badge">' + parsedSnippetParams[param]['parameterType'] + '</span>' +
               '<p>' + parsedSnippetParams[param]['description'] + '</br>' +
-              'Eg. : ' + parsedSnippetParams[param]['exampleValue'] + '</p>' +
-              '<input type="text" class="form-control" name="' + param + '" value="' + parsedSnippetParams[param]['defaultValue'] + '">' +
+              '<input type="text" class="form-control" name="' + param + '" value="' + parsedSnippetParams[param]['defaultValue'] + '"placeholder= "Eg. ' + parsedSnippetParams[param]['exampleValue'] + '">' +
               '</div>'
           }
           else {
