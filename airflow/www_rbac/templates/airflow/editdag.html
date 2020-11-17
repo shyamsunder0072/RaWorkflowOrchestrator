@@ -159,7 +159,7 @@
                                 INSERT
                               </button>
                               <button class="btn btn-default pull-right" style="margin-right:5px"
-                                onclick="editCodeBrick(this,'codebrick-{{section_index}}-{{sub_section_index}}-{{codebrick_index}}','{{codebrick}}')">
+                                onclick="editCodeBrick(this,'{{section_index}}-{{sub_section_index}}-{{codebrick_index}}')">
                                 EDIT CODEBRICK
                               </button>
                               <br>
@@ -235,6 +235,12 @@
               <label for="snippetDescription">Description</label>
               <textarea class="form-control" placeholder="Enter new description here" name="description" rows="5"
                 id="edit-snippet-desc"></textarea>
+            </div>
+            <div class="form-group">
+              <label for="snippet">Section(s) and Sub-section(s)</label>
+              <textarea class="form-control" name="sections" id="edit-snippet-section" rows="3">
+              </textarea>
+              <p class="help-block">Each entry in a new line, like : <code>section -> sub-section</code>.
             </div>
             <div class="form-group">
               <label for="snippet">Codebrick</label>
@@ -376,7 +382,7 @@
 <script type="text/javascript">
 
   var diffEditor, editSnippetEditor, addSnippetEditor, currSnippet,
-    descStore = [], paramStore = [];
+    descStore = [], paramStore = [], sectionStore = [];
   var converter = new showdown.Converter();
   const theme = 'idea', keymap = 'sublime', indentUnit = 4;
   var editorConfigs = {
@@ -519,6 +525,10 @@
               key: index,
               value: metadata.parameters
             });
+            sectionStore.push({
+              key: index,
+              value: metadata.sections
+            });
             $("#codebrick-code-" + index).text(metadata.snippet);
             // if this fetch call is due to a drag and drop,
             // call insertSnip after fetching
@@ -535,13 +545,15 @@
     }
   };
 
-  function editCodeBrick(btn, title) {
-    var code = $('#codebrick-code-' + title).html();
+  function editCodeBrick(btn, index) {
+    var code = $('#codebrick-code-' + index).html();
     $("#editSnippet").modal("toggle");
+    var title = $("#codebrick-title-"+index).text().trim();
     $(".edit-snippet-modal-title").text("Edit code for snippet : " + title);
     $("#edit-snippet-title").val(title);
     //  set description to stored Markdown text
-    $("#edit-snippet-desc").text(descStore.filter((e) => e.key === "codebrick-desc-" + title)[0].value);
+    $("#edit-snippet-desc").text(descStore.filter((e) => e.key === "codebrick-desc-" + index)[0].value);
+    $("#edit-snippet-section").text(sectionStore.filter((e) => e.key === index)[0].value);
     $("#snippetEdit").text(code);
   }
 
@@ -818,7 +830,6 @@
       }
 
       $('#showSnippetDoc').html(desc);
-      $("#modalDocBtn").text("Show Documentation");
       $('#insertSnippetBody').show();
       $('#showSnippetDoc').show();
       $('#insertSnippet').modal('show');

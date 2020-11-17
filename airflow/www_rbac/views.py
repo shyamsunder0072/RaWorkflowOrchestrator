@@ -4635,10 +4635,17 @@ class AddDagView(AirflowBaseView):
                 parameters = f.read()
         except Exception:
             parameters = "not found"
+        
+        try:
+            with open(snippets_path.joinpath(*[target_path, 'section.txt'])) as f:
+                sections = f.read()
+        except Exception:
+            sections = "custom->custom"
 
         snippets_metadata = {
             'snippet': snippet,
-            'parameters':parameters
+            'parameters':parameters,
+            'sections':sections
         }
         return json.dumps(snippets_metadata)
 
@@ -4731,7 +4738,8 @@ class AddDagView(AirflowBaseView):
             metadata = {
                 'title': request.form['title'],
                 'description': request.form['description'],
-                'parameters': parameters
+                'parameters': parameters,
+                'sections': request.form['sections']
             }
             new_snippet = request.form['snippet']
             snippet_folder = metadata['title']
@@ -4748,6 +4756,12 @@ class AddDagView(AirflowBaseView):
             try:
                 with open(snippets_path.joinpath(*[snippet_folder, 'snippet.py']), 'w') as f:
                     f.write(new_snippet)
+            except Exception as e:
+                print(e)
+            # save edited section information
+            try:
+                with open(snippets_path.joinpath(*[snippet_folder, 'section.txt']), 'w') as f:
+                    f.write(metadata['sections'])
             except Exception as e:
                 print(e)
             # save edited snippet parameters
