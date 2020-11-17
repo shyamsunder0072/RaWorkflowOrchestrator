@@ -139,35 +139,36 @@
                         {% for codebrick in snippets['sections'][section][sub_section] %}
                         {% set codebrick_index = loop.index %}
                         <div class="panel">
-                          <a data-toggle="collapse"
+                          <a data-toggle="collapse" style="text-decoration:none;"
                             data-parent="#sub-section-{{section_index}}-{{sub_section_index}}-panel"
                             href="#codebrick-{{section_index}}-{{sub_section_index}}-{{codebrick_index}}"
                             ondragstart="setContentOfEvent(event,'codebrick-{{section_index}}-{{sub_section_index}}-{{codebrick_index}}')"
                             onclick="fetchSnippet('{{section_index}}-{{sub_section_index}}-{{codebrick_index}}')">
                             <h5 id="codebrick-title-{{section_index}}-{{sub_section_index}}-{{codebrick_index}}">
                               {{codebrick}}</h5>
-                          </a>
-                          <div id="codebrick-{{section_index}}-{{sub_section_index}}-{{codebrick_index}}"
-                            class="panel-collapse collapse">
-                            <div class="panel-body">
-                              <div id="codebrick-desc-{{section_index}}-{{sub_section_index}}-{{codebrick_index}}"
-                                class="desc">
-                                {{ snippets['descriptions'][codebrick]['description']}}
+
+                            <div id="codebrick-{{section_index}}-{{sub_section_index}}-{{codebrick_index}}"
+                              class="panel-collapse collapse">
+                              <div class="panel-body">
+                                <div id="codebrick-desc-{{section_index}}-{{sub_section_index}}-{{codebrick_index}}"
+                                  class="desc">
+                                  {{ snippets['descriptions'][codebrick]['description']}}
+                                </div>
+                                <button class="btn btn-success pull-right codebrick-insert-btn"
+                                  onclick="insertSnip(this, '{{section_index}}-{{sub_section_index}}-{{codebrick_index}}')">
+                                  INSERT
+                                </button>
+                                <button class="btn btn-default pull-right" style="margin-right:5px"
+                                  onclick="editCodeBrick(this,'{{section_index}}-{{sub_section_index}}-{{codebrick_index}}')">
+                                  EDIT CODEBRICK
+                                </button>
+                                <br>
+                                <pre class="margin-top-lg"
+                                  id="codebrick-code-{{section_index}}-{{sub_section_index}}-{{codebrick_index}}"
+                                  style="background-color: #ffffff;"></pre>
                               </div>
-                              <button class="btn btn-success pull-right codebrick-insert-btn"
-                                onclick="insertSnip(this, '{{section_index}}-{{sub_section_index}}-{{codebrick_index}}')">
-                                INSERT
-                              </button>
-                              <button class="btn btn-default pull-right" style="margin-right:5px"
-                                onclick="editCodeBrick(this,'{{section_index}}-{{sub_section_index}}-{{codebrick_index}}')">
-                                EDIT CODEBRICK
-                              </button>
-                              <br>
-                              <pre class="margin-top-lg"
-                                id="codebrick-code-{{section_index}}-{{sub_section_index}}-{{codebrick_index}}"
-                                style="background-color: #ffffff;"></pre>
                             </div>
-                          </div>
+                          </a>
                         </div>
                         {% endfor %}
                       </div>
@@ -833,13 +834,13 @@
         desc += '<h3>Parameters</h3>' +
           '<ul>';
         for (key in parsedSnippetParams) {
-          desc += '<li><h4><code>'+key+'</code> <span class="badge">'+
-            parsedSnippetParams[key]['parameterType']+'</span></h4>' +
-            '<p>'+parsedSnippetParams[key]['description']+'</p>'
+          desc += '<li><h4><code>' + key + '</code> <span class="badge">' +
+            parsedSnippetParams[key]['parameterType'] + '</span></h4>' +
+            '<p>' + parsedSnippetParams[key]['description'] + '</p>'
 
           console.log(parsedSnippetParams[key]);
         }
-        desc+='</ul>'
+        desc += '</ul>'
       }
       $('#showSnippetDoc').html(desc);
       $('#insertSnippetBody').show();
