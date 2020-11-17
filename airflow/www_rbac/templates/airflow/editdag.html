@@ -548,7 +548,7 @@
   function editCodeBrick(btn, index) {
     var code = $('#codebrick-code-' + index).html();
     $("#editSnippet").modal("toggle");
-    var title = $("#codebrick-title-"+index).text().trim();
+    var title = $("#codebrick-title-" + index).text().trim();
     $(".edit-snippet-modal-title").text("Edit code for snippet : " + title);
     $("#edit-snippet-title").val(title);
     //  set description to stored Markdown text
@@ -828,7 +828,19 @@
           $('#insertSnippetBody').append(temp);
         })
       }
+      // add parameter details to description
+      if (snippetParams != "not found") {
+        desc += '<h3>Parameters</h3>' +
+          '<ul>';
+        for (key in parsedSnippetParams) {
+          desc += '<li><h4><code>'+key+'</code> <span class="badge">'+
+            parsedSnippetParams[key]['parameterType']+'</span></h4>' +
+            '<p>'+parsedSnippetParams[key]['description']+'</p>'
 
+          console.log(parsedSnippetParams[key]);
+        }
+        desc+='</ul>'
+      }
       $('#showSnippetDoc').html(desc);
       $('#insertSnippetBody').show();
       $('#showSnippetDoc').show();
