@@ -142,7 +142,8 @@
                         {% for codebrick in snippets['sections'][section][sub_section] %}
                         {% set codebrick_index = loop.index %}
                         <div class="panel search-tag">
-                          <h5 id="codebrick-title-{{section_index}}-{{sub_section_index}}-{{codebrick_index}}">
+                          <h5 id="codebrick-title-{{section_index}}-{{sub_section_index}}-{{codebrick_index}}"
+                            class="codebrick-title">
                             <a data-toggle="collapse" style="text-decoration:none;"
                               data-parent="#sub-section-{{section_index}}-{{sub_section_index}}-panel"
                               href="#codebrick-{{section_index}}-{{sub_section_index}}-{{codebrick_index}}"
@@ -232,7 +233,7 @@
           <div class="modal-body" id="dataEdit" style="max-height: 550px; overflow-y: scroll;">
             <div class="form-group">
               <label for="snippetTitle">Title</label>
-              <input id="edit-snippet-title" type="text" class="form-control" name="title" required>
+              <input id="editSnippetTitle" type="text" class="form-control" name="title" onchange="checkTitle(this, true)" required>
               <p class="help-block">Title can contain characters <code>A-Z, a-z, 0-9, _, -, space</code>.
             </div>
             <div class="form-group">
@@ -244,7 +245,8 @@
               <label for="snippet">Section(s) and Sub-section(s)</label>
               <textarea class="form-control" name="sections" id="edit-snippet-section" rows="3">
               </textarea>
-              <p class="help-block">Each entry in a new line, like : <code>section -> sub-section</code>.
+              <p class="help-block">Multiple entries with each entry in a new line, like :
+                <code>section -> sub-section</code>.
             </div>
             <div class="form-group">
               <label for="snippet">Codebrick</label>
@@ -284,13 +286,14 @@
           <div class="modal-body" id="dataInput" style="max-height: 550px; overflow-y: scroll;">
             <div class="form-group">
               <label for="snippetTitle">Title</label>
-              <input type="text" class="form-control" name="title" oninput="checkTitle(this)" required>
+              <input id="addSnippetTitle" type="text" class="form-control" name="title" onchange="checkTitle(this)" required>
               <p class="help-block">Title can contain characters <code>A-Z, a-z, 0-9, _, -, space</code>.
             </div>
             <div class="form-group">
               <label for="snippetSection">Section(s) and Sub-Section(s)</label>
               <textarea class="form-control" name="section" id="snippetSection" rows="3"></textarea>
-              <p class="help-block">Each entry in a new line, like : <code>section -> sub-section</code>.
+              <p class="help-block">Multiple entries with each entry in a new line, like :
+                <code>section -> sub-section</code>.
             </div>
             <div class="form-group">
               <label for="snippetDescription">Description</label>
@@ -382,11 +385,11 @@
 <script src="{{ url_for('static', filename='js/language_server.js') }}"></script>
 <script src="{{ url_for('static', filename='js/notify.js') }}"></script>
 <script src="{{ url_for('static', filename='js/showdown.min.js') }}"></script>
-<script src="{{ url_for('static', filename='js/jquery.validate.min.js') }}"></script>
+<!-- <script src="{{ url_for('static', filename='js/jquery.validate.min.js') }}"></script> -->
 <script type="text/javascript">
 
   var diffEditor, editSnippetEditor, addSnippetEditor, currSnippet,
-    descStore = [], paramStore = [], sectionStore = [];
+    descStore = [], paramStore = [], sectionStore = [], titleValid;
   var converter = new showdown.Converter();
   const theme = 'idea', keymap = 'sublime', indentUnit = 4;
   var editorConfigs = {
@@ -554,7 +557,7 @@
     $("#editSnippet").modal("toggle");
     var title = $("#codebrick-title-" + index).text().trim();
     $(".edit-snippet-modal-title").text("Edit code for snippet : " + title);
-    $("#edit-snippet-title").val(title);
+    $("#editSnippetTitle").val(title);
     //  set description to stored Markdown text
     $("#edit-snippet-desc").text(descStore.filter((e) => e.key === "codebrick-desc-" + index)[0].value);
     $("#edit-snippet-section").text(sectionStore.filter((e) => e.key === index)[0].value);
@@ -581,8 +584,8 @@
 
   function addSnippetNextHandler(btn) {
     // validate form on clicking next
-    if (!jQuery("#addSnippetForm").valid()) {
-      jQuery("#addSnippetForm").validate();
+    if (!titleValid){
+      checkTitle(jQuery("#addSnippetTitle")[0]);
       return;
     }
     var text = addSnippetEditor.getValue();
@@ -662,8 +665,8 @@
 
   function editSnippetNextHandler(btn) {
     // validate form on clicking next
-    if (!jQuery("#editSnippetForm").valid()) {
-      jQuery("#editSnippetForm").validate();
+    if (!titleValid){
+      checkTitle(jQuery("#editSnippetTitle")[0], true);
       return;
     }
     var text = editSnippetEditor.getValue();
@@ -1081,26 +1084,29 @@
   }
 
   function snippetExists(title) {
-    const snippets = [
-      {% for snippet_section in snippets %}
-  {% for title in snippets[snippet_section] %}
-  "{{title}}",
-    {% endfor %}
-  {% endfor %}
-    ];
-  if (snippets.includes(title)) return true;
-  return false;
+    const snippetDivs = $(".codebrick-title").toArray();
+    var snippets = [];
+    snippetDivs.map((e) =>{
+      snippets.push($(e).text().trim());
+    });
+    if (snippets.includes(title)) return true;
+    return false;
   }
 
-  function checkTitle(input) {
+  function checkTitle(input, editing) {
+    titleValid = true;
     var validTitle = /^[\sA-Za-z0-9_@()-]+$/i.test(input.value);
-    if (validTitle) {
+    if (validTitle && input.value != '') {
       input.setCustomValidity('');
     } else {
       input.setCustomValidity('Not a valid code brick title.');
+      input.reportValidity();
+      titleValid = false;
     }
-    if (snippetExists(input.value)) {
+    if (!editing && snippetExists(input.value)) {
       input.setCustomValidity('Code brick with that title already exists.');
+      input.reportValidity();
+      titleValid = false;
     }
   }
 </script>
