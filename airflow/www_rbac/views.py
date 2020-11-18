@@ -25,7 +25,6 @@ import functools
 import itertools
 import json
 import logging
-import markdown2
 import math
 import os
 import re
@@ -4340,6 +4339,7 @@ class AddDagView(AirflowBaseView):
         "editdag": "access",
         "save_snippet": "access",
         "edit_snippet": "access",
+        "fetch_snippet": "access",
         "download": "access",
     }
 
@@ -4378,58 +4378,88 @@ class AddDagView(AirflowBaseView):
     #     filename = self.snippet_title_to_file(title)
     #     return os.path.join(AIRFLOW_HOME, *['repo', filename])
 
+    def process_sections(self, raw_sections):
+        # processes raw_sections
+        # from:
+        # `snippet -> sections.txt file` 
+        # to:
+        # {'section':{...'sub-section':[snippets]}}
+        output = {
+            'custom':{
+                'custom':[]
+            }
+        }
+        for key, value in raw_sections.items():
+            # if there is no valid section->sub-section information
+            # add snippet to custom->custom
+            if "->" not in value:
+                output['custom']['custom'].append(key)
+            else:
+                entries = value.split('\n')
+                # for each entry
+                for entry in entries:
+                    try:
+                        section = entry.split("->")[0].strip()
+                        sub_section = entry.split("->")[1].strip()
+                        #create empty section/sub-section if it doesn't exsit
+                        output.setdefault(section,{}).setdefault(sub_section,[]).append(key)
+                    except Exception:
+                        print("Error reading sections for", key)
+        return output
+
     def get_snippets_metadata(self):
         snippets_path = Path(self.get_snippet_metadata_path())
         # open all top level folders.
         snippet_folders = [f for f in snippets_path.iterdir() if f.is_dir()]
 
         # Codebrick structure. Each directory inside the `self.get_snippet_metadata_path`
-        # will have a single codebrick. Inside it will be two files:
+        # will have a single codebrick. Inside it will be four files:
         # - description.md : The codebrick description in markdown.
         # - snippet.py : The codebrick python snippet.
-        # - section.txt : (Optional) In which section should the codebrick go to.
+        # - section.txt : (Optional) In which section and sub-section should the codebrick go to.
+        # - parameter.json : (Optional) Metadata about parameters for snippets.
+
+        # parameter.json, description.md and snippt.py would be fetched by 
+        # fetch calls when required.
 
         # Remember, we want to remove the codebrick from the list if that codebrick
         # folder doesn't contain any snippet.py file. If it doesn't contain description.md,
         # make the description string empty.
 
-        snippets_metadata = {}
+        snippets_description = {}
+        raw_sections = {}
         for snippet_folder in snippet_folders:
-            description = ''
-            snippet = ''
-            sections = ''
-
-            try:
-                with open(snippets_path.joinpath(*[snippet_folder, 'description.md'])) as f:
-                    description = f.read()
-            except Exception:
-                description = ''
-            
+            # check if snippet exists
             try:
                 with open(snippets_path.joinpath(*[snippet_folder, 'snippet.py'])) as f:
                     snippet = f.read()
             except Exception:
                 snippet = ''
 
+            # read description
+            try:
+                with open(snippets_path.joinpath(*[snippet_folder, 'description.md'])) as f:
+                    description = f.read()
+            except Exception as e:
+                print(e)
+                description = 'Description not available'
+        
+            # add sections to raw_sections for processing
             try:
                 with open(snippets_path.joinpath(*[snippet_folder, 'section.txt'])) as f:
                     sections = f.read()
+                    raw_sections[snippet_folder.stem] = sections
             except Exception:
-                sections = 'custom'
+                raw_sections[snippet_folder.stem] = 'custom'
 
-            if snippet:
-                for section in sections.split(','):
-                    if section not in snippets_metadata.keys():
-                        snippets_metadata[section] = {}
-                    snippets_metadata[section][snippet_folder.stem] = {
-                        'description': markdown2.markdown(description),
-                        'snippet': snippet,
-                    }
-        # print(snippets_metadata)
-        # for snippet_section in snippets_metadata:
-        #     print(snippet_section)
-        #     for snippet in snippets_metadata[snippet_section]:
-        #         print(snippet)
+            snippets_description[snippet_folder.stem] = {
+                'description': description
+            }
+        processed_sections = self.process_sections(raw_sections)
+        snippets_metadata = {
+            'sections': processed_sections,
+            'descriptions': snippets_description
+        }
         return snippets_metadata
 
     def get_snippets(self):
@@ -4444,14 +4474,29 @@ class AddDagView(AirflowBaseView):
         return f'{title}.py'
         # return title.replace(' ', '_') + '.py'
 
+    def get_parameters_json(self, parameters):
+        variables = []
+        for key in parameters:
+            variables.append(key.split('-')[1])
+        variables = set(variables)
+        final_output = {}
+        for var in variables:
+            meta = {}
+            for key, value in parameters.items():
+                if (key.split('-')[1] == var):
+                    meta[key.split('-')[2]]=value
+            final_output[var]=meta
+        return json.dumps(final_output)
+
     def save_snippets(self, metadata, new_snippet):
         """Save a new snippet in the repo
 
         Arguments:
-            metadata {dict} -- with keys `title` and `description` of new snippet
+            metadata {dict} -- with keys `title` and `description`, `section` 
+                               and `parameters` of new snippet
             new_snippet {str} -- code of new snippet.
         """
-        snippet_folder = metadata['title']
+        snippet_folder = metadata['title'].replace(' ','+')
         snippets_path = Path(self.get_snippet_metadata_path())
         Path(snippets_path).joinpath(snippet_folder).mkdir(parents=True, exist_ok=True)
 
@@ -4472,6 +4517,31 @@ class AddDagView(AirflowBaseView):
                 f.write(','.join(metadata['section']))
         except Exception as e:
             print(e)
+
+        try:
+            with open(snippets_path.joinpath(*[snippet_folder, 'parameters.json']), 'w') as f:
+                f.write(self.get_parameters_json(metadata['parameters']))
+        except Exception as e:
+            print(e)
+
+    # code to inject metadata into description
+
+    # def process_description(self,codebrick_description, parameters):
+    #     variables = []
+    #     variable_metadata = ""
+    #     for key in parameters:
+    #         variables.append(key.split('-')[1])
+    #     variables = set(variables)
+    #     for var in variables:
+    #         variable_metadata+="  \n" + "#### "+'```'+var+'```'+ "  \n"
+    #         for key, value in parameters.items():
+    #             if (key.split('-')[1] == var and key.split('-')[2]=="description"):
+    #                 # to inject all metadata, use the code below and remove description
+    #                 # condition from the if statement above
+    #                 # variable_metadata+="- "+"**"+key.split('-')[2]+"** : "+value+ "  \n"
+    #                 variable_metadata+=value+ "  \n"
+    #     description = codebrick_description + "\n" +"### Parameters\n" + variable_metadata
+    #     return description
 
     @expose('/add_dag', methods=['GET', 'POST'])
     @action_logging
@@ -4543,6 +4613,41 @@ class AddDagView(AirflowBaseView):
         file_data = self.get_details(dags_dir, ".py")
         return self.render_template('airflow/add_dag.html', title=title, file_data=file_data)
 
+    @expose("/fetch_snippet/<string:name>", methods=['GET'])
+    @has_access
+    @action_logging
+    def fetch_snippet(self, name):     
+        # use the snippet name to return:
+        # - parameters
+        # - snippet   
+        snippets_path = Path(self.get_snippet_metadata_path())
+        target_path = Path(os.path.join(snippets_path, name))
+
+        try:
+            with open(snippets_path.joinpath(*[target_path, 'snippet.py'])) as f:
+                snippet = f.read()
+        except Exception:
+            snippet = ''
+        
+        try:
+            with open(snippets_path.joinpath(*[target_path, 'parameters.json'])) as f:
+                parameters = f.read()
+        except Exception:
+            parameters = "not found"
+        
+        try:
+            with open(snippets_path.joinpath(*[target_path, 'section.txt'])) as f:
+                sections = f.read()
+        except Exception:
+            sections = "custom->custom"
+
+        snippets_metadata = {
+            'snippet': snippet,
+            'parameters':parameters,
+            'sections':sections
+        }
+        return json.dumps(snippets_metadata)
+
     @expose("/editdag/<string:filename>/", methods=['GET', 'POST'])
     @action_logging
     @has_access
@@ -4594,6 +4699,10 @@ class AddDagView(AirflowBaseView):
 
         if request.method == 'POST':
             # snippets = self.get_snippets()
+            parameters = {}
+            for key, value in request.form.items():
+                if key.startswith('param'):
+                    parameters[key]=value
 
             sections = str(request.form['section']).strip().split(',')
             if not sections:
@@ -4601,7 +4710,8 @@ class AddDagView(AirflowBaseView):
             metadata = {
                 'title': request.form['title'],
                 'description': request.form['description'],
-                'section': sections
+                'section': sections,
+                'parameters': parameters
             }
             new_snippet = request.form['snippet']
             self.save_snippets(metadata, new_snippet)
@@ -4617,28 +4727,46 @@ class AddDagView(AirflowBaseView):
     @expose("/edit_snippet/<string:filename>", methods=['POST'])
     @has_access
     @action_logging
-    def edit_snippet(self, filename):
+    def edit_snippet(self, filename):        
+        parameters = {}
+        for key, value in request.form.items():
+            if key.startswith('param'):
+                parameters[key]=value
+
         if request.method == 'POST':
             metadata = {
                 'title': request.form['title'],
                 'description': request.form['description'],
+                'parameters': parameters,
+                'sections': request.form['sections']
             }
             new_snippet = request.form['snippet']
             snippet_folder = metadata['title']
             snippets_path = Path(self.get_snippet_metadata_path())
             Path(snippets_path).joinpath(snippet_folder).mkdir(parents=True, exist_ok=True)
 
-            # edit description if a new description is provided
-            if metadata['description'] != "":
-                try:
-                    with open(snippets_path.joinpath(*[snippet_folder, 'description.md']), 'w') as f:
-                        f.write(metadata['description'])
-                except Exception as e:
-                    print(e)
-            # edit code
+            # save edited description
+            try:
+                with open(snippets_path.joinpath(*[snippet_folder, 'description.md']), 'w') as f:
+                    f.write(metadata['description'])
+            except Exception as e:
+                print(e)
+            # save edited code
             try:
                 with open(snippets_path.joinpath(*[snippet_folder, 'snippet.py']), 'w') as f:
                     f.write(new_snippet)
+            except Exception as e:
+                print(e)
+            # save edited section information
+            try:
+                with open(snippets_path.joinpath(*[snippet_folder, 'section.txt']), 'w') as f:
+                    f.write(metadata['sections'])
+            except Exception as e:
+                print(e)
+            # save edited snippet parameters
+            try:
+                with open(snippets_path.joinpath(*[snippet_folder, 'parameters.json']), 'w') as f:
+                    f.write(self.get_parameters_json(metadata['parameters']))
             except Exception as e:
                 print(e)
 
