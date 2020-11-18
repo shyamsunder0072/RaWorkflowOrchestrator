@@ -385,7 +385,6 @@
 <script src="{{ url_for('static', filename='js/language_server.js') }}"></script>
 <script src="{{ url_for('static', filename='js/notify.js') }}"></script>
 <script src="{{ url_for('static', filename='js/showdown.min.js') }}"></script>
-<!-- <script src="{{ url_for('static', filename='js/jquery.validate.min.js') }}"></script> -->
 <script type="text/javascript">
 
   var diffEditor, editSnippetEditor, addSnippetEditor, currSnippet,
@@ -819,7 +818,7 @@
               '<label for="' + param + '">' + param + '</label> ' +
               '<span class="badge">' + parsedSnippetParams[param]['parameterType'] + '</span>' +
               '<p>' + parsedSnippetParams[param]['description'] + '</br>' +
-              '<input type="text" class="form-control" name="' + param + '" value="' + parsedSnippetParams[param]['defaultValue'] + '"placeholder= "Eg. ' + parsedSnippetParams[param]['exampleValue'] + '">' +
+              '<input type="text" class="form-control" name="' + param + '" value="' + parsedSnippetParams[param]['defaultValue'].replaceAll('"','&quot;') + '"placeholder= "Eg. ' + parsedSnippetParams[param]['exampleValue'].replaceAll('"','&quot;') + '">' +
               '</div>'
           }
           else {
@@ -828,7 +827,7 @@
               '<label for="' + param + '">' + param + '<span style="color:red;">* </span> </label> ' +
               '<span class="badge">' + parsedSnippetParams[param]['parameterType'] + '</span>' +
               '<p>' + parsedSnippetParams[param]['description'] + '</p>' +
-              '<input type="text" class="form-control" name="' + param + '"placeholder= "Eg. ' + parsedSnippetParams[param]['exampleValue'] + '"required>' +
+              '<input type="text" class="form-control" name="' + param + '"placeholder= "Eg. ' + parsedSnippetParams[param]['exampleValue'].replaceAll('"','&quot;') + '"required>' +
               '</div>'
           }
           $('#insertSnippetBody').append(temp);
@@ -842,8 +841,6 @@
           desc += '<li><h4><code>' + key + '</code> <span class="badge">' +
             parsedSnippetParams[key]['parameterType'] + '</span></h4>' +
             '<p>' + parsedSnippetParams[key]['description'] + '</p>'
-
-          console.log(parsedSnippetParams[key]);
         }
         desc += '</ul>'
       }

@@ -4456,7 +4456,6 @@ class AddDagView(AirflowBaseView):
                 'description': description
             }
         processed_sections = self.process_sections(raw_sections)
-        print(processed_sections)
         snippets_metadata = {
             'sections': processed_sections,
             'descriptions': snippets_description
