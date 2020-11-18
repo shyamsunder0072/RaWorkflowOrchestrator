@@ -142,36 +142,36 @@
                         {% for codebrick in snippets['sections'][section][sub_section] %}
                         {% set codebrick_index = loop.index %}
                         <div class="panel">
-                          <a data-toggle="collapse" style="text-decoration:none;"
-                            data-parent="#sub-section-{{section_index}}-{{sub_section_index}}-panel"
-                            href="#codebrick-{{section_index}}-{{sub_section_index}}-{{codebrick_index}}"
-                            ondragstart="setContentOfEvent(event,'codebrick-{{section_index}}-{{sub_section_index}}-{{codebrick_index}}')"
-                            onclick="fetchSnippet('{{section_index}}-{{sub_section_index}}-{{codebrick_index}}')">
-                            <h5 id="codebrick-title-{{section_index}}-{{sub_section_index}}-{{codebrick_index}}">
-                              {{codebrick}}</h5>
-
-                            <div id="codebrick-{{section_index}}-{{sub_section_index}}-{{codebrick_index}}"
-                              class="panel-collapse collapse">
-                              <div class="panel-body">
-                                <div id="codebrick-desc-{{section_index}}-{{sub_section_index}}-{{codebrick_index}}"
-                                  class="desc">
-                                  {{ snippets['descriptions'][codebrick]['description']}}
-                                </div>
-                                <button class="btn btn-success pull-right codebrick-insert-btn"
-                                  onclick="insertSnip(this, '{{section_index}}-{{sub_section_index}}-{{codebrick_index}}')">
-                                  INSERT
-                                </button>
-                                <button class="btn btn-default pull-right" style="margin-right:5px"
-                                  onclick="editCodeBrick(this,'{{section_index}}-{{sub_section_index}}-{{codebrick_index}}')">
-                                  EDIT CODEBRICK
-                                </button>
-                                <br>
-                                <pre class="margin-top-lg"
-                                  id="codebrick-code-{{section_index}}-{{sub_section_index}}-{{codebrick_index}}"
-                                  style="background-color: #ffffff;"></pre>
-                              </div>
-                            </div>
+                          <h5 id="codebrick-title-{{section_index}}-{{sub_section_index}}-{{codebrick_index}}">
+                            <a data-toggle="collapse" style="text-decoration:none;"
+                              data-parent="#sub-section-{{section_index}}-{{sub_section_index}}-panel"
+                              href="#codebrick-{{section_index}}-{{sub_section_index}}-{{codebrick_index}}"
+                              ondragstart="setContentOfEvent(event,'{{section_index}}-{{sub_section_index}}-{{codebrick_index}}')"
+                              onclick="fetchSnippet('{{section_index}}-{{sub_section_index}}-{{codebrick_index}}')">
+                              {{codebrick}}
+                          </h5>
                           </a>
+                          <div id="codebrick-{{section_index}}-{{sub_section_index}}-{{codebrick_index}}"
+                            class="panel-collapse collapse">
+                            <div class="panel-body">
+                              <div id="codebrick-desc-{{section_index}}-{{sub_section_index}}-{{codebrick_index}}"
+                                class="desc">
+                                {{ snippets['descriptions'][codebrick]['description']}}
+                              </div>
+                              <button class="btn btn-success pull-right codebrick-insert-btn"
+                                onclick="insertSnip(this, '{{section_index}}-{{sub_section_index}}-{{codebrick_index}}')">
+                                INSERT
+                              </button>
+                              <button class="btn btn-default pull-right" style="margin-right:5px"
+                                onclick="editCodeBrick(this,'{{section_index}}-{{sub_section_index}}-{{codebrick_index}}')">
+                                EDIT CODEBRICK
+                              </button>
+                              <br>
+                              <pre class="margin-top-lg"
+                                id="codebrick-code-{{section_index}}-{{sub_section_index}}-{{codebrick_index}}"
+                                style="background-color: #ffffff;"></pre>
+                            </div>
+                          </div>
                         </div>
                         {% endfor %}
                       </div>
@@ -948,7 +948,7 @@
 
   langServer.codeEditor.execCommand('goDocEnd');
   langServer.codeEditor.on('drop', function (cm, event) {
-    if (event.dataTransfer.getData("codebrick-title")) {
+    if (event.dataTransfer.getData("codebrick-index")) {
       var coords = cm.coordsChar({
         left: event.x,
         top: event.y
