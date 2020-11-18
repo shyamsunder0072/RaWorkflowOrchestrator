@@ -111,7 +111,7 @@
       <div class="panel-group" id="codebrickPanel">
         {% for section in snippets['sections'] %}
         {% set section_index = loop.index %}
-        <div class="panel panel-default">
+        <div class="panel panel-default search-tag">
           <div class="panel-heading">
             <a data-toggle="collapse" data-parent="#codebrickPanel" href="#collapse-{{section_index}}"
               style="text-decoration:none;color:inherit;">
@@ -141,7 +141,7 @@
                       <div class="panel-group" id="sub-section-{{section_index}}-{{sub_section_index}}-panel">
                         {% for codebrick in snippets['sections'][section][sub_section] %}
                         {% set codebrick_index = loop.index %}
-                        <div class="panel">
+                        <div class="panel search-tag">
                           <h5 id="codebrick-title-{{section_index}}-{{sub_section_index}}-{{codebrick_index}}">
                             <a data-toggle="collapse" style="text-decoration:none;"
                               data-parent="#sub-section-{{section_index}}-{{sub_section_index}}-panel"
@@ -1041,7 +1041,7 @@
 
   $("#codebrickSearch").on("keyup", function () {
     var value = $(this).val().toLowerCase();
-    $("#codebrickList a").filter(function () {
+    $(".search-tag").filter(function () {
       $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1);
     });
   });
