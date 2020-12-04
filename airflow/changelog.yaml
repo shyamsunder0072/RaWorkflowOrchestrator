@@ -1,4 +1,13 @@
 changelog:
+  - version: 2.3.0
+    authors: ['AnubhavUjjawal', 'VivekKaushal', 'SaiRathan', 'LuckySrivastava']
+    newFeatures:
+      - Updated TFServing Commons
+      - Added support for Couture Model Repository.
+      - Added support for S3 compatible object storage in the platform.
+      - Added CouturePythonDockerOperator
+    improvements:
+      - Improved Codebricks support
   - version: 2.2.0
     authors: ['AnubhavUjjawal', 'VivekKaushal', 'SaiRathan', 'LuckySrivastava']
     newFeatures:
