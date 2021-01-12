@@ -20,7 +20,7 @@ import enum
 import importlib
 import inspect
 import logging
-import billiard as multiprocessing
+import multiprocessing
 import os
 import signal
 import sys
@@ -47,7 +47,7 @@ from airflow.utils import timezone
 from airflow.utils.callback_requests import CallbackRequest, SlaCallbackRequest, TaskCallbackRequest
 from airflow.utils.file import list_py_file_paths
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.mixins import billiard as multiprocessingStartMethodMixin
+from airflow.utils.mixins import MultiprocessingStartMethodMixin
 from airflow.utils.process_utils import kill_child_processes_by_pids, reap_process_group
 from airflow.utils.session import provide_session
 from airflow.utils.state import State
