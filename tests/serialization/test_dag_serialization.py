@@ -20,7 +20,7 @@
 
 import importlib
 import importlib.util
-import multiprocessing
+import billiard as multiprocessing
 import os
 import unittest
 from datetime import datetime, timedelta, timezone

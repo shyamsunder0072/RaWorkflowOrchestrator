@@ -24,7 +24,7 @@ KubernetesExecutor
 
 import functools
 import json
-import multiprocessing
+import billiard as multiprocessing
 import time
 from queue import Empty, Queue  # pylint: disable=unused-import
 from typing import Any, Dict, List, Optional, Tuple

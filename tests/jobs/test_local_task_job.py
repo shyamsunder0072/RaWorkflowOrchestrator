@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-import multiprocessing
+import billiard as multiprocessing
 import os
 import time
 import unittest
