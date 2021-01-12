@@ -26,8 +26,8 @@ import logging
 import os
 import subprocess
 from abc import abstractmethod
-from multiprocessing import Manager, Process
-from multiprocessing.managers import SyncManager
+from billiard import Manager, Process
+from billiard.managers import SyncManager
 from queue import Empty, Queue  # pylint: disable=unused-import  # noqa: F401
 from typing import Any, List, Optional, Tuple, Union  # pylint: disable=unused-import # noqa: F401
 

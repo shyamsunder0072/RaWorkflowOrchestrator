@@ -30,7 +30,7 @@ import subprocess
 import time
 import traceback
 from collections import OrderedDict
-from multiprocessing import Pool, cpu_count
+from billiard import Pool, cpu_count
 from typing import Any, Dict, List, Mapping, MutableMapping, Optional, Set, Tuple, Union
 
 from celery import Celery, Task, states as celery_states
