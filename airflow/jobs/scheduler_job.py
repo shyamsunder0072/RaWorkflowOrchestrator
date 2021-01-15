@@ -61,7 +61,7 @@ from airflow.utils.callback_requests import (
 from airflow.utils.dag_processing import AbstractDagFileProcessorProcess, DagFileProcessorAgent
 from airflow.utils.email import get_email_address_list, send_email
 from airflow.utils.log.logging_mixin import LoggingMixin, StreamLogWriter, set_context
-from airflow.utils.mixins import MultiprocessingStartMethodMixin
+from airflow.utils.mixins import billiard as multiprocessingStartMethodMixin
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.sqlalchemy import is_lock_not_available_error, prohibit_commit, skip_locked, with_row_locks
 from airflow.utils.state import State
