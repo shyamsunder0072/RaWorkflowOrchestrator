@@ -18,7 +18,7 @@
 #
 
 import logging
-import billiard as multiprocessing
+import multiprocessing
 import os
 import signal
 import subprocess

@@ -17,7 +17,7 @@
 
 import json
 import logging
-import billiard as multiprocessing
+import multiprocessing
 import os
 import pathlib
 import re

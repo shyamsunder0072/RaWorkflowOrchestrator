@@ -48,10 +48,9 @@ def _run_dag(
     dags_to_trigger = list()
     dags_to_trigger.append(dag)
 
-    # from airflow.executors import get_default_executor
-    from airflow.executors.executor_loader import ExecutorLoader
-    # executor = get_default_executor()
-    executor = ExecutorLoader.get_default_executor()
+    from airflow.executors import get_default_executor
+
+    executor = get_default_executor()
 
     while dags_to_trigger:
         dag = dags_to_trigger.pop()

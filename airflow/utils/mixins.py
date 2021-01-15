@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import billiard as multiprocessing
+import multiprocessing
 
 from airflow.configuration import conf
 
