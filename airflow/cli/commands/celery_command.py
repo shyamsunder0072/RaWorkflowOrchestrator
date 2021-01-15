@@ -17,7 +17,7 @@
 # under the License.
 """Celery command"""
 
-from billiard import Process
+from multiprocessing import Process
 from typing import Optional
 
 import daemon

@@ -16,7 +16,7 @@
 # under the License.
 import os
 import unittest
-from billiard import Process
+from multiprocessing import Process
 from os.path import basename
 from tempfile import NamedTemporaryFile
 from time import sleep

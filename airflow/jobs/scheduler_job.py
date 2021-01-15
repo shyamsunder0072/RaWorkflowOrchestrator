@@ -30,7 +30,7 @@ import time
 from collections import defaultdict
 from contextlib import redirect_stderr, redirect_stdout, suppress
 from datetime import timedelta
-from billiard.connection import Connection as MultiprocessingConnection
+from multiprocessing.connection import Connection as MultiprocessingConnection
 from typing import Any, Callable, DefaultDict, Dict, Iterable, List, Optional, Set, Tuple
 
 from setproctitle import setproctitle

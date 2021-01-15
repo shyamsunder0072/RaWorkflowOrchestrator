@@ -29,7 +29,7 @@ from abc import ABCMeta, abstractmethod
 from collections import defaultdict
 from datetime import datetime, timedelta
 from importlib import import_module
-from billiard.connection import Connection as MultiprocessingConnection
+from multiprocessing.connection import Connection as MultiprocessingConnection
 from typing import Any, Callable, Dict, List, NamedTuple, Optional, Tuple, Union, cast
 
 from setproctitle import setproctitle  # pylint: disable=no-name-in-module
