@@ -105,6 +105,9 @@
           <li><a href="{{ url_for('Airflow.code', dag_id=dag.dag_id, root=root) }}">
             <span class="material-icons" aria-hidden="true">code</span>
             Code</a></li>
+          <li><a href="{{ url_for('ManageDAGsView.editdag', filename=dag.dag_id) }}">
+            <i class="fa fa-edit" aria-hidden="true"></i>
+            Edit Code</a></li>
         </ul>
       </div>
       <div class="col-md-2">

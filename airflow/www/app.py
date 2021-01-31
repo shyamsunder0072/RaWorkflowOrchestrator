@@ -77,6 +77,7 @@ def create_app(config=None, testing=False, app_name="Airflow"):
     flask_app.config['SQLALCHEMY_DATABASE_URI'] = conf.get('core', 'SQL_ALCHEMY_CONN')
     flask_app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
+    flask_app.config['SESSION_COOKIE_NAME'] = 'workflow_session'
     flask_app.config['SESSION_COOKIE_HTTPONLY'] = True
     flask_app.config['SESSION_COOKIE_SECURE'] = conf.getboolean('webserver', 'COOKIE_SECURE')
     flask_app.config['SESSION_COOKIE_SAMESITE'] = conf.get('webserver', 'COOKIE_SAMESITE')

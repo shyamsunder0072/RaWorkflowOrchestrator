@@ -18,11 +18,11 @@
 openapi: 3.0.3
 
 info:
-  title: "Airflow API (Stable)"
+  title: "Workflow Orchestrator API (Stable)"
   description: |
     # Overview
 
-    To facilitate management, the Apache Airflow supports a range of REST API endpoints across its
+    To facilitate management, the Couture Workflow Orchestrator supports a range of REST API endpoints across its
     objects.
     This section provides an overview of the API design, methods, and supported use cases.
 
@@ -35,7 +35,7 @@ info:
 
     ## Resources
 
-    The term `resource` refers to a single type of object in the Airflow metadata. An API is broken up by its
+    The term `resource` refers to a single type of object in the Workflow Orchestrator metadata. An API is broken up by its
     endpoint's corresponding resource.
     The name of a resource is typically plural and expressed in camelCase. Example: `dagRuns`.
 
@@ -123,13 +123,13 @@ info:
 
     ## Versioning and Endpoint Lifecycle
 
-    - API versioning is not synchronized to specific releases of the Apache Airflow.
+    - API versioning is not synchronized to specific releases of the Apache Workflow Orchestrator.
     - APIs are designed to be backward compatible.
     - Any changes to the API will first go through a deprecation phase.
 
     # Summary of Changes
 
-    | Airflow version | Description |
+    | Workflow Orchestrator version | Description |
     |-|-|
     | v2.0 | Initial releaase |
 
@@ -137,7 +137,7 @@ info:
 
     You can use a third party client, such as [curl](https://curl.haxx.se/), [HTTPie](https://httpie.org/),
     [Postman](https://www.postman.com/) or [the Insomnia rest client](https://insomnia.rest/) to test
-    the Apache Airflow API.
+    the Couture Workflow Orchestrator API.
 
     Note that you will need to pass credentials data.
 
@@ -164,7 +164,7 @@ info:
 
     # Authentication
 
-    To be able to meet the requirements of many organizations, Airflow supports many authentication methods,
+    To be able to meet the requirements of many organizations, Workflow Orchestrator supports many authentication methods,
     and it is even possible to add your own method.
 
     If you want to check which auth backend is currently set, you can use
@@ -231,13 +231,13 @@ info:
     name: Apache 2.0
     url: http://www.apache.org/licenses/LICENSE-2.0.html
   contact:
-    name: Apache Software Foundation
-    url: https://airflow.apache.org
-    email: dev@airflow.apache.org
+    name: Couture Workflow Orchestrator
+    url: https://www.couture.ai/
+    email: shobhit@couture.ai
 
 servers:
   - url: /api/v1
-    description: Apache Airflow Stable API.
+    description: Couture Workflow Orchestrator Stable API.
 
 paths:
   # Database entities
@@ -1901,7 +1901,7 @@ components:
         DAG details.
 
         For details see:
-        (airflow.models.DAG)[https://airflow.apache.org/docs/stable/_api/airflow/models/index.html#airflow.models.DAG]
+        (airflow.models.DAG)
       allOf:
         - $ref: '#/components/schemas/DAG'
         - type: object
@@ -1958,7 +1958,7 @@ components:
       type: object
       description: |
         For details see:
-        (airflow.models.BaseOperator)[https://airflow.apache.org/docs/stable/_api/airflow/models/index.html#airflow.models.BaseOperator]
+        (airflow.models.BaseOperator)
       properties:
         class_ref:
           $ref: '#/components/schemas/ClassReference'
@@ -2893,4 +2893,4 @@ tags:
 
 
 externalDocs:
-  url: https://airflow.apache.org/docs/stable/
+  url: https://www.couture.ai
