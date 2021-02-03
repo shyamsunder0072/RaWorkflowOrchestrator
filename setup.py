@@ -180,14 +180,21 @@ async_packages = [
 atlas = [
     'atlasclient>=0.1.2',
 ]
-azure = [
-    'azure-batch>=8.0.0',
-    'azure-cosmos>=3.0.1,<4',
-    'azure-datalake-store>=0.0.45',
-    'azure-identity>=1.3.1',
-    'azure-keyvault>=4.1.0',
-    'azure-kusto-data>=0.0.43,<0.1',
-    'azure-mgmt-containerinstance>=1.5.0,<2.0',
+aws = [
+    'boto3~=1.10',
+]
+azure_blob_storage = [
+    # 'azure-storage>=0.34.0',
+    'azure-storage-blob<12.0',
+]
+azure_container_instances = [
+    'azure-mgmt-containerinstance>=1.5.0'
+]
+azure_cosmos = [
+    'azure-cosmos>=3.0.1'
+]
+azure_data_lake = [
+    'azure-datalake-store>=0.0.45'
     'azure-mgmt-datalake-store>=0.5.0',
     'azure-mgmt-resource>=2.2.0',
     'azure-storage>=0.34.0, <0.37.0',
@@ -317,6 +324,9 @@ kylin = ['kylinpy>=2.6']
 ldap = [
     'ldap3>=2.5.1',
 ]
+mlflow = [
+    'mlflow @ https://github.com/coutureai/mlflow/archive/master.zip',
+]
 mongo = [
     'dnspython>=1.13.0,<2.0.0',
     'pymongo>=3.6.0',
@@ -325,8 +335,8 @@ mssql = [
     'pymssql~=2.1,>=2.1.5',
 ]
 mysql = [
-    'mysql-connector-python>=8.0.11, <=8.0.18',
-    'mysqlclient>=1.3.6,<1.4',
+    'mysqlclient==1.3.14',
+    'mysql-connector-python==8.0.18'
 ]
 odbc = [
     'pyodbc',
@@ -689,6 +699,7 @@ EXTRAS_REQUIREMENTS: Dict[str, List[str]] = {
     'winrm': winrm,  # TODO: remove this in Airflow 3.0
     'yandex': yandex,
     'zendesk': [],
+    'mlflow': mlflow,
 }
 
 # Those are airflow providers added for the extras in many cases extra = provider
