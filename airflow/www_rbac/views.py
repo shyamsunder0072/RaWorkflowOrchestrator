@@ -2698,7 +2698,7 @@ class TrainedModelsView(FileUploadBaseView):
     fs_path = settings.MODEL_SERVERS
     # accepted_file_extensions = ('.tar', '.tar.gz')
     accepted_file_extensions = ('',)
-    title = 'Pre-trained models and dataset repositories'
+    title = 'Deployed Models'
     class_permission_name = 'Models and Datasets'
     method_permission_name = {
         'list_view': 'access',
