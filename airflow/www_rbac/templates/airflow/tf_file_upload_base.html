@@ -39,7 +39,8 @@
     </div>
     <div class="col-md-8">
       <div>
-        <h2 class="margin-top-md">{{ title }}</h2> <br>
+        <h2 class="margin-top-md">{{ title }}</h2>
+        <h3 style="float: right;">Go to: <a href="/model-repo" id="vis-link" target="_blank">Couture Models Training</a></h3> <br>
       </div>
         {% for fs_path_key in files %}
         <h4> <a id="{{fs_path_key}}-h4">{{fs_path_key.replace('-', ' ').upper()}} </a></h4>
