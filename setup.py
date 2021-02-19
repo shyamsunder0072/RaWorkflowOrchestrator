@@ -656,7 +656,7 @@ EXTRAS_REQUIREMENTS: Dict[str, List[str]] = {
     'kerberos': kerberos,
     'kubernetes': kubernetes,  # TODO: remove this in Airflow 3.0
     'ldap': ldap,
-    "microsoft.azure": azure,
+    #"microsoft.azure": azure,
     "microsoft.mssql": mssql,
     "microsoft.winrm": winrm,
     'mongo': mongo,
@@ -742,7 +742,7 @@ EXTRAS_PROVIDERS_PACKAGES: Dict[str, Iterable[str]] = {
     'async': [],
     'atlas': [],  # TODO: remove this in Airflow 3.0
     'aws': ["amazon"],  # TODO: remove this in Airflow 3.0
-    'azure': ["microsoft.azure"],  # TODO: remove this in Airflow 3.0
+    #'azure': ["microsoft.azure"],  # TODO: remove this in Airflow 3.0
     'cassandra': ["apache.cassandra"],  # TODO: remove this in Airflow 3.0
     'celery': ["celery"],
     'cgroups': [],
@@ -780,7 +780,7 @@ EXTRAS_PROVIDERS_PACKAGES: Dict[str, Iterable[str]] = {
     'kerberos': [],
     'kubernetes': ["cncf.kubernetes"],  # TODO: remove this in Airflow 3.0
     'ldap': [],
-    "microsoft.azure": ["microsoft.azure"],
+    #"microsoft.azure": ["microsoft.azure"],
     "microsoft.mssql": ["microsoft.mssql"],
     "microsoft.winrm": ["microsoft.winrm"],
     'mongo': ["mongo"],
