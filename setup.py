@@ -567,7 +567,7 @@ PROVIDERS_REQUIREMENTS: Dict[str, Iterable[str]] = {
     "jdbc": jdbc,
     "jenkins": jenkins,
     "jira": jira,
-    "microsoft.azure": azure,
+    #"microsoft.azure": azure,
     "microsoft.mssql": mssql,
     "microsoft.winrm": winrm,
     "mongo": mongo,
