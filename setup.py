@@ -621,7 +621,7 @@ EXTRAS_REQUIREMENTS: Dict[str, List[str]] = {
     'async': async_packages,
     'atlas': atlas,  # TODO: remove this in Airflow 3.0
     'aws': amazon,  # TODO: remove this in Airflow 3.0
-    'azure': azure,  # TODO: remove this in Airflow 3.0
+    #'azure': azure,  # TODO: remove this in Airflow 3.0
     'cassandra': cassandra,  # TODO: remove this in Airflow 3.0
     'celery': celery,
     'cgroups': cgroups,
