@@ -233,7 +233,7 @@ doc = [
     f"sphinx-airflow-theme{_SPHINX_AIRFLOW_THEME_URL}",
 ]
 docker = [
-    'docker~=3.0',
+    'docker~=4.0.0',
 ]
 druid = [
     'pydruid>=0.4.1',
