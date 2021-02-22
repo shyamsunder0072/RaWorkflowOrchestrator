@@ -481,6 +481,7 @@ devel = [
     'flake8>=3.6.0',
     'flake8-colors',
     'flaky',
+    'flask-jwt-extended==3.25.0'
     'freezegun',
     'github3.py',
     'gitpython',
