@@ -43,11 +43,24 @@ def action_logging(f: T) -> T:
                 user = g.user.username
 
             fields_skip_logging = {'csrf_token', '_csrf_token'}
+            try:
+                event = f.__qualname__
+            except Exception as e:
+                event = f.__name__
+
+            extra = str({ 'path': request.full_path})
+            try:
+                extra += str([(k, v) for k, v in request.files.items()])
+            except Exception as e:
+                pass
+            finally:
+                extra += ' ' + str([(k, v) for k, v in request.values.items() if k not in fields_skip_logging])
             log = Log(
-                event=f.__name__,
+                # Taking the first 30 letters of the event.
+                event=event[:30],
                 task_instance=None,
                 owner=user,
-                extra=str([(k, v) for k, v in request.values.items() if k not in fields_skip_logging]),
+                extra=extra,
                 task_id=request.values.get('task_id'),
                 dag_id=request.values.get('dag_id'),
             )
