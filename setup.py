@@ -185,7 +185,7 @@ aws = [
 ]
 azure_blob_storage = [
     #'azure-storage>=0.34.0',
-    'azure-storage-blob<12.0',
+    'azure-storage-blob<=13.0',
 ]
 azure_container_instances = [
     'azure-mgmt-containerinstance>=1.5.0'
