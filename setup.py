@@ -234,7 +234,7 @@ doc = [
     'sphinxcontrib-httpdomain>=1.7.0',
 ]
 docker = [
-    'docker~=3.0',
+    'docker>=3.0',
 ]
 druid = [
     'pydruid>=0.4.1,<=0.5.8',
