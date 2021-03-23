@@ -1,0 +1,1 @@
+from airflow.operators.tfserving.image.feature_extraction.scripts import run_feature_extraction

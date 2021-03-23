@@ -1,0 +1,1 @@
+from airflow.operators.tfserving.audio.audio_embeddings_extraction.scripts import run_audio_embeddings_extraction

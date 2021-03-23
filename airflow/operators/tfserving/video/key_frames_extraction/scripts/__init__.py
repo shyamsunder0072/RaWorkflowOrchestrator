@@ -1,0 +1,6 @@
+from airflow.operators.tfserving.video.key_frames_extraction.scripts import key_frames_extraction
+
+_script_helper_obj = key_frames_extraction.KeyFramesExtraction()
+run_frames_extraction_using_fps = _script_helper_obj.run_frames_extraction_using_fps
+run_frames_extraction_using_ffprobe = _script_helper_obj.run_frames_extraction_using_ffprobe
+run_frames_extraction_using_hist = _script_helper_obj.run_frames_extraction_using_hist

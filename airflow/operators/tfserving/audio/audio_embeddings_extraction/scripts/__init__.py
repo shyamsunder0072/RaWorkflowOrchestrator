@@ -1,0 +1,3 @@
+from airflow.operators.tfserving.audio.audio_embeddings_extraction.scripts.audio_embeddings_extraction_module import AudioEmbeddingsExtractionModule
+
+run_audio_embeddings_extraction = AudioEmbeddingsExtractionModule().run_audio_embeddings_extraction

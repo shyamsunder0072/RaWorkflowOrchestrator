@@ -1,0 +1,1 @@
+from airflow.operators.tfserving.image.face_key_points_detection.scripts import run_face_key_points_detection

@@ -1,0 +1,5 @@
+# expose methods of this module
+from airflow.operators.tfserving.audio.audio_classification.scripts import audio_classification_module
+
+_script_helper_obj = audio_classification_module.AudioClassificationModule()
+run_audio_classification = _script_helper_obj.run_audio_classification

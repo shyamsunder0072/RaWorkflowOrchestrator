@@ -1,0 +1,2 @@
+from airflow.operators.tfserving.image.scene_classification.scripts.scene_classification import SceneClassification
+run_scene_classification = SceneClassification().run_classification

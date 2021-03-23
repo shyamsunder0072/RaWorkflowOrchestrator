@@ -1,0 +1,1 @@
+from airflow.operators.tfserving.image.image_classification.scripts import run_image_classification

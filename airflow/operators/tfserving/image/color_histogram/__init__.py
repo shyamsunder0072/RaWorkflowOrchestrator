@@ -1,0 +1,1 @@
+from airflow.operators.tfserving.image.color_histogram.scripts import run_color_histogram_feature_extraction

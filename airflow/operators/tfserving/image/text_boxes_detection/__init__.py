@@ -1,0 +1,1 @@
+from airflow.operators.tfserving.image.text_boxes_detection.scripts import run_text_boxes_detection

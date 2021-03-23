@@ -1,0 +1,1 @@
+from airflow.operators.tfserving.image.frames_text_reduction.scripts import run_frame_text_reduction

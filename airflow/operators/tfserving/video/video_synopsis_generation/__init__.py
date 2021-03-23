@@ -1,0 +1,1 @@
+from airflow.operators.tfserving.video.video_synopsis_generation.scripts import run_video_synopsis_generation

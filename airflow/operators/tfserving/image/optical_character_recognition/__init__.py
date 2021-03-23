@@ -1,0 +1,1 @@
+from airflow.operators.tfserving.image.optical_character_recognition.scripts import run_optical_character_recognition

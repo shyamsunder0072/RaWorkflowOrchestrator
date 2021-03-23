@@ -1,0 +1,2 @@
+MODEL_NAME = 'yolactpp'
+MODEL_VERSION = 1

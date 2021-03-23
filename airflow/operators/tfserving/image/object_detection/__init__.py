@@ -1,0 +1,1 @@
+from airflow.operators.tfserving.image.object_detection.scripts import run_object_detection

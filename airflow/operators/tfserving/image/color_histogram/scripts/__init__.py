@@ -1,0 +1,3 @@
+from airflow.operators.tfserving.image.color_histogram.scripts.color_histogram import ColorHistogram
+
+run_color_histogram_feature_extraction = ColorHistogram().run_color_histogram_feature_extraction

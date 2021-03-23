@@ -1,0 +1,1 @@
+from airflow.operators.tfserving.image.color_histogram.models.color_histogram_model import ColorHistogramModel

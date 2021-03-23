@@ -1,0 +1,3 @@
+from airflow.operators.tfserving.image.feature_extraction.scripts.feature_extraction import FeatureExtraction
+
+run_feature_extraction = FeatureExtraction().run_feature_extraction

@@ -1,0 +1,4 @@
+# expose methods of this module
+from airflow.operators.tfserving.image.optical_character_recognition.scripts import optical_character_recognition_module
+
+run_optical_character_recognition = optical_character_recognition_module.OpticalCharacterRecognitionModule().run_optical_character_recognition
